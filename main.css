@@ -1,0 +1,2364 @@
+@import url(//fonts.googleapis.com/css?family=Press+Start+2P);
+
+body {
+    text-align: center;
+    margin: 0;
+    margin-top: 0;
+    background-color: white;
+    color: white;
+    overflow: hidden;
+    -ms-overflow-style: none;
+}
+
+canvas, input[type="text"], input[type="password"], textarea, select {
+    outline: none;
+}
+
+canvas {
+    border: 0;
+}
+
+input:focus {
+    background-color: #fff;
+}
+
+#painter {
+    -ms-interpolation-mode: nearest-neighbor;
+    image-rendering: optimizeSpeed;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+}
+
+.pixelPerfectResize {
+    image-rendering: optimizeSpeed;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: pixelated;
+    image-rendering: optimize-contrast;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+
+/** Screenshot Overlay **/
+
+#locationImageOverlay {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    -moz-box-shadow: 0 0 10px 10px rgba(0,0,0,0.3);
+    -webkit-box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    box-shadow: 0 0 10px 10px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 1100px) {
+    #locationImageOverlay {
+        zoom: .75;
+    }
+}
+
+.snapshotZoomDialog {
+    background-color: rgb(207,187,177);
+    width: 1004px;
+    height: 765px;
+
+    background:
+        -moz-linear-gradient(45deg,  rgba(0,0,0,0.3) 8px, rgb(207,187,177) 8px),
+        -moz-linear-gradient(135deg, rgba(0,0,0,0.3) 12px, rgb(207,187,177) 8px),
+        -moz-linear-gradient(225deg, rgba(0,0,0,0.3) 10px, rgb(207,187,177) 10px),
+        -moz-linear-gradient(315deg, rgba(0,0,0,0.3) 6px, rgb(207,187,177) 8px);
+
+    background:
+        -o-linear-gradient(45deg,  rgba(0,0,0,0.3) 8px, rgb(207,187,177) 8px),
+        -o-linear-gradient(135deg, rgba(0,0,0,0.3) 12px, rgb(207,187,177) 8px),
+        -o-linear-gradient(225deg, rgba(0,0,0,0.3) 10px, rgb(207,187,177) 10px),
+        -o-linear-gradient(315deg, rgba(0,0,0,0.3) 6px, rgb(207,187,177) 8px);
+
+    background:
+        -webkit-linear-gradient(45deg,  rgba(0,0,0,0.3) 8px, rgb(207,187,177) 8px),
+        -webkit-linear-gradient(135deg, rgba(0,0,0,0.3) 12px, rgb(207,187,177) 8px),
+        -webkit-linear-gradient(225deg, rgba(0,0,0,0.3) 10px, rgb(207,187,177) 10px),
+        -webkit-linear-gradient(315deg, rgba(0,0,0,0.3) 6px, rgb(207,187,177) 8px);
+
+    background-position: bottom left, bottom right, top right, top left;
+    -moz-background-size: 50% 50%;
+    -webkit-background-size: 50% 50%;
+    background-size: 50% 50%;
+    background-repeat: no-repeat;
+}
+
+.snapshotZoomUrl input {
+    position: absolute;
+    display: block;
+    width: 920px;
+    left: 10px;
+    top: 10px;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 11px;
+    color: #555;
+    padding: 4px;
+    border: 3px #aaa inset;
+    opacity: .8;
+    display: none;
+}
+
+.snapshotZoomDialogCloseButton {
+    position: absolute;
+    top: 5px; right: 5px;
+    width: 27px; height: 27px;
+    background-image: url(http://static.manyland.com/media/spritesheet.png);
+    background-position: -460px -157px;
+    background-repeat: no-repeat;
+    overflow: hidden;
+}
+
+.snapshotZoomImage {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+}
+
+.bottomMenuVisitedUrl,
+.bottomMenuVisitedUrlFader {
+    position: absolute;
+    visibility: hidden;
+    display: block;
+}
+
+.bottomMenuVisitedUrl {
+    border-style: solid;
+    border-color: #000;
+    border-left-color: rgb(18,14,13);
+    border-top-color: rgb(18,14,13);
+    border-right-color: rgb(178,170,149);
+    border-bottom-color: rgb(178,170,149);
+    background-color: rgb(207,205,195);
+    color: rgb(71,66,46);
+    opacity: .7;
+    font-family: 'Press Start 2P', sans-serif;
+}
+
+.bottomMenuVisitedUrlFader {
+    background-image: url(http://static.manyland.com/media/input-box-fader.png);
+    background-repeat: repeat-y;
+    background-position: 100% 0;
+    pointer-events: none;
+}
+
+
+/** Start Page and More **/
+
+.start, .intermission {
+    background-color: rgb(0,0,0);
+    color: white;
+    background-image: url(http://static.manyland.com/media/background-zoomed.png);
+    margin: 0;
+    font-family: 'Press Start 2P', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    line-height: 17px;
+    margin-bottom: 80px;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.start strong {
+    font-weight: normal;
+    font-size: 14px;
+}
+
+.language_zh span {
+    font-family: arial, helvetica, sans-serif;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.language_pl {
+    text-transform: none;
+}
+
+.language_pl strong {
+    font-size: 17px;
+}
+
+.start .language_zh strong {
+    font-weight: normal !important;
+    font-size: 14px !important;
+}
+
+.start .introDialog {
+    background-image: url(http://static.manyland.com/media/login-dialog.png);
+    background-repeat: no-repeat;
+    width: 614px;
+    height: 510px;
+    position: relative;
+    top: 128px;
+    margin-left: auto;
+    margin-right: auto;
+    color: rgb(70,70,70);
+    text-align: center;
+}
+
+.start .header {
+    position: absolute;
+    top: 26px;
+    width: 100%;
+    left: 15px;
+    width: 585px;
+}
+
+.start #headerSingleLine {
+    top: 35px !important;
+}
+
+.start .content {
+    width: 578px;
+    height: 325px;
+    position: absolute;
+    top: 86px;
+    left: 18px;
+}
+
+.start #footer {
+    position: relative;
+    top: 423px;
+    width: 100%;
+    line-height: 29px;
+}
+
+.start a {
+    color: rgb(0,88,120);
+}
+
+#loginDialog {
+    text-transform: uppercase;
+}
+
+.termsMention {
+    margin-top: 8px;
+    opacity: .5;
+    font-size: 80%;
+    line-height: 1.7em;
+}
+
+.start .button,
+#loginDialog .button {
+    background-color: rgb(255,255,255);
+    border-bottom: 2px solid rgb(100,100,100);
+    border-right: 1px solid rgb(100,100,100);
+    padding: 8px;
+    padding-top: 10px;
+    font-size: 13px;
+}
+
+#buttonsMoreToggle {
+    opacity: .5;
+    text-decoration: underline !important;
+}
+
+#buttonsMore {
+    display: none;
+}
+
+#loginDialog a {
+    text-decoration: none;
+}
+
+#loginDialog #termsLink {
+    text-decoration: underline;
+}
+
+.start a.button {
+    text-decoration: none;
+}
+
+.start a.button .service {
+    text-decoration: underline;
+}
+
+.start #overlay {
+    opacity: 0;
+    display: none;
+    background-color: #fff;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+}
+
+.start .logo {
+    letter-spacing: 1px;
+    font-size: 13px;
+    color: transparent;
+    background-image: url(http://static.manyland.com/media/logo.png);
+    background-repeat: no-repeat;
+    width: 109px;
+    height: 16px;
+    padding-bottom: 1px;
+}
+
+.start #terms {
+    font-size: 8px;
+}
+
+.start #login1 {
+	background-image: url(http://static.manyland.com/media/spritesheet.png);
+	background-repeat: no-repeat;
+	background-position: -1000px -1000px;
+}
+
+.start .language_zh #terms {
+    font-size: 11px;
+}
+
+.start #terms a {
+    color: #555;
+}
+
+a.emphasizedLink {
+    background-color: #ccc;
+    padding: 8px;
+}
+
+
+/** Intermission Page **/
+
+.intermission .content {
+    position: relative;
+    width: 400px;
+    height: 484px;
+    margin-left: auto;
+    margin-right: auto;
+    top: 200px;
+    color: white;
+}
+
+.intermission .message {
+    width: 100%;
+    height: 46px;
+    position: relative;
+    margin-top: 20px;
+    padding-bottom: 2px;
+}
+
+.intermission #lifeBar {
+    position: relative;
+    width: 128px;
+    height: 16px;
+    background-image: url(http://static.manyland.com/media/life-bar.png);
+    background-repeat: no-repeat;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.intermission #lifeBarEnergy {
+    position: absolute;
+    left: 26px;
+    top: 5px;
+    width: 0;
+    height: 3px;
+    background-color: rgb(255,62,62);
+    overflow: hidden;
+}
+
+.intermission .continueButton {
+    width: 134px;
+    height: 32px;
+}
+
+.intermission #overlay {
+    opacity: 1;
+    background-color: #fff;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+}
+
+.intermission a {
+    color: white;
+}
+
+.oops {
+    color: rgb(157,39,0);
+}
+
+.footerError,
+.newsLabel,
+.start input,
+.subscribeButton,
+textarea {
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 10px;
+}
+
+.start input {
+    width: 120px;
+}
+
+.footerError {
+    line-height: 11px;
+}
+
+
+.introDialog a,
+.footerError a {
+    color: rgb(70,70,70);
+}
+
+
+/** More **/
+
+#suspendOverlay {
+    position: absolute;
+    display: block;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+    color: #555;
+    text-align: center;
+    font-family: 'Press Start 2P', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    line-height: 17px;
+    opacity: 0;
+    background-image: url("data:image/gif;base64,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");
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-size: 128px 128px;
+}
+
+.dialogInputBox {
+    position: absolute;
+    visibility: hidden;
+    border-style: solid;
+    display: block;
+    font-family: "Press Start 2P", sans-serif;
+    border-left-color: rgb(129,122,119);
+    border-top-color: rgb(129,122,119);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    background-color: rgb(238,228,223);
+    height: 15px;
+    text-transform: uppercase;
+    border-width: 1px;
+}
+
+#promptInputBox {
+    display: block;
+    border-style: solid;
+    font-family: "Press Start 2P", sans-serif;
+    border-left-color: rgb(129,122,119);
+    border-top-color: rgb(129,122,119);
+    border-right-color: transparent;
+    border-bottom-color: transparent;
+    background-color: #fff;
+    border-width: 2px;
+    width: 100%;
+}
+
+.painterInputBox {
+    position: absolute;
+    visibility: hidden;
+    display: block;
+    font-family: "Press Start 2P", sans-serif;
+    height: 15px;
+    text-transform: uppercase;
+    border: 0;
+    color: rgb(50,50,50);
+    background-color: transparent;
+}
+
+::-webkit-input-placeholder {
+    color: rgb(126,124,121);
+}
+
+.missingValueInputBox::-webkit-input-placeholder {
+    color: rgb(200,50,50) !important;
+}
+
+input.painterInputBox:focus {
+    background-color: rgb(220,217,213);
+}
+
+#pledgeText {
+    color: rgb(32,130,21);
+    text-align: center;
+}
+
+.chromePromptWrapper {
+
+}
+
+#chromePrompt {
+}
+
+.chromeNote {
+    position: absolute;
+    text-align: center;
+    width: 100%;
+    left: 0;
+    top: 10px;
+    height: 30px;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 16px;
+}
+
+.chromeFrameInstallDefaultStyle {
+    width: 850px;
+    border: 0px solid #444;
+}
+
+#browserUnsupported {
+    padding-top: 8px;
+}
+
+/*** Mobile ***/
+
+@media screen and (max-device-width: 568px){
+    .start {
+        zoom: .6;
+    }
+
+    .intermission .content {
+        position: relative;
+        width: 100%;
+        height: 300px;
+        margin-left: auto;
+        margin-right: auto;
+        top: 15px;
+        padding: 5px;
+    }
+
+    .intermission #lifeBar {
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 65px;
+    }
+
+    .start .introDialog {
+        top: 20px;
+    }
+
+    #videoFrame {
+        width: 400px;
+        height: 225px;
+    }
+
+    .start #footer {
+        top: 330px;
+    }
+}
+
+
+input#nativeKeyboardInput {
+    border: 0;
+    background-color: transparent;
+    color: #fff;
+    visibility: hidden;
+    color: transparent;
+    opacity: 0;
+}
+
+#failwhale {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: none !important;
+    background-color: transparent !important;
+    z-index: 20000;
+}
+
+#failwhale .introDialog {
+    background-image: url(http://static.manyland.com/media/failwhale.png);
+}
+
+#failwhale .header,
+#failwhale #footer {
+    background-color: rgb(206,165,148);
+}
+
+.connectionIssue .introDialog {
+    background-image: url("data:image/png;base64,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") !important;
+}
+
+#failwhale .content {
+    margin-top: 40px;
+}
+
+#failwhale .errorString {
+    width: 100%;
+    height: 30px;
+    background-color: transparent;
+    opacity: .5;
+    font-size: 9px;
+    top: 135px;
+    position: relative;
+    padding: 5px;
+    border: 0;
+    resize: none;
+}
+
+
+.loginWith {
+    width: 100%;
+    display: block;
+}
+
+a.forReference {
+    background-color: transparent;
+    text-decoration: none;
+    opacity: .75;
+}
+
+
+#registrationsClosed {
+    background-color: rgb(196,164,153);
+    padding: 10px;
+    position: absolute;
+    left: 10px;
+    top: 0;
+    width: 570px;
+}
+
+.existingUser,
+.existingUser a {
+    color: #666;
+}
+
+a#continueButtonLink,
+a#continueButtonLink:active,
+a#continueButtonLink:focus {
+    outline:none;
+}
+
+#widgetIframe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+#mediaWidget {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: hidden;
+    background-color: rgba(0,0,0,.9);
+    text-align: center;
+}
+
+#mediaWidgetCloseButton {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 25px;
+    height: 22px;
+    color: white;
+    font-weight: bold;
+    font-size: 26px;
+    text-align: center;
+    font-family: sans-serif;
+    text-decoration: none;
+    opacity: .5;
+}
+
+#mediaWidget img {
+    height: 100%;
+}
+
+.thumbIcon {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    display: none;
+}
+
+#alertDialog,
+#friendsDialog,
+#writableDialog,
+#readableDialog {
+    position: absolute;
+    width: 200px;
+    height: 180px;
+    z-index: 100;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 21px;
+    color: #000;
+    overflow-y: auto;
+}
+
+#friendsDialog {
+    background-color: rgba(204,204,204,.8);
+}
+
+#alertDialog {
+    background-color: #ccc;
+    border-top: 2px solid #eee;
+    border-left: 2px solid #eee;
+    border-botttom: 2px solid #333;
+    border-right: 2px solid #333;
+    opacity: .9;
+}
+
+#alertDialog .contentPart,
+#friendsDialog .contentPart,
+#writableDialog .contentPart,
+#readableDialog .contentPart {
+    width: 100%;
+    overflow: hidden;
+}
+
+#alertDialog .contentPart p,
+#writableDialog .contentPart p,
+#readableDialog .contentPart p {
+    text-transform: uppercase;
+}
+
+#alertDialog .buttonPart,
+#friendsDialog .buttonPart {
+    width: 100%;
+}
+
+#alertDialog strong {
+    font-size: 120%;
+}
+
+#alertDialog p {
+    padding: 15px;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+}
+
+#alertDialog a {
+    color: #000;
+}
+
+#alertDialog .separation {
+    display: block;
+    height: 15px;
+}
+
+#alertDialog a.okButton {
+    display: block;
+    background-color: rgb(250,250,250);
+    border-radius: 2px;
+    padding: 10px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    width: 80px;
+    position: relative;
+    margin-top: 25px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 110%;
+    text-decoration: none;
+    color: #333;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+.news {
+    text-align: left;
+    font-size: 110%;
+}
+
+.news,
+.news a,
+.news a:visited {
+    color: #555 !important;
+}
+
+.news .newsAlso,
+.news .newsAlso a,
+.news .newsAlso a:visited {
+    color: #555 !important;
+}
+
+.news .newsIsUnread,
+.news .newsIsUnread a,
+.news .newsIsUnread a:visited {
+    color: green !important;
+}
+
+.newsDate {
+    display: block;
+    color: #000;
+    opacity: .3;
+    font-size: 80%;
+}
+
+.newsAlso {
+    background-color: rgb(170,170,170);
+}
+
+#reviewQuote {
+    margin-top: 36px;
+    color: #555;
+    font-size: 90%;
+}
+
+#buttonMore {
+    display: none;
+}
+
+#orMore {
+    opacity: .5;
+}
+
+#orSpaceBalancer {
+    visibility: hidden;
+}
+
+#failwhale .header {
+    top: 35px;
+}
+
+#failWhaleCloseButton,
+#friendsDialogCloseButton,
+#readableDialogCloseButton {
+    display: block;
+    position: absolute;
+    background-color: #fff;
+    border-bottom: 2px solid #444;
+    border-right: 2px solid #444;
+    top: 6px;
+    right: 8px;
+    width: 15px;
+    text-align: center;
+    padding: 5px;
+    opacity: .5;
+    border-radius: 2px;
+    text-decoration: none;
+    color: black;
+}
+
+#alertDialogCloseButton {
+    display: block;
+    top: 6px;
+    right: 8px;
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    opacity: .5;
+    cursor: default;
+}
+
+.friendNews {
+    margin: 15px;
+    text-align: left;
+    opacity: .9;
+}
+
+.friendNewsPost {
+    margin-bottom: 20px;
+}
+
+.friendNewsPostByLine {
+    opacity: .7;
+}
+
+#loginMessage {
+    color: white;
+    width: 100%;
+    position: absolute;
+    bottom: 16px;
+    opacity: .5;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 12px;
+    height: 16px;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 1.8em;
+}
+
+#loginMessage a {
+    color: white;
+    text-decoration: none;
+    border-top: 2px solid white;
+    border-left: 2px solid white;
+    padding: 4px;
+    background-color: #000;
+}
+
+#map {
+    zoom: 3;
+    background-color: rgba(200,200,200,.9) !important;
+    border: 3px solid rgba(235,235,235,.9) !important;
+    overflow: hidden;
+}
+
+#friendsDialog,
+#readableDialog {
+    overflow-y: auto;
+    font-size: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+#writableDialog {
+    overflow-y: auto;
+    font-size: 10px;
+}
+
+#friendsDialogCloseButton,
+#readableDialogCloseButton {
+    position: fixed;
+}
+
+.friend {
+    padding-top: 7px;
+    padding-bottom: 4px;
+    text-align: left;
+}
+
+.separator {
+    height: 0;
+    overflow: hidden;
+    border-top: 1px solid #aaa;
+    border-bottom: 1px solid #fff;
+    opacity: .5;
+    clear: both;
+}
+
+#friendsDialog,
+#writableDialog,
+#readableDialog {
+    text-transform: uppercase;
+}
+
+.friendName {
+    display: block;
+    float: left;
+    width: 20%;
+    min-width: 200px;
+    text-overflow: ellipsis;
+    overflow-x: hidden;
+    white-space: nowrap;
+    margin-right: 10px;
+}
+
+.friendStatus {
+    color: rgb(0,0,0,.4);
+    clear: both;
+    width: 95%;
+}
+
+#ourStatus,
+input#ourStatus {
+    display: block;
+    width: 100%;
+    background-color: rgba(255,255,255,.4);
+    padding: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border: 0;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    text-transform: uppercase;
+}
+
+input#ourStatus {
+    border-left: 1px solid black;
+    border-top: 1px solid black;
+    border-bottom: 1px solid white;
+    border-right: 1px solid white;
+    background-color: #fff;
+    opacity: 1;
+}
+
+.lessImportant {
+    opacity: .6;
+}
+
+a.findableToggler {
+    color: #666;
+}
+
+.friendDistance {
+    display: inline-block;
+    min-width: 140px;
+    color: #222;
+}
+
+.verbosePlaceholder::-webkit-input-placeholder { font-size: 80%; }
+.verbosePlaceholder::-moz-placeholder { font-size: 80%; }
+.verbosePlaceholder:-ms-input-placeholder { font-size: 80%; }
+input.verbosePlaceholder:-moz-placeholder { font-size: 80%; }
+
+.promptText {
+    padding-top: 40px !important;
+    text-transform: uppercase;
+    opacity: .75;
+}
+
+#writableDialog,
+#readableDialog {
+    opacity: 0;
+}
+
+.userDateTime {
+    width: 18%;
+}
+
+.dateTime {
+    font-size: 85%;
+    opacity: .3;
+    line-height: 1.5em !important;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+td {
+    vertical-align: top;
+    text-align: left;
+    margin: 0;
+    border-bottom: 1px solid rgba(0,0,0,0);
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+#writableDialog,
+#readableDialog {
+    border: 0;
+    border-left: 0;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+}
+
+#writableDialog a,
+#readableDialog a {
+    color: inherit;
+}
+
+textarea {
+    resize: none;
+}
+
+.commentContent textarea {
+    width: 96%;
+    height: 200px;
+    padding: 5px;
+}
+
+.commentInputAdd {
+    text-align: right;
+    float: right;
+    opacity: .6;
+    padding-right: 8px;
+    width: 100px;
+}
+
+#writableDialog::-webkit-scrollbar,
+#readableDialog::-webkit-scrollbar,
+#friendsDialog::-webkit-scrollbar,
+#albumDialog::-webkit-scrollbar,
+.transparentScrollbar::-webkit-scrollbar {
+    background: transparent;
+    width: 10px;
+}
+
+#writableDialog::-webkit-scrollbar-thumb,
+#readableDialog::-webkit-scrollbar-thumb,
+#friendsDialog::-webkit-scrollbar-thumb,
+#albumDialog::-webkit-scrollbar-thumb {
+    background: rgba(128,128,128,.5);
+    -webkit-border-radius: 1ex;
+    -webkit-box-shadow: 0;
+}
+
+#readableDialog {
+    text-align: left;
+    overflow-x: hidden;
+}
+
+#readableDialog .contentPart {
+    width: 95%;
+    padding: 10px;
+    padding-top: 18px;
+}
+
+#alertDialog textarea {
+    margin-top: 20px;
+    line-height: 1.8em;
+}
+
+.writableHeader {
+    margin-top: 15px;
+    margin-bottom: 25px;
+    opacity: .75;
+}
+
+.allUpperCase {
+    text-transform: uppercase;
+}
+
+#interactingDialog,
+#thingReferencesDialog {
+    position: absolute;
+    display: block;
+    z-index: 100;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    opacity: .9;
+    text-transform: uppercase;
+    line-height: 25px;
+    background-color: #333;
+    color: #fff;
+    letter-spacing: 1px;
+}
+
+#thingReferencesDialog {
+    overflow-y: auto;
+}
+
+#interactingDialog::-webkit-scrollbar,
+#thingReferencesDialog::-webkit-scrollbar {
+    background: transparent;
+}
+
+#interactingDialog::-webkit-scrollbar-thumb,
+#thingReferencesDialog::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.5);
+    -webkit-border-radius: 1ex;
+    -webkit-box-shadow: 0;
+}
+
+.thingReference {
+    display: block;
+    margin: 10px;
+    padding: 4px;
+    border-radius: 8px;
+    opacity: .9;
+    background-color: #555;
+    text-align: center;
+    width: 90%;
+}
+
+.thingReferenceFootnote {
+    margin-top: 30px;
+    padding: 3px;
+    opacity: .4;
+    font-size: 85%;
+    line-height: auto !important;
+}
+
+#statsDialog {
+    position: absolute;
+    bottom: 5px;
+    left: 0;
+    display: block;
+    width: 75%;
+    height: 25%;
+    background-color: #ccc;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    color: #444;
+    opacity: .5;
+    text-transform: uppercase;
+    overflow: auto;
+    border-radius: 4px;
+}
+
+#statsDialog table {
+    border-collapse: collapse;
+    width: 100%;
+    border-bottom: 2px solid #888;
+}
+
+#statsDialog table th,
+#statsDialog table td {
+    padding: 6px;
+    text-align: left;
+    vertical-align: top;
+}
+
+#statsDialog table th {
+    color: #000;
+}
+
+#statsDialog table td {
+    border-left: 2px solid #888;
+}
+
+#statsDialog .topRow th {
+    border-bottom: 2px solid #888;
+    padding-top: 10px;
+}
+
+#statsDialog a {
+    color: #333;
+}
+
+#statsDialog .statsName a {
+    color: #000;
+}
+
+.alternate th,
+.alternate td {
+    background-color: #fff;
+}
+
+body div.minimized {
+    height: 20px !important;
+    opacity: .5 !important;
+    overflow: hidden !important;
+    width: 50% !important;
+}
+
+#statsDialog .tableInfo {
+    opacity: .6;
+}
+
+#statsDialog .personName,
+#statsDialog .toggleMinimize {
+    text-decoration: underline;
+    cursor: pointer !important;
+}
+
+.createAreaInput {
+    display: block;
+    color: #000;
+    position: absolute;
+    border: 0;
+    background-color: white;
+    text-transform: uppercase;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    text-align: left;
+}
+
+#areaSponsor {
+    display: block;
+    position: absolute;
+    text-transform: uppercase;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    text-align: right;
+}
+
+.areaInfoLabel {
+    display: block;
+    position: absolute;
+    text-transform: uppercase;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    text-align: left;
+    line-height: 1.5em;
+}
+
+#createAreaEditors {
+    overflow: auto;
+    text-transform: uppercase;
+}
+
+.editorAdd {
+    color: rgb(55,128,47);
+}
+
+.superEditorAdd {
+    color: rgba(55,128,47,.5);
+}
+
+.editorRemove {
+    color: rgba(165,65,65,.75);
+}
+
+.editorAddLine {
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+.editorsTable {
+    border-collapse: collapse;
+}
+
+.editorsTable td {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 10px;
+}
+
+.pseudolink,
+.pseudoLink {
+    text-decoration: underline;
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hoverPseudolink {
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hoverPseudolink:hover {
+    text-decoration: underline;
+}
+
+#writableDialog .contentPart {
+    width: 95%;
+    margin: 10px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#addThread {
+    display: none;
+    padding-bottom: 15px;
+}
+
+#writableDialog {
+    text-align: left;
+}
+
+#commentInput {
+    height: 200px;
+    width: 96%;
+}
+
+#commentTitleInput {
+    width: 96%;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+}
+
+#commentInput,
+#commentTitleInput,
+.commentInput {
+    text-transform: uppercase;
+}
+
+#addThreadLink {
+    float: right;
+    font-size: 130%;
+}
+
+.threads {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0;
+}
+
+.threads td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: left;
+}
+
+td.threadLastUser {
+    opacity: .5;
+}
+
+.threadTitle {
+    width: 70%;
+    padding-right: 20px;
+}
+
+#threadTitleInThread,
+#loadMore {
+    float: right;
+    text-align: left;
+    width: 79%;
+    padding-left: 20px;
+}
+
+td.containsNew {
+    padding-right: 6px;
+    font-size: 140%;
+}
+
+.unread .bullet {
+    visibility: visible;
+}
+
+.thread {
+    width: 100%;
+}
+
+.commentContent {
+    width: 80%;
+    padding-left: 20px;
+}
+
+.threadUserName {
+    opacity: .75;
+    display: inline-block;
+}
+
+td.userDateTime,
+td.commentContent {
+    padding-bottom: 35px;
+}
+
+.commentInlineImage {
+    max-width: 100%;
+}
+
+@-moz-document url-prefix() {
+    .commentInlineImage {
+        width: 100%;
+    }
+}
+
+.userIcon {
+    display: none;
+}
+
+#editableProfilePic {
+    display: block !important;
+    background-color: rgb(128,128,128);
+    cursor: pointer;
+    padding: 3px;
+}
+
+#writableDialog .pseudolink {
+    text-decoration: none;
+}
+
+#threadRow0 td {
+    padding-top: 2px;
+}
+
+.threadLastUserDateTime {
+    font-size: 90%;
+}
+
+#loadMore {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    opacity: .6;
+}
+
+.editButton {
+    clear: both;
+    opacity: .3;
+    line-height: 1.2em !important;
+}
+
+.ownUserIcon {
+    cursor: pointer;
+}
+
+.arrowBack,
+.footerArrowBack {
+    opacity: .7;
+    font-size: 180%;
+}
+
+.footerArrowBack {
+    margin-top: 130px;
+}
+
+#writableDialog textarea {
+    line-height: 1.8em;
+    font-size: inherit;
+}
+
+#writableDialog textarea::-webkit-scrollbar {
+    background: transparent;
+    width: 10px;
+}
+
+#writableDialog textarea::-webkit-scrollbar-thumb {
+    background: rgba(128,128,128,.5);
+    -webkit-border-radius: 1ex;
+    -webkit-box-shadow: 0;
+}
+
+.addItem,
+.toggleWritableHelp,
+.textFormatHelp {
+    float: left;
+    opacity: .4;
+    margin-top: 3px;
+    margin-right: 25px;
+}
+
+.commentInlineItemWrapper,
+.commentInlineItem {
+    display: inline-block;
+}
+
+.calendarLink {
+    float: right;
+    text-decoration: underline !important;
+}
+
+.calendar {
+    border-collapse: collapse;
+    width: 97%;
+    margin-top: -78px;
+    margin-bottom: 20px;
+}
+
+.calendar td {
+    font-size: 80%;
+    padding: 4px;
+}
+
+.calendar th {
+    padding: 4px;
+    text-align: right;
+    padding-top: 30px;
+    padding-bottom: 12px;
+}
+
+.calendar td.day {
+    width: 13%;
+    height: 60px;
+}
+
+.calendar .dayHeader {
+    opacity: .6;
+}
+
+.newsPseudolink {
+    text-decoration: underline;
+    cursor: pointer !important;
+}
+
+.day6 .dayHeader,
+.day7 .dayHeader {
+    opacity: .9 !important;
+}
+
+.calendarEvent {
+    display: block;
+    line-height: 1.4em !important;
+    font-size: 90%;
+}
+
+.manylandTime {
+    text-decoration: underline !important;
+}
+
+.yourTime {
+    font-size: 90%;
+    opacity: .6;
+}
+
+iframe.streamingEmbed {
+    display: block;
+}
+
+.loading,
+.loading * {
+    cursor: wait;
+}
+
+.commentUpvotes {
+    padding-top: 4px;
+    line-height: 1.4em !important;
+}
+
+.commentUpvoteButton {
+    opacity: .4;
+    float: left;
+    margin-right: 5px;
+    margin-bottom: 2px;
+    display: inline-block;
+}
+
+.hasUpvotes {
+    padding-bottom: 35px;
+}
+
+.hasNoUpvotes {
+    padding-bottom: 8px;
+}
+
+.commentUpvotesList {
+    opacity: .5;
+    font-size: 80%;
+}
+
+.timeConverter {
+    text-align: right;
+    opacity: .6;
+    font-size: 85%;
+    padding-right: 20px;
+    text-decoration: underline !important;
+}
+
+.timeConverterTable {
+    margin-top: 80px;
+    font-size: 85%;
+    text-transform: uppercase;
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.timeConverterTable th,
+.timeConverterTable td {
+    text-align: left;
+    border: 1px solid rgba(0,0,0,.5);
+    padding: 3px;
+}
+
+.timeConverterTable th,
+.timeConverterNow {
+    background-color: #fff;
+}
+
+.timeConverterTable td {
+    text-align: center;
+}
+
+#readableDialog pre,
+#writableDialog pre {
+    font-size: 150%;
+    font-weight: bold;
+    line-height: normal !important;
+}
+
+.commentOptions {
+    clear: both;
+    margin-top: 10px;
+    display: none;
+}
+
+.writableSoundLink {
+    text-decoration: underline !important;
+}
+
+textarea#createAreaDescription {
+    line-height: 1.6em !important;
+}
+
+.spoiler {
+    display: none;
+}
+
+.spoilerLink {
+    text-decoration: underline !important;
+}
+
+#areaSelector {
+    position: absolute;
+    display: block;
+    font-size: 90%;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    width: 180px;
+    border: 1px solid gray;
+    background-color: #fff;
+    opacity: .8;
+    padding: 3px;
+}
+
+.areaSelection_didNotCreate {
+    color: #777;
+}
+
+.subAreaOption {
+    color: #777;
+}
+
+option.showHidden {
+    color: rgb(100,100,100);
+}
+
+#interactingStatesWrapper {
+    text-align: left;
+    font-size: 85%;
+}
+
+.interactingStatesSection {
+    background-color: rgb(170,170,170);
+    border-radius: 8px;
+    margin: 10px;
+    padding: 5px;
+    margin-bottom: 14px;
+}
+
+.interactingState {
+    display: inline-block;
+    background-color: white;
+    text-transform: uppercase;
+    padding: 3px;
+    padding-left: 6px;
+    padding-right: 6px;
+    margin-top: 4px;
+    margin-bottom: 6px;
+    margin-right: 10px;
+    border-radius: 6px;
+    color: #444;
+}
+
+.interactingStateEmpty {
+    display: inline-block;
+    margin: 10px;
+    padding: 3px;
+}
+
+.interactingStateTypeOf {
+    opacity: .7;
+}
+
+.clarification {
+    margin-bottom: 4px;
+}
+
+.clarification input {
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 90%;
+}
+
+#clarificationInput {
+    width: 120px;
+}
+
+.titleClarification,
+.stickyClarification {
+    font-size: 90%;
+    opacity: .7;
+}
+
+.removeFromFriendsList {
+    text-align: right;
+    float: right;
+    font-size: 80%;
+    opacity: .5;
+    display: none;
+}
+
+#writablesList {
+    margin: 20px;
+    margin-top: 50px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.writablesListItem {
+    color: #444;
+    background-color: #fff;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    padding: 6px;
+    cursor: pointer;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    -webkit-tap-highlight-color: transparent;
+}
+
+#writableDialog .selfHelpInfo {
+    display: block;
+    margin-top: 30px;
+}
+
+.areaThumb {
+    width: 100px;
+    height: 100px;
+}
+
+#friendsDialog .areaThumb {
+    display: inline-block;
+    float: left;
+    margin: 5px;
+    margin-left: 0;
+    margin-right: 8px;
+}
+
+.friend a {
+    color: black;
+}
+
+a.friendName {
+    text-decoration: underline;
+    cursor: pointer !important;
+}
+
+a.friendName {
+    color: rgba(0,0,0,0.13) !important;
+}
+
+.friendStatus a {
+    color: rgba(0,0,0,0.4);
+}
+
+.lastSeenTime {
+    opacity: .5 !important;
+}
+
+
+.isOnline a.friendName {
+    color: green !important;
+}
+
+.isOffline a.friendName {
+    color: rgba(0,0,0,25.5) !important;
+}
+
+#areasOverview {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    text-align: left;
+    margin-top: 2px;
+    width: 95%;
+    opacity: .5;
+}
+
+del {
+    opacity: .65;
+}
+
+.lessImportantText {
+    font-size: 80%;
+    opacity: .65;
+}
+
+#writableHelp,
+#writableEmojiHelp {
+    text-align: center;
+    opacity: .75;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    display: none;
+    clear: both;
+}
+
+.nonDefaultFont {
+    font-size: 150%;
+}
+
+#statsTitle {
+    opacity: .4;
+}
+
+.pingFriendLink {
+    color: rgba(0,0,0,0.5);
+    font-size: 85%;
+    display: inline-block;
+    text-decoration: underline !important;
+    cursor: pointer !important;
+    border-bottom: 1px solid transparent;
+}
+
+.pingFriendStatus {
+    display: none;
+    opacity: .5;
+    font-size: 85%;
+}
+
+.pingedYouLog {
+    opacity: .5;
+    font-size: 85%;
+}
+
+#pingFromFriend,
+#newMift,
+#flagsAlert {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: white;
+    opacity: .75;
+    text-shadow: 0 2px black;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    text-transform: uppercase;
+}
+
+#newMift {
+    opacity: .9;
+}
+
+#flagsAlert {
+    color: rgb(255,100,100);
+}
+
+#pingFromFriend .pseudolink,
+#newMift .pseudolink {
+    border-bottom: 3px solid white;
+    text-decoration: none;
+}
+
+p.brainError {
+    color: red;
+    text-transform: none !important;
+    font-family: monospace !important;
+    font-size: 115% !important;
+}
+
+#userScriptEditorText,
+#logFieldText {
+    position: absolute;
+    display: block;
+    background-color: white;
+    color: black;
+    font-family: monospace;
+    opacity: .95;
+}
+
+#logFieldText {
+    background-color: #aaa;
+    color: #222;
+    opacity: 1;
+}
+
+.allowMixedCase {
+    text-transform: none !important;
+    font-family: monospace !important;
+    font-size: 130% !important;
+}
+
+#userScriptEditorStartStop,
+#userScriptEditorHelp,
+#userScriptEditorClose {
+    position: absolute;
+    border-left: 2px solid white;
+    border-top: 2px solid white;
+    border-right: 2px solid #888;
+    border-bottom: 2px solid #888;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    background-color: #eee;
+    padding-top: 10px;
+    color: #666;
+    text-align: center;
+    cursor: default;
+    height: 28px;
+}
+
+#userScriptEditorHelpLabel,
+#userScriptEditorCloseLabel {
+    font-weight: bold;
+    color: #888;
+}
+
+.userScriptEditorShortcut {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.userScriptEditorShortcut {
+    opacity: .4;
+    font-size: 90%
+}
+
+.userScriptEditorStartStopButtonRuns {
+    border-left: 2px solid #888 !important;
+    border-top: 2px solid #888 !important;
+    border-right: 2px solid white !important;
+    border-bottom: 2px solid white !important;
+}
+
+.readOnlyCode,
+.readOnlyCode:focus {
+    color: black;
+    font-family: monospace;
+    font-size: 120%;
+    padding: 10px;
+    text-align: left;
+
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+
+    pointer: default !important;
+    overflow: auto !important;
+}
+
+#externalScriptFrame,
+.happeningFrame,
+.generatorFrame {
+    position: absolute;
+    z-index: 0;
+    width: 10px;
+    height: 10px;
+    display: none;
+}
+
+#userScriptEditorStartStop,
+#userScriptEditorHelp {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+}
+
+#readableDialog pre,
+#writableDialog pre {
+    text-transform: none !important;
+}
+
+#writableDialog .ad4gameAd {
+    width: 100%;
+    text-align: center;
+}
+
+.miftThankYouMessage,
+.paymentThankYouMessage {
+    font-weight: bold;
+    color: rgb(102,77,0);
+}
+
+#alertDialog ul {
+    text-align: left;
+    text-transform: uppercase;
+}
+
+#alertDialog ul li {
+    padding-bottom: 10px;
+}
+
+#singlePersonExperienceLabel {
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    position: absolute;
+    text-transform: uppercase;
+    opacity: .5;
+    color: black;
+    padding: 0;
+}
+
+#albumDialog {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    overflow-y: auto;
+    background-color: rgba(0,0,0,.5);
+}
+
+.snap {
+    margin-top: 20px;
+    margin-bottom: 40px;
+}
+
+.disableContentSelect {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#mobileCloseButton {
+    position: absolute;
+    left: 12px;
+    top: 15px;
+    color: white;
+    opacity: .5;
+    font-weight: bold;
+    padding: 10px;
+    z-index: 110;
+    font-size: 15px;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+}
+
+#snapshotTakenEffect {
+    position: absolute;
+    background-color: white;
+    opacity: .3;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 105;
+}
+
+.adCloseButton {
+    text-align: right;
+    width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    color: rgba(0,0,0,.4);
+    padding-bottom: 4px;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 15px;
+    text-decoration: none;
+}
+
+.specPart {
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 5px;
+    margin: 10px;
+    text-align: left;
+}
+
+.specLabel {
+    display: inline-block;
+    min-width: 230px;
+    color: #444;
+}
+
+.specInfo {
+    opacity: .5;
+    font-size: 90%;
+}
+
+div.sansSerifReadable {
+    font-family: arial, helvetica, sans-serif !important;
+    text-transform: none !important;
+    font-size: 110% !important;
+}
+
+div.serifReadable {
+    font-family: 'times new roman', serif !important;
+    text-transform: none !important;
+    font-size: 125% !important;
+}
+
+div.sansSerifReadable .nonDefaultFont,
+div.serifReadable .nonDefaultFont {
+    font-size: 100% !important;
+}
+
+.mixedCase,
+.mixedCase .contentPart p,
+.mixedCase .commentInput,
+.mixedCase #commentInput,
+.mixedCase #commentTitleInput,
+.mixedCase #threadTitleInThread {
+    text-transform: none !important;
+}
+
+.mixedCase .contentPart {
+    font-family: arial, helvetica, sans-serif !important;
+    font-size: 150% !important;
+}
+
+.mixedCase #commentTitleInput {
+    font-size: 115% !important;
+}
+
+.mixedCase .commentInput,
+.mixedCase #commentInput,
+.mixedCase #commentTitleInput {
+    font-family: arial, helvetica, sans-serif !important;
+}
+
+.mixedCase .writableHeader,
+.mixedCase .user,
+.mixedCase .commentOptions,
+.mixedCase .dateTime,
+.mixedCase .threadLastUserDateTime,
+.mixedCase .threadLastUser {
+    text-transform: uppercase;
+    font-size: 100% !important;
+}
+
+.mixedCase .dateTime {
+    font-size: 75% !important;
+}
+
+.mixedCase .areaInfoLink {
+    font-size: 120% !important;
+    font-weight: bold !important;
+}
+
+.dialogInlineButton {
+    display: inline-block;
+    background-color: rgb(250,250,250);
+    padding: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 2px;
+    border-bottom: 1px solid rgb(50,50,50);
+}
+
+.multithingSettings {
+    font-size: 80%;
+}
+
+.multithingSettings p {
+    text-align: left;
+    background-color: rgba(255,255,255,.5);
+}
+
+#lowEmphasisWarning {
+    position: absolute;
+    left: 100px;
+    top: 10px;
+    opacity: 0.3;
+    background-color: white;
+    color: black;
+    padding: 5px;
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 8px;
+    text-transform: uppercase;
+    border-radius: 2px;
+    z-index: 2000;
+}
+
+#lowEmphasisWarning a {
+    color: black;
+}
+
+#areaAds {
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-size: 9px;
+    color: rgb(180,180,180);
+    text-transform: uppercase;
+    position: absolute;
+    top: 610px;
+    right: 10px;
+    width: 322px;
+    overflow: hidden;
+    line-height: 2em;
+    text-align: left;
+}
+
+#areaAds p {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+#areaAds a {
+    color: white;
+}
+
+#areaAds #areaAdsInfo,
+#areaAds #areaAdsInfo a {
+    color: rgb(140,140,140);
+}
+
+.adCampaigns {
+    margin: 20px;
+    margin-top: 60px;
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    background-color: rgb(180,180,180);
+}
+
+.adCampaigns td {
+    text-align: center;
+    color: white;
+    line-height: 2em;
+}
+
+.adCampaigns th {
+    color: rgb(100,100,100);
+}
+
+.adCampaigns th,
+.adCampaigns td {
+    text-align: left;
+    border-bottom: 2px solid rgb(150,150,150);
+    padding: 10px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+.createAdCampaign {
+    margin-top: 25px;
+    margin-left: 35px;
+    text-align: left;
+}
+
+#adCampaignsOverview th,
+#adCampaignsOverview td {
+    width: 25%;
+}
+
+.saveAdCampaignButton {
+    font-family: 'Press Start 2P', arial, helvetica, sans-serif;
+    font-weight: bold;
+    padding: 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: green;
+}
+
+.writableAreaAd {
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+.areaAdDisclaimer {
+    opacity: .35;
+}
+
+.areaSearchAd {
+    margin-top: 40px;
+    margin-bottom: 20px;
+    line-height: 2em;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.areaSearchAd a {
+    color: black;
+}
+
+.areaSearchAd .areaAdDisclaimer {
+    display: block;
+}
+
+.emoji {
+    font-size: 150%;
+}
+
+strong .emoji {
+    font-size: 200%;
+}
+
+.blinkAnimation {
+    -webkit-animation-name: blinker;
+    -webkit-animation-iteration-count: infinite;
+    -webkit-animation-timing-function: cubic-bezier(.5, 0, 1, 1);
+    -webkit-animation-duration: 1.7s;
+}
+
+@-webkit-keyframes blinker {
+    from { opacity: 1.0; }
+    to   { opacity: 0.0; }
+}
+
+.blinksoftAnimation {
+    animation: blinkerSoft 1.5s linear infinite;
+}
+
+@keyframes blinkerSoft {
+    50% {
+      opacity: 0;
+    }
+}
+
+.glowAnimation {
+    color: #fff;
+    -webkit-animation: glow 1s ease-in-out infinite alternate;
+    -moz-animation: glow 1s ease-in-out infinite alternate;
+    animation: glowAnimation 1s ease-in-out infinite alternate;
+}
+
+@-webkit-keyframes glowAnimation {
+    from {
+      text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #000, 0 0 40px #000, 0 0 50px #000, 0 0 60px #000, 0 0 70px #000;
+    }
+    to {
+      text-shadow: 0 0 20px #fff, 0 0 30px #000, 0 0 40px #000, 0 0 50px #000, 0 0 60px #000, 0 0 70px #000, 0 0 80px #000;
+    }
+}
