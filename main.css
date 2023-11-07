@@ -1,4 +1,4 @@
-@import url(//fonts.googleapis.com/css?family=Press+Start+2P);
+@import url(/static/pressstart2p.woff);
 
 body {
     text-align: center;
@@ -105,7 +105,7 @@ input:focus {
     position: absolute;
     top: 5px; right: 5px;
     width: 27px; height: 27px;
-    background-image: url(http://static.manyland.com/media/spritesheet.png);
+    background-image: url(/static/media/spritesheet.png);
     background-position: -460px -157px;
     background-repeat: no-repeat;
     overflow: hidden;
@@ -141,7 +141,7 @@ input:focus {
 }
 
 .bottomMenuVisitedUrlFader {
-    background-image: url(http://static.manyland.com/media/input-box-fader.png);
+    background-image: url(/static/media/input-box-fader.png);
     background-repeat: repeat-y;
     background-position: 100% 0;
     pointer-events: none;
@@ -153,7 +153,7 @@ input:focus {
 .start, .intermission {
     background-color: rgb(0,0,0);
     color: white;
-    background-image: url(http://static.manyland.com/media/background-zoomed.png);
+    background-image: url(/static/media/background-zoomed.png);
     margin: 0;
     font-family: 'Press Start 2P', sans-serif;
     font-size: 11px;
@@ -192,7 +192,7 @@ input:focus {
 }
 
 .start .introDialog {
-    background-image: url(http://static.manyland.com/media/login-dialog.png);
+    background-image: url(/static/media/login-dialog.png);
     background-repeat: no-repeat;
     width: 614px;
     height: 510px;
@@ -297,7 +297,7 @@ input:focus {
     letter-spacing: 1px;
     font-size: 13px;
     color: transparent;
-    background-image: url(http://static.manyland.com/media/logo.png);
+    background-image: url(/static/media/logo.png);
     background-repeat: no-repeat;
     width: 109px;
     height: 16px;
@@ -309,7 +309,7 @@ input:focus {
 }
 
 .start #login1 {
-	background-image: url(http://static.manyland.com/media/spritesheet.png);
+	background-image: url(/static/media/spritesheet.png);
 	background-repeat: no-repeat;
 	background-position: -1000px -1000px;
 }
@@ -352,7 +352,7 @@ a.emphasizedLink {
     position: relative;
     width: 128px;
     height: 16px;
-    background-image: url(http://static.manyland.com/media/life-bar.png);
+    background-image: url(/static/media/life-bar.png);
     background-repeat: no-repeat;
     margin-left: auto;
     margin-right: auto;
@@ -581,7 +581,7 @@ input#nativeKeyboardInput {
 }
 
 #failwhale .introDialog {
-    background-image: url(http://static.manyland.com/media/failwhale.png);
+    background-image: url(/static/media/failwhale.png);
 }
 
 #failwhale .header,

@@ -7,19 +7,19 @@
     <link rel="stylesheet" type="text/css" href="/main.css?v=6358" media="screen" />
     
     <script src="/manyland.js?v=6358"></script>
-    <link rel="icon" href="/favicon.ico?v=6358" type="image/x-icon" />
+    <link rel="icon" href="/static/favicon.ico?v=6358" type="image/x-icon" />
 
 
 
 
     <meta name="viewport" id="vp" content="initial-scale=1.0,user-scalable=no,maximum-scale=1,width=device-width"/>
     <meta name="viewport" id="vp" content="initial-scale=1.0,user-scalable=no,maximum-scale=1" media="(device-height: 568px)"/>
-    <link href="/media/mobile/splashscreen.png" rel="apple-touch-startup-image" sizes="640x960" media="(device-height: 480px)"/>
-    <link href="/media/mobile/splashscreen-wide.png" rel="apple-touch-startup-image" media="(device-height: 568px)"/>
+    <link href="/static/media/mobile/splashscreen.png" rel="apple-touch-startup-image" sizes="640x960" media="(device-height: 480px)"/>
+    <link href="/static/media/mobile/splashscreen-wide.png" rel="apple-touch-startup-image" media="(device-height: 568px)"/>
     <meta name="apple-mobile-web-app-capable" content="yes"/>
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-    <link rel="apple-touch-icon-precomposed" href="/media/mobile/icon-114.png" sizes="114x114"/>
-    <link rel="apple-touch-icon-precomposed" href="/media/mobile/icon-57.png" sizes="57x57"/>
+    <link rel="apple-touch-icon-precomposed" href="/static/media/mobile/icon-114.png" sizes="114x114"/>
+    <link rel="apple-touch-icon-precomposed" href="/static/media/mobile/icon-57.png" sizes="57x57"/>
     <meta name="google" value="notranslate"/>
     <meta name="apple-itunes-app" content="app-id=657739357"/>
 
@@ -73,12 +73,12 @@ margin-right: auto;
 
 <canvas id="canvas" tabindex="1" moz-opaque></canvas>
 <script>
-    window.root         = 'manyland.com';
-    window.staticroot   = 'd2eim8cueyd9dt.cloudfront.net';
-    window.imageroot    = 'd3t4ge0nw63pin.cloudfront.net';
-    window.snaproot     = 'snapshot.manyland.com';
-    window.snapthmroot  = 'snapthmb.manyland.com';
-    window.sctroot      = 'sct.manyland.com';
+    window.root         = window.location.host;
+    window.staticroot   = window.location.host + '/static';
+    window.imageroot    = window.location.host + '/image';
+    window.snaproot     = window.location.host + '/snap';
+    window.snapthmroot  = window.location.host + '/snapthmb';
+    window.sctroot      = window.location.host + '/sct';
     window.mlenv        = 'production';
     window.oid          = '';
     window.fai          = '202822299863982';
