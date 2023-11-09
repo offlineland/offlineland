@@ -4,9 +4,9 @@
     <title>Manyland - Offline</title>
 
 
-    <link rel="stylesheet" type="text/css" href="/main.css?v=6358" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/static/main.css?v=6358" media="screen" />
     
-    <script src="/manyland.js?v=6358"></script>
+    <script src="/static/manyland.js?v=6358"></script>
     <link rel="icon" href="/static/favicon.ico?v=6358" type="image/x-icon" />
 
 
@@ -79,15 +79,95 @@ margin-right: auto;
     window.snaproot     = window.location.host + '/snap';
     window.snapthmroot  = window.location.host + '/snapthmb';
     window.sctroot      = window.location.host + '/sct';
-    window.mlenv        = 'production';
+    //window.mlenv        = 'dev';
+    //window.mlenv        = 'production';
+    window.mlenv        = 'test';
     window.oid          = '';
     window.fai          = '202822299863982';
     window.v            = '6358';
     window.adr          = '1';
 </script>
 
-<script type='text/javascript'>
-    jQuery(ig.module('initgame').requires('game.main').defines(function(){ MLand.start();}))
+
+<script type="module">
+    // Noop until replaced in main()
+    let postMessage_ = () => {}
+    /** @type { FakeWebSocket | null } */
+    let lastWsInstance = null;
+    
+    // Relay messages from Service Worker to the FakeWebSocket instance
+    navigator.serviceWorker?.addEventListener("message", (ev) => {
+        const msg = ev.data;
+
+        if (msg.m === "WS_OPEN") {
+            lastWsInstance?.onopen()
+        }
+        if (msg.m === "WS_MSG") {
+            lastWsInstance?.onmessage({ data: msg.data })
+        }
+    })
+
+
+    // Keep the real WebSocket just in case...
+    window._WebSocket = window.WebSocket;
+
+    // Make aa FakeWebSocket that relays messages to the ServiceWorker
+    class FakeWebSocket {
+        static OPEN = _WebSocket.OPEN;
+        readyState = _WebSocket.OPEN;
+        onopen = () => {};
+        onclose = () => {};
+        onmessage = () => {};
+
+        constructor(url) {
+            this.url = url;
+            lastWsInstance = this;
+
+            postMessage_({ m: "PLS_OPEN_WS", data: { wsUrl: this.url }})
+        }
+
+        send(msg) {
+            postMessage_({ m: "WSMSG", data: { wsUrl: this.url, msg: msg } })
+        }
+
+        close(closeCode) {
+            this.onclose(closeCode)
+        }
+    };
+
+
+    // ... Then trick the game into loading our FakeWebSocket
+    window.WebSocket = FakeWebSocket;
+
+
+
+    const startGame = () => jQuery(ig.module('initgame').requires('game.main').defines(function(){ MLand.start();}))
+
+    const main = async () => {
+        if ('serviceWorker' in navigator === false) {
+            throw new Error("Your browser does not seem to support Service Workers. Please update your browser. (If you're a dev, maybe you are not accessing this page from a secure context (https or localhost)?)")
+        }
+
+        const regPromise = navigator.serviceWorker.register('service-worker.js', { type: "classic" })
+        console.log("registering service worker...", { regPromise })
+        const swRegistration = await regPromise;
+        console.log("registering service worker... done", { regPromise, swRegistration })
+
+        const updatePromise = swRegistration.update()
+        console.log("updating service worker...", { updatePromise })
+        const upResult = await updatePromise;
+        console.log("updating service worker... done", { updatePromise, upResult })
+
+        console.log("ready to start game", { upResult })
+
+        postMessage_ = (data) => swRegistration.active.postMessage(data)
+
+        postMessage_({ m: "STARTING_GAME" })
+        startGame();
+    }
+
+
+    main();
 </script>
 
 </body>
