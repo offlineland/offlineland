@@ -111,7 +111,7 @@ margin-right: auto;
     // Keep the real WebSocket just in case...
     window._WebSocket = window.WebSocket;
 
-    // Make aa FakeWebSocket that relays messages to the ServiceWorker
+    // Make a FakeWebSocket that relays messages to the ServiceWorker
     class FakeWebSocket {
         static OPEN = _WebSocket.OPEN;
         readyState = _WebSocket.OPEN;

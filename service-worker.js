@@ -654,6 +654,10 @@ const getAreaManagerFor = (clientId, areaUrlName) => {
 
 
 
+
+
+
+
 // #endregion State
 
 
@@ -676,13 +680,6 @@ const getAreaManagerFor = (clientId, areaUrlName) => {
 //             W:::W           W:::W            S:::::::::::::::SS 
 //              WWW             WWW              SSSSSSSSSSSSSSS   
 // #region WS
-
-// ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
-// ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
-// ██████  ██    ██ ██ ██      █████   ██████  ██████  ██      ███████    ██    █████   
-// ██   ██ ██    ██ ██ ██      ██      ██   ██ ██      ██      ██   ██    ██    ██      
-// ██████   ██████  ██ ███████ ███████ ██   ██ ██      ███████ ██   ██    ██    ███████ 
-// #region boilerplate
 
 function minificationMappingClientToServer(string){
     var a = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":false,"g":',"B" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":true,"g":',"J" : '"m":"st","data":{"pos":{"x":',"C" : '"m":"sh","data":{"key":"_c',"D" : '","rotation":0,"flip":0},"',"&" : '"m":"rq","data":null}',"E" : '"m":"rm","data":null}',"F" : ',"def":null,"rId":"',"G" : '"vel":{"x":0,"y":0}',"H" : '"acl":{"x":0,"y":0}',"K" : '"m":"me","data":{',"~" : '"ani":"swimming',"L" : ',"def":{"tid":"',"M" : '"ani":"idle"',"N" : '"ani":"jump"',"O" : '"ani":"fall"',"P" : '"ani":"afk"',"Q" : '"ani":"run"',"R" : '"flp":false',"W" : '"pos":{"x":',"X" : '"acl":{"x":',"V" : '"vel":{"x":',"S" : '"flp":true',"T" : '"m":"hb"}',"U" : ',"data":{',"!" : '"act":',"@" : '"g":',"Y" : '"x":',"Z" : '"y":',"?" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3",">" : "4","(" : "0",")" : "5"};
@@ -711,7 +708,7 @@ function escapeRegExp(str) {
     return str.toString().replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
 }
 
-// #endregion boilerplate
+// #endregion WS
 
 
 
@@ -742,11 +739,6 @@ function escapeRegExp(str) {
 //   HHHHHHHHH     HHHHHHHHH        TTTTTTTTTTT              TTTTTTTTTTT        PPPPPPPPPP          
 // #region HTTP
 
-//  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
-//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
-//  ██████  ██    ██ ██ ██      █████   ██████  ██████  ██      ███████    ██    █████   
-//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██      ██      ██   ██    ██    ██      
-//  ██████   ██████  ██ ███████ ███████ ██   ██ ██      ███████ ██   ██    ██    ███████ 
 // #region boilerplate
 
 
@@ -842,6 +834,8 @@ const matchRoute = async (method, pathname, event) => {
 
 // #endregion boilerplate
 
+
+
 //  ██████   ██████  ██    ██ ████████ ███████ ███████ 
 //  ██   ██ ██    ██ ██    ██    ██    ██      ██      
 //  ██████  ██    ██ ██    ██    ██    █████   ███████ 
@@ -874,6 +868,32 @@ addRouteHandler(POST, "/j/u/a/", async ({ json, request, clientId }) => {
     const { id } = await readRequestBody(request)
     return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
 })
+// PlayerInfo
+addRouteHandler(POST, "/j/u/pi/", async ({ json, request, clientId }) => {
+    const { id, planeId, areaId } = await readRequestBody(request)
+    return json({
+        isFullAccount: true,
+        hasMinfinity: true,
+        isBacker: true,
+        screenName: "todo",
+        rank: 10,
+        stat_ItemsPlaced: 191919,
+        unfindable: true,
+        ageDays: 191919,
+        profileItemIds: [],
+        profileColor: null,
+        profileBackId: null,
+        profileDynaId: null,
+        online: false,
+        flagged: false,
+        isEditorHere: true,
+    });
+})
+// TopCreatedR
+addRouteHandler(GET, "/j/i/tcr/:playerId", async ({ params, json }) => {
+    return json([]);
+});
+
 
 
 
@@ -884,6 +904,31 @@ addRouteHandler(GET, "/j/i/def/:creationId", ({ params, json }) => {
 });
 // Motions
 addRouteHandler(GET, "/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
+// Statistics
+addRouteHandler(GET, "/j/i/st/:creationId", async ({ params, json }) => {
+    return json({ timesCd: 191919, timesPd: 191919 });
+});
+// CreatorInfoNaame
+addRouteHandler(GET, "/j/i/cin/:creationId", async ({ params, json }) => {
+    const creatorId = generateObjectId();
+    return json({ id: creatorId, name: "todo" });
+});
+// Collectors
+addRouteHandler(GET, "/j/i/cols/:creationId", async ({ params, json }) => {
+    return json({
+        collectors: [
+            { _id: generateObjectId(), name: "todo" },
+            { _id: generateObjectId(), name: "todo" },
+            { _id: generateObjectId(), name: "todo" },
+        ],
+        lastCollector: { _id: generateObjectId(), name: "todo" },
+    });
+});
+// GetUnlisted
+addRouteHandler(POST, "/j/i/gu/", async ({ request, json }) => {
+    const { id } = await readRequestBody(request)
+    return json({ unlisted: false });
+});
 
 
 
@@ -994,6 +1039,15 @@ addRouteHandler(POST, "/j/m/dmss/", async ({ json, request }) => {
 
     return json([]);
 })
+// placer
+addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
+    const placerId = generateObjectId();
+    return json({
+        id: placerId,
+        name: "todo",
+        ts: new Date().toISOString(),
+    })
+})
 
 
 
@@ -1010,6 +1064,11 @@ addRouteHandler(POST, "/j/:splat+", ({ event }) => {
 
 // #endregion routes
 // #endregion HTTP
+
+
+
+
+
 
 
 
