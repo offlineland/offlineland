@@ -389,7 +389,7 @@ function pathToRegexp(path, keys, options) {
 */
 // This thing is fine to import directly because browserify bundles it in an UMD snippet. It becomes avaiable as `Qs` globally.
 // TODO: bundle the other things the same way? Or use an AMD loader?
-importScripts("/qs.js");
+importScripts("/static/libs/qs.js");
 
 
 // #endregion libs
