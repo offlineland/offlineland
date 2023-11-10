@@ -475,7 +475,6 @@ class Player {
 }
 
 
-// TODO: ArchivedAreaManager
 // TODO: store changes locally
 // TODO: Networking?
 class LocalAreaManager {
@@ -488,52 +487,48 @@ class LocalAreaManager {
         this.isRingArea = areaId === "" || ringAreas.includes(areaId)
     }
 
+    static async make(wssUrl, areaId) {
+        return new LocalAreaManager(wssUrl, areaId)
+    }
+
     getInitData(player, urlName) {
         const playerData = player.getInitData_http();
+        const defaultData = {
+            "wsh": this.wssUrl,
+            "wsp": 80,
+
+            "ieh": true, // isEditorHere
+            "ish": true, // isSuperHere
+
+            "sha": false,  // ShowAdvertisment, unused
+            "noi": true,  // no in-app purchases, steam-related
+            "fla": false, // flag warning
+            "ise": false, // ? Related to area being full
+        }
 
         if (this.isRingArea) {
             return {
                 ...playerData,
-
-                "wsh": this.wssUrl,
-                "wsp": 80,
-
-                "ieh": true, // isEditorHere
-                "ish": true, // isSuperHere
+                ...defaultData,
 
                 "sub": false, // isSubarea
                 "acl": { "x": 15, "y": 15 }, // areaCenterLocation
-
-                "sha": true,  // ?
-                "noi": true,  // no in-app purchases
-                "fla": false, // flag warning
-                "ise": false, // ?
             }
         }
         else {
             return {
                 ...playerData,
-
-                "wsh": "ws22x8.ws.manyland.local",
-                "wsp": 80,
-
-                "ieh": true, // isEditorHere
-                "ish": true, // isSuperHere
+                ...defaultData,
 
                 "sub": false, // isSubarea
                 "acl": { "x": 15, "y": 15 }, // areaCenterLocation
-
-                "sha": true,  // ?
-                "noi": true,  // no in-app purchases
-                "fla": false, // flag warning
-                "ise": false, // ?
 
                 aid: this.areaId,
                 gid: this.areaId,
                 arn: urlName,
                 aun: urlName,
                 agn: urlName,
-                ard: "191919",
+                ard: "191919", // Description
 
                 // area drift
                 adr: { angle: 0, speed: 0 },
@@ -552,7 +547,27 @@ class LocalAreaManager {
     }
 
     // TODO
-    getDataForSector(x, y) {}
+    getDataForSector(x, y) {
+        return {
+            "iix": [ "50372a99f5d33dc56f000001" ],
+            "ps": [
+                [ 15, 17, 0, 0, 0, 0 ],
+                [ 14, 17, 0, 0, 0, 0 ],
+                [ 16, 17, 0, 0, 0, 0 ],
+                [ 13, 17, 0, 0, 0, 0 ],
+                [ 17, 17, 0, 0, 0, 0 ]
+            ],
+            "v": 5,
+            "x": x,
+            "y": y,
+            "i": {
+                "b": [ "SOLID" ],
+                "p": [],
+                "n": [ "ground" ],
+                "dr": [ null ]
+            }
+        }
+    }
 
     onWsConnection(client) {
         const player = getPlayerForClient(client.id);
@@ -587,15 +602,162 @@ class LocalAreaManager {
     }
 }
 
+
+
+class ArchivedAreaManager {
+    clients = new Set();
+
+    constructor(wssUrl, areaId, data) {
+        this.wssUrl = wssUrl;
+        this.areaId = areaId;
+
+        this.isRingArea = areaId === "" || ringAreas.includes(areaId)
+
+        this.isSubarea = data.sub;
+        this.centerLocation = data.acl;
+        this.areaId = data.aid;
+        this.areaGroupId = data.gid;
+        this.areaRealName = data.arn;
+        this.areaGroupName = data.agn;
+        this.areaUrlName = data.aun;
+        this.description = data.ard;
+        this.globalInteractingId = data.iid;
+        this.drift = data.adr;
+        this.protection = data.apr;
+        this.isLocked = data.axx;
+        this.isUnlisted = data.aul;
+        this.isSinglePlayerExperience = data.spe;
+        this.explorerChatAllowed = data.ece;
+        this.mpv = data.mpv;
+    }
+
+    static async make(wssUrl, areaId) {
+        // TODO: fetch data from storage
+        // TODO: get data from cache or fetch?
+        const res = await fetch(`/static/data/v1/${areaId}/main.json`)
+        // TODO handle errors?
+        const data = await res.json()
+        return new ArchivedAreaManager(wssUrl, areaId, data)
+    }
+
+    getInitData(player, urlName) {
+        const playerData = player.getInitData_http();
+        const defaultData = {
+            "wsh": this.wssUrl,
+            "wsp": 80,
+
+            "ieh": true, // isEditorHere
+            "ish": true, // isSuperHere
+
+            "sha": false,  // ShowAdvertisment, unused
+            "noi": true,  // no in-app purchases, steam-related
+            "fla": false, // flag warning
+            "ise": false, // ? Related to area being full
+        }
+
+        if (this.isRingArea) {
+            return {
+                ...playerData,
+                ...defaultData,
+
+                "sub": false, // isSubarea
+                "acl": this.centerLocation,
+            }
+        }
+        else {
+            return {
+                ...playerData,
+                ...defaultData,
+
+                sub: this.isSubarea,
+                acl: this.centerLocation,
+
+                aid: this.areaId,
+                gid: this.areaGroupId,
+                arn: this.areaRealName,
+                aun: this.areaUrlName,
+                agn: this.areaGroupName,
+                ard: this.description,
+
+                adr: this.drift,
+                apr: this.protection,
+                // AreaPossessions TODO
+                aps: { ids: null, values: null }, 
+
+                axx: this.isLocked,
+                aul: this.isUnlisted,
+                spe: this.isSinglePlayerExperience,
+                ece: this.explorerChatAllowed,
+                mpv: this.mpvr,
+            }
+        }
+    }
+
+    async getDataForSector(x, y) {
+        // TODO cache
+        const res = await fetch(`/static/data/v1/${this.areaId}/sectors/${x}_${y}.json`)
+        if (res.ok) return await res.json()
+        else return undefined
+
+    }
+
+    onWsConnection(client) {
+        const player = getPlayerForClient(client.id);
+
+        client.postMessage({ m: "WS_OPEN" });
+        const initDataMsg = JSON.stringify({
+            "m":"on",
+            "data":{
+                ...player.getInitData_ws(),
+
+                "ach":"[0,4,10,11,12,8,39,5,35,9]",
+                "neo":true, // ?
+                "ieh":true,
+                "ifa":true,
+
+                "map":{
+                    "p":0,
+                    "a": this.areaId
+                },
+                "smi":"18329", // TODO ?
+                "ups":5,
+            }
+        })
+        client.postMessage({ m: "WS_MSG", data: initDataMsg });
+    }
+
+    onWsMessage(client, msg) {
+        if (typeof msg === "string")
+            // TODO the de-minification is a bit more complex!
+            // TODO actually handle messages
+            console.log("onWsMessage()", minificationMappingClientToServer(msg))
+        else {
+            // TODO read binary messages
+            console.log("onWsMessage() binary", msg)
+        }
+    }
+}
+
+const getAreaManagerClassForAreaId = (areaId) => {
+    // TODO
+    if (areaId === "56ed2214c94d7b0e132538b9") {
+        return ArchivedAreaManager;
+    }
+
+    return LocalAreaManager;
+}
+
 class AreaManagerManager {
     wssCount = 0;
     areaManagerByWSSUrl = new Map();
     areaManagerByAreaId = new Map();
 
-    makeAreaManager(areaId) {
-        // TODO: allow to pass any kind of AreaManager
+    async makeAreaManager(areaId) {
+        console.log("AreaManagerManager: makeAreaManager()", areaId)
         const wssUrl = `ws191919x${String(this.wssCount++)}.ws.manyland.local`;
-        const am = new LocalAreaManager(areaId, wssUrl)
+
+        const amClass = getAreaManagerClassForAreaId(areaId)
+        const am = await amClass.make(wssUrl, areaId)
 
         this.areaManagerByWSSUrl.set(wssUrl, am)
         this.areaManagerByAreaId.set(areaId, am)
@@ -603,16 +765,17 @@ class AreaManagerManager {
         return am;
     }
 
-    getByWSSUrl(wssUrl) {
+    async getByWSSUrl(wssUrl) {
+        console.log("amm: getByWssUrl", wssUrl)
         const am = this.areaManagerByWSSUrl.get(wssUrl);
         if (am) return am;
-        else return this.makeAreaManager("shouldnthappen_" + String(Date.now()));
+        else return await this.makeAreaManager("shouldnthappen_" + String(Date.now()));
     }
 
-    getByAreaId(areaId) {
+    async getByAreaId(areaId) {
         const am = this.areaManagerByAreaId.get(areaId);
         if (am) return am;
-        else return this.makeAreaManager(areaId);
+        else return await this.makeAreaManager(areaId);
     }
 }
 
@@ -641,13 +804,14 @@ const defaultPlayer = new Player({ name: "explorer 123" });
 const getPlayerForClient = (clientId) => defaultPlayer;
 // TODO
 const getAreaIdForAreaName = (areaUrlName) => {
-    return generateObjectId()
+    if (areaUrlName === "chronology") return "56ed2214c94d7b0e132538b9";
+    return generateObjectId();
 }
 // TODO
-const getAreaManagerFor = (clientId, areaUrlName) => {
+const getAreaManagerFor = async (clientId, areaUrlName) => {
     // TODO: handle subareas eventually (maybe via url?)
     const areaId = getAreaIdForAreaName(areaUrlName);
-    return areaManagerMgr.getByAreaId(areaId)
+    return await areaManagerMgr.getByAreaId(areaId)
 }
 
 
@@ -775,6 +939,7 @@ const readRequestBody = async (request) => {
 
 
 
+const groundId = "50372a99f5d33dc56f000001"
 const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
 const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
 const GET = "GET";
@@ -847,7 +1012,7 @@ const matchRoute = async (method, pathname, event) => {
 addRouteHandler(POST, "/j/i/", async ({ json, request, clientId, }) => {
     const data = await readRequestBody(request)
     
-    const areaManager = getAreaManagerFor(clientId, data.urlName);
+    const areaManager = await getAreaManagerFor(clientId, data.urlName);
     const player = getPlayerForClient(clientId);
     const areaData = areaManager.getInitData(player, data.urlName);
 
@@ -935,7 +1100,7 @@ addRouteHandler(POST, "/j/i/gu/", async ({ request, json }) => {
 // Collections
 // TODO proper inventory
 // inventory - Collections
-const inventory = [ generateObjectId() ]
+const inventory = [ groundId ]
 // Get collected
 addRouteHandler(GET, "/j/c/r/:start/:end", ({ params, json }) => json({ items: inventory, itemCount: 1 }) );
 // Collect
@@ -951,12 +1116,12 @@ addRouteHandler(POST, "/j/c/c", async ({ request, json }) => {
     });
 });
 // Get Created
-addRouteHandler(GET, "/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ generateObjectId() ], itemCount: 1 }) );
+addRouteHandler(GET, "/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
 
 
 
 // Search Item
-addRouteHandler(POST, "/j/s/i/", ({ json }) => json({ items: [ generateObjectId() ], more: false }) );
+addRouteHandler(POST, "/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
 
 
 
@@ -981,56 +1146,22 @@ addRouteHandler(GET, "/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
 
 
 // Map
-// CreatedMapVersion(?)
+// CreatedMapVersion(?) TODO
 addRouteHandler(POST, "/j/m/cmv/", ({ json }) => json({ v: 1 }) );
 // SectorPlus
-addRouteHandler(GET, "/j/m/sp/:x/:y/:ap/:aid", ({ params, json }) => {
+addRouteHandler(GET, "/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
+    const am = await areaManagerMgr.getByAreaId(params.aid)
     return json([
-        {
-            "iix": [ "50372a99f5d33dc56f000001" ],
-            "ps": [
-                [ 15, 17, 0, 0, 0, 0 ],
-                [ 14, 17, 0, 0, 0, 0 ],
-                [ 16, 17, 0, 0, 0, 0 ],
-                [ 13, 17, 0, 0, 0, 0 ],
-                [ 17, 17, 0, 0, 0, 0 ]
-            ],
-            "v": 5,
-            "x": 0,
-            "y": 0,
-            "i": {
-                "b": [ "SOLID" ],
-                "p": [],
-                "n": [ "ground" ],
-                "dr": [ null ]
-            }
-        }
+        await am.getDataForSector(params.x, params.y) // TODO: do the 8 sectors around too!
     ])
 });
 // SectorPlusLoading (not exactly sure what's different)
-addRouteHandler(GET, "/j/m/spl/:x/:y/:ap/:aid", ({ params, json }) => {
+addRouteHandler(GET, "/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
     console.log("TESTDEBUG sectorPlusLoading params:", params)
 
+    const am = await areaManagerMgr.getByAreaId(params.aid)
     return json([
-        {
-            "iix": [ "50372a99f5d33dc56f000001" ],
-            "ps": [
-                [ 15, 17, 0, 0, 0, 0 ],
-                [ 14, 17, 0, 0, 0, 0 ],
-                [ 16, 17, 0, 0, 0, 0 ],
-                [ 13, 17, 0, 0, 0, 0 ],
-                [ 17, 17, 0, 0, 0, 0 ]
-            ],
-            "v": 5,
-            "x": 0,
-            "y": 0,
-            "i": {
-                "b": [ "SOLID" ],
-                "p": [],
-                "n": [ "ground" ],
-                "dr": [ null ]
-            }
-        }
+        await am.getDataForSector(params.x, params.y) // TODO: do the 8 sectors around too!
     ])
 });
 // DeletionMarkerForSectors
@@ -1108,6 +1239,24 @@ const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne8
 
 
 
+const getOrSetFromCache = async (/** @type {Request} */ request) => {
+    const cache = await self.caches.open(CACHE_NAME);
+
+    const cacheMatch = await cache.match(request)
+
+    if (cacheMatch) return cacheMatch;
+
+
+
+    const fetchRes = await fetch(request.clone());
+    if (fetchRes.ok) {
+        cache.put(request, fetchRes.clone())
+    }
+
+    return fetchRes;
+}
+
+
 
 /**
  * @param {Event} event 
@@ -1119,9 +1268,12 @@ const handleFetchEvent = async (event) => {
         console.log("FETCH", event.clientId, url.pathname, { event })
 
         if (url.host === originUrl.host) {
-            if (url.pathname === "/") return fetch(url);
-            if (url.pathname.startsWith("/static/")) return fetch(url);
+            if (url.pathname === "/") return fetch("/mainscreen.html");
+            if (url.pathname.startsWith("/static/")) return getOrSetFromCache(event.request);
             if (url.pathname.startsWith("/j/")) return await matchRoute(event.request.method, url.pathname, event)
+
+            // TODO
+            if (url.pathname === "/_mlspinternal_/getdata") return Response.json({ areasStoredLocally: [], availableAreas: [ "chronology" ] });
 
             // Special pages
             if ( url.pathname.startsWith("/info")
@@ -1132,13 +1284,16 @@ const handleFetchEvent = async (event) => {
             }
 
             // If nothing else matches, we assume it's trying to load an area's index.html (TODO: would request headers indicate client only accepts html?)
+            // TODO: move /mainscreen.html to /index.html so that it's the first file loaded. Current /index.html can become /game.html or something
+            // TODO: check if area is available locally. If not, display an error page and/or redirect to /
             return fetch("/index.html")
         }
 
         // Serve ground on all cloudfront reqs
         if (cloudfrontHosts.includes(url.hostname)) {
             console.log("FETCH matched cloudfront hostname", url.href)
-            return new Response(SpriteGroundBlob)
+            //return new Response(SpriteGroundBlob)
+            return getOrSetFromCache(event.request);
         }
 
         return new Response("No rules match this request!", { status: 404 })
@@ -1151,21 +1306,21 @@ const handleFetchEvent = async (event) => {
 /**
  * @param {EventMessage} event 
  */
-const handleClientMessage = (event) => {
+const handleClientMessage = async (event) => {
     try {
         const message = event.data;
         const client = event.source;
 
         console.log("MSG", client.id, message, { event })
         if (message.m === "WSMSG") {
-            const [host, port] = message.data.wsUrl.split(':');
-            const amgr = areaManagerMgr.getByWSSUrl(host)
+            const [host, port] = message.data.wsUrl.slice(5).split(':');
+            const amgr = await areaManagerMgr.getByWSSUrl(host)
 
             amgr.onWsMessage(client, message.data.msg)
         }
         else if (message.m === "PLS_OPEN_WS") {
-            const [host, port] = message.data.wsUrl.split(':');
-            const amgr = areaManagerMgr.getByWSSUrl(host)
+            const [host, port] = message.data.wsUrl.slice(5).split(':');
+            const amgr = await areaManagerMgr.getByWSSUrl(host)
 
             amgr.onWsConnection(client)
         }
@@ -1174,6 +1329,32 @@ const handleClientMessage = (event) => {
     }
 };
 
+const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
+    const cacheKeys = await self.caches.keys();
+
+    const deletePromises = cacheKeys.map(cacheKey => {
+        if (cacheWhitelist.includes(cacheKey) === false) {
+            return caches.delete(cacheKey);
+        }
+    });
+
+    await Promise.all(deletePromises);
+}
+
+
+const onInstall = async (/** @type {Event} */ event) => {
+    console.log("service worker install event")
+
+    // TODO: create cache for sounds and other static assets
+    // This cache is for the v1 area archive storage and will probably be deleted later
+    const cachev1 = await caches.open(CACHE_NAME);
+    await cachev1.addAll([
+        "/static/data/v1/56ed2214c94d7b0e132538b9/main.json",
+        "/static/data/v1/56ed2214c94d7b0e132538b9/sectors/0_0.json",
+    ]);
+
+    self.skipWaiting();
+}
 
 
 // Utils
@@ -1202,12 +1383,7 @@ const makeGetOrCreate = (map, ctor) => {
 
 // Listeners
 
-self.addEventListener('install', event => {
-    console.log("service worker install event")
-    event.waitUntil( caches.open(CACHE_NAME) );
-
-    self.skipWaiting()
-});
+self.addEventListener('install', event => event.waitUntil(onInstall()) );
 
 // Update and take over as soon as possible
 self.addEventListener('activate', event => {
