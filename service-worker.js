@@ -579,7 +579,7 @@ class LocalAreaManager {
                 ...player.getInitData_ws(),
 
                 "neo":true, // ?
-                "map":{"p":0,"a":"3"},
+                "map":{ "p":0,"a": this.areaId },
                 "ach":"[0,4,10,11,12,8,39,5,35,9]",
                 "ieh":true,
                 "ifa":true,
