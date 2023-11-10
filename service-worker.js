@@ -1269,6 +1269,8 @@ const handleFetchEvent = async (event) => {
 
         if (url.host === originUrl.host) {
             if (url.pathname === "/") return fetch("/mainscreen.html");
+            if (url.pathname.startsWith("/_code/")) return fetch(event.request);
+            // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(event.request);
             if (url.pathname.startsWith("/j/")) return await matchRoute(event.request.method, url.pathname, event)
 

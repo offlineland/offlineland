@@ -3,9 +3,10 @@
     <body>
         <script src="/static/libs/redom.js"></script>
         <script type="module">
+            import { registerServiceWorker } from "/static/register-service-worker.js"
             const { el, mount } = globalThis.redom;
 
-            // TODO register serviceworker here too
+            registerServiceWorker()
 
             // TODO: use indexedDB instead?
             const dataRes = await fetch("/_mlspinternal_/getdata");

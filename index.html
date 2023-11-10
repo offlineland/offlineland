@@ -90,6 +90,7 @@ margin-right: auto;
 
 
 <script type="module">
+    import { registerServiceWorker } from "/static/register-service-worker.js"
     // Noop until replaced in main()
     let postMessage_ = () => {}
     /** @type { FakeWebSocket | null } */
@@ -144,23 +145,9 @@ margin-right: auto;
     const startGame = () => jQuery(ig.module('initgame').requires('game.main').defines(function(){ MLand.start();}))
 
     const main = async () => {
-        if ('serviceWorker' in navigator === false) {
-            throw new Error("Your browser does not seem to support Service Workers. Please update your browser. (If you're a dev, maybe you are not accessing this page from a secure context (https or localhost)?)")
-        }
+        const { registration } = await registerServiceWorker()
 
-        const regPromise = navigator.serviceWorker.register('service-worker.js', { type: "classic" })
-        console.log("registering service worker...", { regPromise })
-        const swRegistration = await regPromise;
-        console.log("registering service worker... done", { regPromise, swRegistration })
-
-        const updatePromise = swRegistration.update()
-        console.log("updating service worker...", { updatePromise })
-        const upResult = await updatePromise;
-        console.log("updating service worker... done", { updatePromise, upResult })
-
-        console.log("ready to start game", { upResult })
-
-        postMessage_ = (data) => swRegistration.active.postMessage(data)
+        postMessage_ = (data) => registration.active.postMessage(data)
 
         postMessage_({ m: "STARTING_GAME" })
         startGame();
