@@ -805,6 +805,8 @@ const getPlayerForClient = (clientId) => defaultPlayer;
 // TODO
 const getAreaIdForAreaName = (areaUrlName) => {
     if (areaUrlName === "chronology") return "56ed2214c94d7b0e132538b9";
+    if (areaUrlName === "sandcastle") return "5522c6f01c963d1308f12e0a";
+    if (areaUrlName === "kingbrownssanctum") return "53ebd011d31b8354235a2d8f";
     return generateObjectId();
 }
 // TODO
@@ -1257,7 +1259,12 @@ const getOrSetFromCache = async (/** @type {Request} */ request) => {
 }
 
 
+const getAreaList = async () => {
+    // TODO get the file
+    return [ "chronology", "sandcastle" ]
+}
 
+const CACHE_AREAS_V2 = "cache_areas_v2"
 /**
  * @param {Event} event 
  * @returns { Promise<Response> }
@@ -1274,8 +1281,21 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(event.request);
             if (url.pathname.startsWith("/j/")) return await matchRoute(event.request.method, url.pathname, event)
 
-            // TODO
-            if (url.pathname === "/_mlspinternal_/getdata") return Response.json({ areasStoredLocally: [], availableAreas: [ "chronology" ] });
+            // TODO get this from a file (and update it)
+            if (url.pathname === "/_mlspinternal_/getdata") {
+                const areasv2cache = await caches.open(CACHE_AREAS_V2);
+
+                const availableAreas = await getAreaList()
+                const areasStoredLocally = []
+
+                for (const areaUrlName of availableAreas) {
+                    if (await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))) {
+                        areasStoredLocally.push(areaUrlName)
+                    }
+                }
+
+                return Response.json({ areasStoredLocally, availableAreas });
+            }
 
             // Special pages
             if ( url.pathname.startsWith("/info")
@@ -1345,18 +1365,24 @@ const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
 
 
 const onInstall = async (/** @type {Event} */ event) => {
-    console.log("service worker install event")
+    try {
+        console.log("service worker install event")
 
-    // TODO: create cache for sounds and other static assets
-    // This cache is for the v1 area archive storage and will probably be deleted later
-    const cachev1 = await caches.open(CACHE_NAME);
-    await cachev1.addAll([
-        "/static/data/v1/56ed2214c94d7b0e132538b9/main.json",
-        "/static/data/v1/56ed2214c94d7b0e132538b9/sectors/0_0.json",
-    ]);
+        // TODO: create cache for sounds and other static assets
+        // This cache is for the v1 area archive storage and will probably be deleted later
+        const areasv2cache = await caches.open(CACHE_AREAS_V2);
+        await areasv2cache.addAll([
+        new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName("chronology")}.zip`)
+        ]);
+    } catch(e) {
+        console.error("onInstall error!", e)
+    }
 
     self.skipWaiting();
 }
+
+self.addEventListener("error", (event) => console.error("error event", event))
+self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
 
 
 // Utils

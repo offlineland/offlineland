@@ -12,8 +12,22 @@
             const dataRes = await fetch("/_mlspinternal_/getdata");
             const data = await dataRes.json();
 
-            const hello = el("h1", "Hello world!");
-            mount(document.body, hello);
+            const main = el("main", [
+                el("h1", "Hello world!"),
+                el("div", [
+                    el("h2", "available areas"),
+                    el("ul", [
+                        el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
+                        data.availableAreas.map((areaUrlName) => (
+                            el("li", [
+                                el("a", { href: "/" + areaUrlName}, areaUrlName),
+                                data.areasStoredLocally.includes(areaUrlName) || el("button", "download area")
+                            ])
+                        ))
+                    ]),
+                ]),
+            ])
+            mount(document.body, main);
         </script>
     </body>
 </html>
