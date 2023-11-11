@@ -1,14 +1,5 @@
 /// <reference lib="webworker" />
 
-// Avoid crashing when running `bun run service-worker.js` or `deno run service-worker.js`. This allows me to check for syntax errors
-if (typeof importScripts === "undefined") {
-    globalThis.importScripts = () => {};
-}
-if (typeof URL === "undefined") {
-    class URL {}
-}
-let originUrl = new URL("http://localhost")
-if (self.origin) originUrl = new URL(self.origin)
 
 
 // #region libs
@@ -21,7 +12,12 @@ I could make classes in separate files and use them here, but then my editor wou
 */
 
 
-
+/**
+ * @global
+ * @type { (path: string) => (path: string) => boolean}
+ * @name matchPath
+*/
+var matchPath = globalThis.matchPath;
 importScripts("/static/libs/path-to-regexp.js");
 
 /**
@@ -44,7 +40,11 @@ importScripts("/static/libs/dexie.js");
 var JSZip = globalThis.JSZip;
 importScripts("/static/libs/jszip.js");
 
-// I don't know why I dont need to do any weird shenanigans for Zod
+/**
+ * @global
+ * @type { import('zod') }
+*/
+var Zod = globalThis.Zod;
 importScripts("/static/libs/zod.umd.js");
 
 
@@ -1004,6 +1004,7 @@ console.log("Hi from service worker global context")
 const CACHE_NAME = 'cache-v1';
 const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
     .split(" ").map(s => s + ".cloudfront.net")
+const originUrl = new URL(self.origin)
 
 
 
@@ -1208,4 +1209,5 @@ self.addEventListener('message', handleClientMessage)
 
 }
 
+// @ts-ignore
 main(self)

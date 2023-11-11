@@ -3,10 +3,12 @@
         "target": "ES2015",
         "lib": [ "ESNext", "webworker", "DOM" ],
         "moduleResolution": "nodenext",
+        "module": "nodenext",
         "checkJs": true,
         "noEmit": true,
     },
     "include": [
-        "_code/*.js",
+        "_code/**/*.js",
+        "service-worker.js",
     ]
 }
