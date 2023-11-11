@@ -21,8 +21,8 @@ export const registerServiceWorker = async () => {
         const newWorker = swRegistration.installing;
         console.log("updatefound", { event, newWorker })
 
-        swRegistration.installing.addEventListener("statechange", (event) => console.log("New service worker state", newWorker.state, { event, newWorker}))
-        swRegistration.installing.addEventListener("error", (event) => console.log("New service worker state", newWorker.state, { event, newWorker }))
+        swRegistration.installing?.addEventListener("statechange", (event) => console.log("New service worker state", newWorker?.state, { event, newWorker}))
+        swRegistration.installing?.addEventListener("error", (event) => console.log("New service worker state", newWorker?.state, { event, newWorker }))
     })
 
     const updatePromise = swRegistration.update()

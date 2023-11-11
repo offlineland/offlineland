@@ -420,6 +420,11 @@ class ArchivedAreaManager {
         */
     }
 
+    /**
+     * 
+     * @param {Client} client
+     * @param {string | ArrayBuffer} msg 
+     */
     onWsMessage(client, msg) {
         if (typeof msg === "string") {
             // TODO actually handle messages
@@ -505,7 +510,7 @@ class AreaManagerManager {
     areaManagerByWSSUrl = new Map();
     areaManagerByAreaId = new Map();
 
-    async makeAreaManager(areaId) {
+    async makeAreaManager(/** @type { string } */ areaId) {
         console.log("AreaManagerManager: makeAreaManager()", areaId)
         const wssUrl = `ws191919x${String(this.wssCount++)}.ws.manyland.local`;
 
@@ -518,14 +523,14 @@ class AreaManagerManager {
         return am;
     }
 
-    async getByWSSUrl(wssUrl) {
+    async getByWSSUrl(/** @type { string } */ wssUrl) {
         //console.log("amm: getByWssUrl", wssUrl)
         const am = this.areaManagerByWSSUrl.get(wssUrl);
         if (am) return am;
         else return await this.makeAreaManager("shouldnthappen_" + String(Date.now()));
     }
 
-    async getByAreaId(areaId) {
+    async getByAreaId(/** @type { string } */ areaId) {
         const am = this.areaManagerByAreaId.get(areaId);
         if (am) return am;
         else return await this.makeAreaManager(areaId);
@@ -536,6 +541,14 @@ class AreaManagerManager {
 
 
 
+/**
+ * 
+ * @param {number} timestamp
+ * @param {number} machineId
+ * @param {number} processId
+ * @param {number} counter
+ * @returns {string}
+ */
 const generateObjectId_ = (timestamp, machineId, processId, counter) => {
   const hexTimestamp = Math.floor(timestamp / 1000).toString(16).padStart(8, '0');
   const hexMachineId = machineId.toString(16).padStart(6, '0');
@@ -555,8 +568,19 @@ const areaManagerMgr = new AreaManagerManager();
 // TODO
 // @ts-ignore
 const defaultPlayer = new Player({ name: "explorer 123" });
+/**
+ * 
+ * @param {string} clientId 
+ * @returns {Player}
+ */
 const getPlayerForClient = (clientId) => defaultPlayer;
+
 // TODO
+/**
+ * 
+ * @param {string} areaUrlName
+ * @returns {string}
+ */
 const getAreaIdForAreaName = (areaUrlName) => {
     const areaData = bundledAreasFile[areaUrlName]
 

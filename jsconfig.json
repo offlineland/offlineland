@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "strict": true,
+        "strict": false,
         "target": "ES2015",
         "lib": [ "ESNext", "webworker", "DOM" ],
         "moduleResolution": "nodenext",
