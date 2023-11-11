@@ -984,8 +984,8 @@ const originUrl = new URL(self.origin)
 
 
 
-const getOrSetFromCache = async (/** @type {Request} */ request) => {
-    const cache = await self.caches.open(CACHE_NAME);
+const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
+    const cache = await self.caches.open(cacheName);
 
     const cacheMatch = await cache.match(request)
 
@@ -1036,7 +1036,7 @@ const handleFetchEvent = async (event) => {
             if (url.pathname === "/") return fetch("/mainscreen.html");
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
-            if (url.pathname.startsWith("/static/")) return getOrSetFromCache(event.request);
+            if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/j/")) return await matchRoute(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
             // TODO get this from a file (and update it)
@@ -1067,11 +1067,11 @@ const handleFetchEvent = async (event) => {
             return fetch("/index.html")
         }
 
-        // Serve ground on all cloudfront reqs
         if (cloudfrontHosts.includes(url.hostname)) {
             console.log("FETCH matched cloudfront hostname", url.href)
+            // Serve ground on all cloudfront reqs
             //return new Response(SpriteGroundBlob)
-            return getOrSetFromCache(event.request);
+            return getOrSetFromCache(CACHE_NAME, event.request);
         }
 
         return new Response("No rules match this request!", { status: 404 })
