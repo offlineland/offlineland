@@ -9,23 +9,6 @@ let originUrl = new URL("http://localhost")
 if (self.origin) originUrl = new URL(self.origin)
 
 
-//                              bbbbbbbb                            
-// LLLLLLLLLLL              iiiib::::::b                            
-// L:::::::::L             i::::b::::::b                            
-// L:::::::::L              iiiib::::::b                            
-// LL:::::::LL                   b:::::b                            
-//   L:::::L              iiiiiiib:::::bbbbbbbbb       ssssssssss   
-//   L:::::L              i:::::ib::::::::::::::bb   ss::::::::::s  
-//   L:::::L               i::::ib::::::::::::::::bss:::::::::::::s 
-//   L:::::L               i::::ib:::::bbbbb:::::::s::::::ssss:::::s
-//   L:::::L               i::::ib:::::b    b::::::bs:::::s  ssssss 
-//   L:::::L               i::::ib:::::b     b:::::b  s::::::s      
-//   L:::::L               i::::ib:::::b     b:::::b     s::::::s   
-//   L:::::L         LLLLLLi::::ib:::::b     b:::::ssssss   s:::::s 
-// LL:::::::LLLLLLLLL:::::i::::::b:::::bbbbbb::::::s:::::ssss::::::s
-// L::::::::::::::::::::::i::::::b::::::::::::::::bs::::::::::::::s 
-// L::::::::::::::::::::::i::::::b:::::::::::::::b  s:::::::::::ss  
-// LLLLLLLLLLLLLLLLLLLLLLLiiiiiiibbbbbbbbbbbbbbbb    sssssssssss    
 // #region libs
 
 
@@ -609,7 +592,7 @@ function escapeRegExp(str) {
 //   HHHHHHHHH     HHHHHHHHH        TTTTTTTTTTT              TTTTTTTTTTT        PPPPPPPPPP          
 // #region HTTP
 
-// #region boilerplate
+// #region basicrouterboilerplate
 
 
 
@@ -703,7 +686,7 @@ const matchRoute = async (method, pathname, event) => {
 }
 
 
-// #endregion boilerplate
+// #endregion basicrouterboilerplate
 
 
 
@@ -718,18 +701,22 @@ const matchRoute = async (method, pathname, event) => {
 addRouteHandler(POST, "/j/i/", async ({ json, request, clientId, }) => {
     const data = await readRequestBody(request)
     
+    console.log("getting area manager for area", data)
+
     const areaManager = await getAreaManagerFor(clientId, data.urlName);
     const player = getPlayerForClient(clientId);
     const areaData = areaManager.getInitData(player, data.urlName);
 
     //clientIdToAreas.set(clientId, data.urlName)
+
+    console.log("sending area data", { areaData, areaManager })
     
     return json(areaData)
 });
 
 
 
-// User
+// #region User
 // Friends And Blocked
 addRouteHandler(GET, "/j/u/fab/", ({ json }) => json({ "friends":[],"blocked":[] }) );
 // GetFreshRank
@@ -764,11 +751,12 @@ addRouteHandler(POST, "/j/u/pi/", async ({ json, request, clientId }) => {
 addRouteHandler(GET, "/j/i/tcr/:playerId", async ({ params, json }) => {
     return json([]);
 });
+// #endregion User
 
 
 
 
-// Items
+// #region Items
 // ItemDef
 const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
 addRouteHandler(GET, "/j/i/def/:creationId", ({ params, json }) => {
@@ -804,10 +792,11 @@ addRouteHandler(POST, "/j/i/gu/", async ({ request, json }) => {
     const { id } = await readRequestBody(request)
     return json({ unlisted: false });
 });
+// #endregion Items
 
 
 
-// Collections
+// #region Collections
 // TODO proper inventory
 // inventory - Collections
 const inventory = [ groundId ]
@@ -827,15 +816,18 @@ addRouteHandler(POST, "/j/c/c", async ({ request, json }) => {
 });
 // Get Created
 addRouteHandler(GET, "/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
+// #endregion Collections
 
 
 
+// #region Search
 // Search Item
 addRouteHandler(POST, "/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
+// #endregion Search
 
 
 
-// NEWS
+// #region News
 // GetUnreadCount
 addRouteHandler(GET, "/j/n/guc/", ({ json }) => json( 319 ) );
 // GetLatestNews
@@ -846,16 +838,18 @@ addRouteHandler(GET, "/j/n/gln/", ({ json }) => json( [
     { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
     { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
 ] ) );
+// #endregion News
 
 
 
-// Mifts
+// #region Mifts
 // GetUnseenMifts
 addRouteHandler(GET, "/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
+// #endregion Mifts
 
 
 
-// Map
+// #region Map
 // CreatedMapVersion(?) TODO
 addRouteHandler(POST, "/j/m/cmv/", ({ json }) => json({ v: 1 }) );
 // SectorPlus
@@ -923,6 +917,7 @@ addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) 
         ts: new Date().toISOString(),
     })
 })
+// #endregion Map
 
 
 
@@ -1007,6 +1002,21 @@ const getAreaList = async () => {
 }
 
 const CACHE_AREAS_V2 = "cache_areas_v2"
+
+
+
+
+
+/***
+ *    ███    ███  █████  ██ ███    ██     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
+ *    ████  ████ ██   ██ ██ ████   ██     ██   ██ ██    ██ ██    ██    ██    ██ ████   ██ ██       
+ *    ██ ████ ██ ███████ ██ ██ ██  ██     ██████  ██    ██ ██    ██    ██    ██ ██ ██  ██ ██   ███ 
+ *    ██  ██  ██ ██   ██ ██ ██  ██ ██     ██   ██ ██    ██ ██    ██    ██    ██ ██  ██ ██ ██    ██ 
+ *    ██      ██ ██   ██ ██ ██   ████     ██   ██  ██████   ██████     ██    ██ ██   ████  ██████  
+ *                                                                                                 
+ *                                                                                                 
+ */
+
 /**
  * @param {Event} event 
  * @returns { Promise<Response> }
@@ -1166,4 +1176,3 @@ self.addEventListener('message', handleClientMessage)
 
 // #endregion boilerplate
 // #endregion Misc
-
