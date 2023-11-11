@@ -720,6 +720,7 @@ class ArchivedAreaManager {
 
                 adr: this.drift,
                 apr: this.protection,
+                iid: this.globalInteractingId,
                 // AreaPossessions TODO
                 aps: { ids: null, values: null }, 
 
