@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 // Avoid crashing when running `bun run service-worker.js` or `deno run service-worker.js`. This allows me to check for syntax errors
 if (typeof importScripts === "undefined") {
     globalThis.importScripts = () => {};
@@ -24,18 +26,27 @@ importScripts("/static/libs/path-to-regexp.js");
 
 /**
  * @global
- * @name Qs
+ * @type { import('qs') }
 */
-// This thing is fine to import directly because browserify bundles it in an UMD snippet. It becomes avaiable as `Qs` globally.
-// TODO: bundle the other things the same way? Or use an AMD loader?
+var Qs = globalThis.Qs;
 importScripts("/static/libs/qs.js");
-
 
 /**
  * @global
- * @name JSZip
+ * @name Dexie
 */
+importScripts("/static/libs/dexie.js");
+
+/**
+ * @global
+ * @type { import('jszip') }
+*/
+var JSZip = globalThis.JSZip;
 importScripts("/static/libs/jszip.js");
+
+// I don't know why I dont need to do any weird shenanigans for Zod
+importScripts("/static/libs/zod.umd.js");
+
 
 // #endregion libs
 
@@ -46,7 +57,10 @@ importScripts("/static/libs/jszip.js");
 
 
 
-
+// Wrap the entire code in a function to get proper type inference on `self`
+const main = (
+    /** @type { ServiceWorkerGlobalScope } */ self,
+) => {
 
 
 
@@ -367,7 +381,7 @@ class ArchivedAreaManager {
                 aul: this.isUnlisted,
                 spe: this.isSinglePlayerExperience,
                 ece: this.explorerChatAllowed,
-                mpv: this.mpvr,
+                mpv: this.mpv,
             }
         }
     }
@@ -487,6 +501,7 @@ const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter+
 const areaManagerMgr = new AreaManagerManager();
 
 // TODO
+// @ts-ignore
 const defaultPlayer = new Player({ name: "explorer 123" });
 const getPlayerForClient = (clientId) => defaultPlayer;
 // TODO
@@ -616,7 +631,7 @@ const dataURLtoBlob = (dataUrl) => {
 
 /**
  * @param {Request} request 
- * @returns {any}
+ * @returns {Promise<any>}
  */
 const readRequestBody = async (request) => {
     const text = await request.text();
@@ -646,10 +661,10 @@ const routes = new Set();
 /**
  * @typedef {Object} RouteHandlersBagOfTricks
  * @property {Object} params - Parameters for the path
- * @property {Event} event
+ * @property {FetchEvent} event
  * @property {Request} request
  * @property {string} clientId
- * @property {(*) => Response} json
+ * @property {(json: any) => Response} json
  */
 /**
  * 
@@ -664,7 +679,7 @@ const addRouteHandler = (method, matcher, handler) => routes.add({ method, match
  * 
  * @param {"GET" | "POST"} method 
  * @param {string} pathname 
- * @param {Event} event 
+ * @param {FetchEvent} event
  * @returns 
  */
 const matchRoute = async (method, pathname, event) => {
@@ -807,7 +822,7 @@ addRouteHandler(POST, "/j/c/c", async ({ request, json }) => {
     const data = await readRequestBody(request)
 
     const alreadyExisted = inventory.includes(data.itemId);
-    inventory.splice(data.index, 0, [ data.itemId ])
+    inventory.splice(data.index, 0, data.itemId)
 
     return json({
         alreadyExisted: alreadyExisted,
@@ -920,13 +935,14 @@ addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) 
 
 
 // AreaPossessions
+const schema_aps_s = Zod.object({
+    areaGroupId: Zod.string(),
+    ids: Zod.string().array().optional(),
+})
 addRouteHandler(POST, "/j/aps/s/", async ({ request, json }) => {
     const body = await readRequestBody(request)
 
-    const { areaGroupId, ids } = schema_aps_s.parse(body.areaGroupId);
-    // TODO just add zod... ids can be undefined!
-
-
+    const { areaGroupId, ids } = schema_aps_s.parse(body);
     // TODO
 
     return json({ ok: true })
@@ -1032,7 +1048,7 @@ const CACHE_AREAS_V2 = "cache_areas_v2"
  */
 
 /**
- * @param {Event} event 
+ * @param { FetchEvent } event
  * @returns { Promise<Response> }
  */
 const handleFetchEvent = async (event) => {
@@ -1045,7 +1061,7 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(event.request);
-            if (url.pathname.startsWith("/j/")) return await matchRoute(event.request.method, url.pathname, event)
+            if (url.pathname.startsWith("/j/")) return await matchRoute(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
@@ -1090,12 +1106,12 @@ const handleFetchEvent = async (event) => {
 };
 
 /**
- * @param {EventMessage} event 
+ * @param {ExtendableMessageEvent} event
  */
 const handleClientMessage = async (event) => {
     try {
         const message = event.data;
-        const client = event.source;
+        const client = /** @type { Client } */ (event.source);
 
         console.log("MSG", client.id, message, { event })
         if (message.m === "WSMSG") {
@@ -1136,7 +1152,7 @@ const onInstall = async (/** @type {Event} */ event) => {
         // This cache is for the v1 area archive storage and will probably be deleted later
         const areasv2cache = await caches.open(CACHE_AREAS_V2);
         await areasv2cache.addAll([
-        new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName("chronology")}.zip`)
+            new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName("chronology")}.zip`).toString()
         ]);
     } catch(e) {
         console.error("onInstall error!", e)
@@ -1152,7 +1168,6 @@ self.addEventListener("unhandledrejection", (event) => console.error("unhandledr
 // Utils
 
 const sendWsMessageToClient = async (clientId, msg) => {
-    /** @type { WindowClient } */
     const client = await self.clients.get(clientId)
 
     if (client) {
@@ -1180,7 +1195,7 @@ self.addEventListener('install', event => event.waitUntil(onInstall()) );
 // Update and take over as soon as possible
 self.addEventListener('activate', event => {
     console.log("service worker activate event")
-    event.waitUntil(clients.claim()) 
+    event.waitUntil(self.clients.claim())
 });
 
 self.addEventListener('fetch', event => event.respondWith(handleFetchEvent(event)))
@@ -1190,3 +1205,7 @@ self.addEventListener('message', handleClientMessage)
 
 // #endregion boilerplate
 // #endregion Misc
+
+}
+
+main(self)
