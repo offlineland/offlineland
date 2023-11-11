@@ -917,6 +917,20 @@ addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) 
         ts: new Date().toISOString(),
     })
 })
+
+
+// AreaPossessions
+addRouteHandler(POST, "/j/aps/s/", async ({ request, json }) => {
+    const body = await readRequestBody(request)
+
+    const { areaGroupId, ids } = schema_aps_s.parse(body.areaGroupId);
+    // TODO just add zod... ids can be undefined!
+
+
+    // TODO
+
+    return json({ ok: true })
+});
 // #endregion Map
 
 
