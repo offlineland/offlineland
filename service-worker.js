@@ -67,6 +67,12 @@ const bundledAreasFile = {
     //"chronology": {
     //    areaId: "56ed2214c94d7b0e132538b9",
     //},
+    "blancnoir": {
+        areaId: "540f4a6fbcd7bbcf2e509c8d",
+        subareas: {
+            "level one": "544c7e89f06c47f141f4bc96",
+        }
+    },
     "gemcastle": {
         areaId: "541b035c44aff03338610fca",
     },
