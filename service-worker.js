@@ -1114,8 +1114,12 @@ addRouteHandler(GET, "/j/i/tcr/:playerId", async ({ params, json }) => {
 
 // Items
 // ItemDef
+const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
 addRouteHandler(GET, "/j/i/def/:creationId", ({ params, json }) => {
-    return json({"base":"SOLID","creator":"000000000000000000000000","id":params.creationId,"name":"creation info not available yet!"});
+    if (typeof params.creationId === "string" && params.creationId.length === 24) {
+        return fetch("https://" + itemDefRoot_CDN + params.creationId);
+    }
+    else return Response.error();
 });
 // Motions
 addRouteHandler(GET, "/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
