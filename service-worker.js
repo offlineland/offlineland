@@ -12,39 +12,10 @@ I could make classes in separate files and use them here, but then my editor wou
 */
 
 
-/**
- * @global
- * @type { (path: string) => (path: string) => boolean}
- * @name matchPath
-*/
-var matchPath = globalThis.matchPath;
 importScripts("/static/libs/path-to-regexp.js");
-
-/**
- * @global
- * @type { import('qs') }
-*/
-var Qs = globalThis.Qs;
 importScripts("/static/libs/qs.js");
-
-/**
- * @global
- * @name Dexie
-*/
 importScripts("/static/libs/dexie.js");
-
-/**
- * @global
- * @type { import('jszip') }
-*/
-var JSZip = globalThis.JSZip;
 importScripts("/static/libs/jszip.js");
-
-/**
- * @global
- * @type { import('zod') }
-*/
-var Zod = globalThis.Zod;
 importScripts("/static/libs/zod.umd.js");
 
 
@@ -60,6 +31,10 @@ importScripts("/static/libs/zod.umd.js");
 // Wrap the entire code in a function to get proper type inference on `self`
 const main = (
     /** @type { ServiceWorkerGlobalScope } */ self,
+    /** @type { (path: string) => (path: string) => boolean } */ matchPath,
+    /** @type { import('qs' )} */ Qs,
+    /** @type { import('jszip' )} */ JSZip,
+    /** @type { import('zod' )} */ Zod,
 ) => {
 
 
@@ -1209,5 +1184,17 @@ self.addEventListener('message', handleClientMessage)
 
 }
 
-// @ts-ignore
-main(self)
+
+
+main(
+    // @ts-ignore
+    self,
+    // @ts-ignore
+    matchPath,
+    // @ts-ignore
+    Qs,
+    // @ts-ignore
+    JSZip,
+    // @ts-ignore
+    Zod,
+)
