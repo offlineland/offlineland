@@ -392,6 +392,12 @@ function pathToRegexp(path, keys, options) {
 importScripts("/static/libs/qs.js");
 
 
+/**
+ * @global
+ * @name JSZip
+*/
+importScripts("/static/libs/jszip.js");
+
 // #endregion libs
 
 
@@ -425,6 +431,24 @@ importScripts("/static/libs/qs.js");
 // #region State
 
 const ringAreas = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+
+const bundledAreasFile = {
+    //"test2": {
+    //    areaId: "53ed27dfb3f6f9c3205157e1",
+    //},
+    //"chronology": {
+    //    areaId: "56ed2214c94d7b0e132538b9",
+    //},
+    "gemcastle": {
+        areaId: "541b035c44aff03338610fca",
+    },
+    //"sandcastle": {
+    //    areaId: "5522c6f01c963d1308f12e0a",
+    //    subareas: {
+    //        "the castle": "5523f96cab0f5a3e0c353aab",
+    //    },
+    //},
+}
 
 class Player {
     constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
@@ -607,7 +631,8 @@ class LocalAreaManager {
 class ArchivedAreaManager {
     clients = new Set();
 
-    constructor(wssUrl, areaId, data) {
+    constructor(wssUrl, areaId, data, zip) {
+        this.zip = zip;
         this.wssUrl = wssUrl;
         this.areaId = areaId;
 
@@ -633,11 +658,25 @@ class ArchivedAreaManager {
 
     static async make(wssUrl, areaId) {
         // TODO: fetch data from storage
-        // TODO: get data from cache or fetch?
-        const res = await fetch(`/static/data/v1/${areaId}/main.json`)
+        // TODO: cache
+        const res = await fetch(`/static/data/v2/${areaId}.zip`)
         // TODO handle errors?
-        const data = await res.json()
-        return new ArchivedAreaManager(wssUrl, areaId, data)
+        console.log("zip res", res, res.ok, res.status)
+
+        const blob = await res.blob()
+
+        console.log("reading zip")
+        const zip = await JSZip.loadAsync(blob)
+        console.log("reading zip ok", zip)
+
+        console.log("reading settings file")
+        const data = JSON.parse(await zip.file("area_settings.json").async("string"))
+        console.log("reading settings file ok", { areaId, data, zip })
+
+        // TODO: load creation data to cache
+        // TODO: load sector data to database?
+
+        return new ArchivedAreaManager(wssUrl, areaId, data, zip)
     }
 
     getInitData(player, urlName) {
@@ -694,11 +733,17 @@ class ArchivedAreaManager {
     }
 
     async getDataForSector(x, y) {
-        // TODO cache
-        const res = await fetch(`/static/data/v1/${this.areaId}/sectors/${x}_${y}.json`)
-        if (res.ok) return await res.json()
-        else return undefined
+        console.log(`loadingsectordata ${x}:${y}: reading zip`)
+        const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
+        console.log(`loadingsectordata ${x}:${y}: reading zip ok`, sectorFile)
 
+        if (sectorFile === null) return undefined;
+
+        console.log(`loadingsectordata ${x}:${y}: parsing file`)
+        const data = JSON.parse(await sectorFile.async("string"))
+        console.log(`loadingsectordata ${x}:${y}: parsing file ok`, data)
+
+        return data;
     }
 
     onWsConnection(client) {
@@ -740,8 +785,10 @@ class ArchivedAreaManager {
 
 const getAreaManagerClassForAreaId = (areaId) => {
     // TODO
-    if (areaId === "56ed2214c94d7b0e132538b9") {
-        return ArchivedAreaManager;
+    for (const area of Object.values(bundledAreasFile)) {
+        if (area.areaId === areaId) {
+            return ArchivedAreaManager;
+        }
     }
 
     return LocalAreaManager;
@@ -804,10 +851,10 @@ const defaultPlayer = new Player({ name: "explorer 123" });
 const getPlayerForClient = (clientId) => defaultPlayer;
 // TODO
 const getAreaIdForAreaName = (areaUrlName) => {
-    if (areaUrlName === "chronology") return "56ed2214c94d7b0e132538b9";
-    if (areaUrlName === "sandcastle") return "5522c6f01c963d1308f12e0a";
-    if (areaUrlName === "kingbrownssanctum") return "53ebd011d31b8354235a2d8f";
-    return generateObjectId();
+    const areaData = bundledAreasFile[areaUrlName]
+
+    if (areaData) return areaData.areaId;
+    else return generateObjectId();
 }
 // TODO
 const getAreaManagerFor = async (clientId, areaUrlName) => {
@@ -1153,18 +1200,52 @@ addRouteHandler(POST, "/j/m/cmv/", ({ json }) => json({ v: 1 }) );
 // SectorPlus
 addRouteHandler(GET, "/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
     const am = await areaManagerMgr.getByAreaId(params.aid)
-    return json([
-        await am.getDataForSector(params.x, params.y) // TODO: do the 8 sectors around too!
+    const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+    const sectors = await Promise.all([
+        s(-1, -1), s(-1, 0), s(-1, 1),
+        s( 0, -1), s( 0, 0), s( 0, 1),
+        s( 1, -1), s( 1, 0), s( 1, 1),
     ])
+
+    return json(sectors.filter(e => !!e))
 });
 // SectorPlusLoading (not exactly sure what's different)
 addRouteHandler(GET, "/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
     console.log("TESTDEBUG sectorPlusLoading params:", params)
 
     const am = await areaManagerMgr.getByAreaId(params.aid)
-    return json([
-        await am.getDataForSector(params.x, params.y) // TODO: do the 8 sectors around too!
+    const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+    const sectors = await Promise.all([
+        s(-1, -1), s(-1, 0), s(-1, 1),
+        s( 0, -1), s( 0, 0), s( 0, 1),
+        s( 1, -1), s( 1, 0), s( 1, 1),
     ])
+    console.log("sectors,", sectors)
+
+    return json(sectors.filter(e => !!e))
+});
+addRouteHandler(POST, "/j/m/s/", async ({ request, json }) => {
+    const body = await readRequestBody(request)
+
+    const areaId = body.a;
+    const areaPane = body.p;
+    const requestedSectors = JSON.parse(body.s);
+
+    const sectorData = [];
+    const am = await areaManagerMgr.getByAreaId(areaId)
+
+    for (const [x, y] of requestedSectors) {
+        const temp = await am.getDataForSector(x, y)
+        if (!temp) continue;
+
+        sectorData.push(temp)
+    }
+
+
+
+    return json(sectorData)
 });
 // DeletionMarkerForSectors
 addRouteHandler(POST, "/j/m/dmss/", async ({ json, request }) => {
@@ -1261,7 +1342,7 @@ const getOrSetFromCache = async (/** @type {Request} */ request) => {
 
 const getAreaList = async () => {
     // TODO get the file
-    return [ "chronology", "sandcastle" ]
+    return Object.keys(bundledAreasFile)
 }
 
 const CACHE_AREAS_V2 = "cache_areas_v2"
@@ -1283,11 +1364,9 @@ const handleFetchEvent = async (event) => {
 
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
-                const areasv2cache = await caches.open(CACHE_AREAS_V2);
-
                 const availableAreas = await getAreaList()
+                const areasv2cache = await caches.open(CACHE_AREAS_V2);
                 const areasStoredLocally = []
-
                 for (const areaUrlName of availableAreas) {
                     if (await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))) {
                         areasStoredLocally.push(areaUrlName)
