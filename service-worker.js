@@ -635,7 +635,7 @@ const routes = new Set();
 
 /**
  * @typedef {Object} RouteHandlersBagOfTricks
- * @property {Object} params - Parameters for the path
+ * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
  * @property {FetchEvent} event
  * @property {Request} request
  * @property {string} clientId
@@ -1143,6 +1143,11 @@ self.addEventListener("unhandledrejection", (event) => console.error("unhandledr
 
 // Utils
 
+/**
+ * 
+ * @param {string} clientId 
+ * @param {any} msg 
+ */
 const sendWsMessageToClient = async (clientId, msg) => {
     const client = await self.clients.get(clientId)
 
@@ -1151,6 +1156,13 @@ const sendWsMessageToClient = async (clientId, msg) => {
     }
 }
 
+/**
+ * 
+ * @template K, V
+ * @param {Map<K, V>} map 
+ * @param {(key: K) => V} ctor 
+ * @returns {(key: K) => V}
+ */
 const makeGetOrCreate = (map, ctor) => {
     return (key) => {
         const value = map.get(key);
