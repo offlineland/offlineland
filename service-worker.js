@@ -64,9 +64,21 @@ const bundledAreasFile = {
     //"test2": {
     //    areaId: "53ed27dfb3f6f9c3205157e1",
     //},
-    //"chronology": {
-    //    areaId: "56ed2214c94d7b0e132538b9",
-    //},
+    "chronology": {
+        areaId: "56ed2214c94d7b0e132538b9",
+    },
+    "oosforest": {
+        areaId: "5963e0d370c6b17b13c75b26",
+    },
+    "oosjungle": {
+        areaId: "5bc003b5051ec03628866ecb",
+    },
+    "hell": {
+        areaId: "5b76e3f46c3ef97b26871968",
+        subareas: {
+            //"jungle spawn": ,
+        }
+    },
     "blancnoir": {
         areaId: "540f4a6fbcd7bbcf2e509c8d",
         subareas: {
@@ -436,7 +448,7 @@ class ArchivedAreaManager {
                 case msgTypes.TELEPORT: {
                     if (parsedMsg.data.tol) {
                         console.log("user asked to teleport to", parsedMsg.data.tol)
-                        if (bundledAreasFile[this.areaUrlName]?.subareas[parsedMsg.data.tol]) {
+                        if (bundledAreasFile[this.areaUrlName]?.subareas?.[parsedMsg.data.tol]) {
                             console.log("subarea found!")
                         }
                         else {
