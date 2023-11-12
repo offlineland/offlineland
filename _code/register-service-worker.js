@@ -11,10 +11,10 @@ export const registerServiceWorker = async () => {
     //    console.log("existing SW, unregistering... done, res:", res)
     //}
 
-    const regPromise = navigator.serviceWorker.register('/service-worker.js', { scope: "/", type: "classic" })
-    console.log("registering service worker...", { regPromise })
-    const swRegistration = await regPromise;
-    console.log("registering service worker... done", { regPromise, swRegistration })
+
+    console.log("registering service worker...")
+    const swRegistration = await navigator.serviceWorker.register('/service-worker.js', { scope: "/", type: "classic" })
+    console.log("registering service worker... done", { swRegistration })
 
 
     swRegistration.addEventListener("updatefound", (event) => {
@@ -25,12 +25,10 @@ export const registerServiceWorker = async () => {
         swRegistration.installing?.addEventListener("error", (event) => console.log("New service worker state", newWorker?.state, { event, newWorker }))
     })
 
-    const updatePromise = swRegistration.update()
-    console.log("updating service worker...", { updatePromise })
-    const upResult = await updatePromise;
-    console.log("updating service worker... done", { updatePromise, upResult })
+    console.log("updating service worker...")
+    await swRegistration.update()
+    console.log("updating service worker... done")
 
-    //console.log("ready to start game", { upResult })
 
     return { 
         registration: swRegistration,
