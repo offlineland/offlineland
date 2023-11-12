@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manyland - Offline</title>
+
+
+    <link rel="stylesheet" type="text/css" href="/static/main.css?v=6358" media="screen" />
+    
+    <script src="/static/manyland.js?v=6358"></script>
+    <link rel="icon" href="/static/favicon.ico?v=6358" type="image/x-icon" />
+
+
+
+
+    <meta name="viewport" id="vp" content="initial-scale=1.0,user-scalable=no,maximum-scale=1,width=device-width"/>
+    <meta name="viewport" id="vp" content="initial-scale=1.0,user-scalable=no,maximum-scale=1" media="(device-height: 568px)"/>
+    <link href="/static/media/mobile/splashscreen.png" rel="apple-touch-startup-image" sizes="640x960" media="(device-height: 480px)"/>
+    <link href="/static/media/mobile/splashscreen-wide.png" rel="apple-touch-startup-image" media="(device-height: 568px)"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <link rel="apple-touch-icon-precomposed" href="/static/media/mobile/icon-114.png" sizes="114x114"/>
+    <link rel="apple-touch-icon-precomposed" href="/static/media/mobile/icon-57.png" sizes="57x57"/>
+    <meta name="google" value="notranslate"/>
+    <meta name="apple-itunes-app" content="app-id=657739357"/>
+
+<style>
+#loadingAnimation {
+position: absolute;
+display: block;
+left: 0;
+top: 100px;
+width: 100%;
+height: 300px;
+color: #aaa;
+text-align: center;
+font-family: 'Press Start 2P', sans-serif;
+font-size: 11px;
+text-transform: uppercase;
+line-height: 17px;
+opacity: 0;
+background-image: url("data:image/gif;base64,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");
+background-repeat: no-repeat;
+background-position: 50% 0;
+background-size: 128px 128px;
+z-index: 2000;
+
+-webkit-animation: fadein 6s linear; -moz-animation: fadein 6s linear; animation: fadein 6s linear;
+-webkit-animation-fill-mode: forwards; -moz-animation-fill-mode: forwards; animation-fill-mode: forwards;
+-webkit-animation-delay: 8s; -moz-animation-delay: 8s; animation-delay: 8s;
+}
+
+#loadingAnimation a {
+    color: #000;
+}
+
+#loadingAnimation .text {
+margin-top: 140px;
+width: 420px;
+margin-left: auto;
+margin-right: auto;
+}
+
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@-moz-keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@-webkit-keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+</style>
+
+</head>
+<body>
+
+<div id="loadingAnimation"><div class="text"><span id="loadingMessage">Transporting you into Manyland...</span><br/><br/>(please see manyland.com/support if there are issues)</div></div>
+
+
+<canvas id="canvas" tabindex="1" moz-opaque></canvas>
+<script>
+    window.root         = window.location.host;
+    window.staticroot   = window.location.host + '/static';
+    window.imageroot    = window.location.host + '/image';
+    window.snaproot     = window.location.host + '/snap';
+    window.snapthmroot  = window.location.host + '/snapthmb';
+    window.sctroot      = window.location.host + '/sct';
+    //window.mlenv        = 'dev';
+    //window.mlenv        = 'production';
+    window.mlenv        = 'test';
+    window.oid          = '';
+    window.fai          = '202822299863982';
+    window.v            = '6358';
+    window.adr          = '1';
+</script>
+
+
+<script type="module">
+    import { registerServiceWorker } from "/static/register-service-worker.js"
+    // Noop until replaced in main()
+    let postMessage_ = () => {}
+    /** @type { FakeWebSocket | null } */
+    let lastWsInstance = null;
+    
+    // Relay messages from Service Worker to the FakeWebSocket instance
+    navigator.serviceWorker?.addEventListener("message", (ev) => {
+        const msg = ev.data;
+
+        if (msg.m === "WS_OPEN") {
+            lastWsInstance?.onopen()
+        }
+        if (msg.m === "WS_MSG") {
+            lastWsInstance?.onmessage({ data: msg.data })
+        }
+    })
+
+
+    // Keep the real WebSocket just in case...
+    window._WebSocket = window.WebSocket;
+
+    // Make a FakeWebSocket that relays messages to the ServiceWorker
+    class FakeWebSocket {
+        static OPEN = _WebSocket.OPEN;
+        readyState = _WebSocket.OPEN;
+        onopen = () => {};
+        onclose = () => {};
+        onmessage = () => {};
+
+        constructor(url) {
+            this.url = url;
+            lastWsInstance = this;
+
+            postMessage_({ m: "PLS_OPEN_WS", data: { wsUrl: this.url }})
+        }
+
+        send(msg) {
+            postMessage_({ m: "WSMSG", data: { wsUrl: this.url, msg: msg } })
+        }
+
+        close(closeCode) {
+            this.onclose(closeCode)
+        }
+    };
+
+
+    // ... Then trick the game into loading our FakeWebSocket
+    window.WebSocket = FakeWebSocket;
+
+
+
+    const startGame = () => jQuery(ig.module('initgame').requires('game.main').defines(function(){ MLand.start();}))
+
+    const main = async () => {
+        const { registration } = await registerServiceWorker()
+
+        postMessage_ = (data) => registration.active.postMessage(data)
+
+        postMessage_({ m: "STARTING_GAME" })
+        startGame();
+    }
+
+
+    main();
+</script>
+
+</body>
+</html>

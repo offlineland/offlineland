@@ -1322,7 +1322,7 @@ const handleFetchEvent = async (event) => {
         console.log("FETCH", event.clientId, url.pathname, { event })
 
         if (url.host === originUrl.host) {
-            if (url.pathname === "/") return fetch("/mainscreen.html");
+            if (url.pathname === "/") return fetch("/index.html");
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
@@ -1353,7 +1353,7 @@ const handleFetchEvent = async (event) => {
             // If nothing else matches, we assume it's trying to load an area's index.html (TODO: would request headers indicate client only accepts html?)
             // TODO: move /mainscreen.html to /index.html so that it's the first file loaded. Current /index.html can become /game.html or something
             // TODO: check if area is available locally. If not, display an error page and/or redirect to /
-            return fetch("/index.html")
+            return fetch("/game.html")
         }
 
         if (cloudfrontHosts.includes(url.hostname)) {
