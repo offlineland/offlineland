@@ -872,7 +872,11 @@ class ArchivedAreaManager {
                     break;
                 }
                 case msgTypes.TELEPORT: {
-                    if (parsedMsg.data.tol) {
+                    if (parsedMsg.data === null) {
+                        console.log("tried to go to elsewhere")
+                        client.postMessage({ m: "NAVIGATE_TO_MAINSCREEN" })
+                    }
+                    else if (parsedMsg.data.tol) {
                         console.log("user asked to teleport to", parsedMsg.data.tol)
                         if (bundledAreasFile[this.areaUrlName]?.subareas?.[parsedMsg.data.tol]) {
                             console.log("subarea found!")

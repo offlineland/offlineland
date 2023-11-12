@@ -100,11 +100,14 @@ margin-right: auto;
     navigator.serviceWorker?.addEventListener("message", (ev) => {
         const msg = ev.data;
 
-        if (msg.m === "WS_OPEN") {
-            lastWsInstance?.onopen()
-        }
         if (msg.m === "WS_MSG") {
             lastWsInstance?.onmessage({ data: msg.data })
+        }
+        else if (msg.m === "WS_OPEN") {
+            lastWsInstance?.onopen()
+        }
+        else if (msg.m === "NAVIGATE_TO_MAINSCREEN") {
+            window.location = "/";
         }
     })
 
