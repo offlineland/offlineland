@@ -22,7 +22,6 @@ I could make classes in separate files and use them here, but then my editor wou
 
 importScripts("/static/libs/path-to-regexp.js");
 importScripts("/static/libs/qs.js");
-importScripts("/static/libs/dexie.js");
 importScripts("/static/libs/jszip.js");
 importScripts("/static/libs/zod.umd.js");
 
