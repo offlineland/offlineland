@@ -3,7 +3,6 @@
 
 
 
-
 //  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
 //  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
 //  ██████  ██    ██ ██ ██      █████   ██████  ██████  ██      ███████    ██    █████   
@@ -40,6 +39,8 @@ const main = (
     /** @type { import('jszip' )} */ JSZip,
     /** @type { import('zod' )} */ Zod,
 ) => {
+
+try {
 
 
 
@@ -420,7 +421,7 @@ const makeRouter = () => {
      * @param {string} matcher 
      * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
      */
-    const post = (matcher, handler) => route(GET, matcher, handler);
+    const post = (matcher, handler) => route(POST, matcher, handler);
 
     /**
      * 
@@ -445,6 +446,9 @@ const makeRouter = () => {
                 json: (data) => Response.json( data ),
             });
         }
+
+        // If this happens, either it's because of an unhandled method (the client only sends GETs and POSTs though), or something is very wrong
+        throw new Error("matchRoute: No match found!")
     }
 
     return { route, get, post, matchRoute }
@@ -1280,8 +1284,9 @@ class FakeAPI {
      * @param {FetchEvent} event
      * @returns 
      */
-    handle(method, pathname, event) {
-        return this.router.matchRoute(method, pathname, event)
+    async handle(method, pathname, event) {
+        console.log("FakeAPI.handle()", method, pathname, event);
+        return await this.router.matchRoute(method, pathname, event);
     }
 }
 
@@ -1302,7 +1307,7 @@ class FakeAPI {
 
 console.log("Hi from service worker global context")
 const areaManagerMgr = new AreaManagerManager();
-const fakeAPI = new FakeAPI(areaManagerMgr)
+const fakeAPI = new FakeAPI(areaManagerMgr);
 
 /***
  *     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
@@ -1438,16 +1443,19 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => event.respondWith(handleFetchEvent(event)))
 self.addEventListener('message', handleClientMessage)
 
-self.addEventListener("error", (event) => console.error("error event", event))
-self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
 
 
 
 
-
+} catch(e) {
+    console.error("error in main()", e)
+}
 
 
 }; //main() ends here
+
+self.addEventListener("error", (event) => console.error("error event", event))
+self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
 
 // Now we call main() with everything in global scope while telling tsc to squint
 main(

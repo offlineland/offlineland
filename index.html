@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
     <body>
-        <script src="/static/libs/redom.js"></script>
+        <script src="/_code/libs/redom.js"></script>
         <script type="module">
-            import { registerServiceWorker } from "/static/register-service-worker.js"
+            import { registerServiceWorker } from "/_code/register-service-worker.js"
             const { el, mount } = globalThis.redom;
 
-            registerServiceWorker()
+            await registerServiceWorker()
 
             // TODO: use indexedDB instead?
             const dataRes = await fetch("/_mlspinternal_/getdata");

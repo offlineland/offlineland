@@ -11,7 +11,7 @@ export const registerServiceWorker = async () => {
     //    console.log("existing SW, unregistering... done, res:", res)
     //}
 
-    const regPromise = navigator.serviceWorker.register('/_code/service-worker.js', { scope: "/", type: "classic" })
+    const regPromise = navigator.serviceWorker.register('/service-worker.js', { scope: "/", type: "classic" })
     console.log("registering service worker...", { regPromise })
     const swRegistration = await regPromise;
     console.log("registering service worker... done", { regPromise, swRegistration })

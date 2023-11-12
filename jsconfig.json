@@ -10,6 +10,9 @@
     },
     "include": [
         "_code/**/*.js",
-        "service-worker.js",
+        "service-worker.js"
+    ],
+    "exclude": [
+        "_code/libs/*.js"
     ]
 }
