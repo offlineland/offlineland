@@ -129,7 +129,7 @@ class Player {
                 "b":"00000000000000000000074f",
                 "w":null,
                 "m":null,
-                "h":"00000000000000000000074f",
+                "h":null,
                 "br":null
             },
             "r":10,
@@ -401,6 +401,7 @@ class ArchivedAreaManager {
             "m":"on",
             "data":{
                 ...player.getInitData_ws(),
+                //pos: { x: 2261, y: 57 },
 
                 "ach":"[0,4,10,11,12,8,39,5,35,9]",
                 "neo":true, // ?
@@ -417,19 +418,7 @@ class ArchivedAreaManager {
         })
         client.postMessage({ m: "WS_MSG", data: initDataMsg });
 
-        /*
-        client.postMessage({
-            m: "WS_MSG",
-            data: toClient({ m: msgTypes.SYNC_BLOCK, data: {
-                loc: { x: 74, y: 11 },
-                sta: {
-                    sta: 0,
-                    uid: defaultPlayer.rid,
-                    tid: 555
-                }
-            }})
-        });
-        */
+
     }
 
     /**
@@ -445,6 +434,24 @@ class ArchivedAreaManager {
             console.log("onWsMessage()", msgTypes_rev[parsedMsg.m], parsedMsg)
 
             switch (parsedMsg.m) {
+                case msgTypes.REQUEST_SYNCBLOCK_HOT: {
+                    // TODO: need to read current sector, get all the server-handled blocks (moving, deadly moving, gatherable, item thrower, crumblings) and handle their states
+
+                    // this is the first movable block in gemcastle.
+                    client.postMessage({
+                        m: "WS_MSG",
+                        data: toClient({
+                            m: msgTypes.SYNC_BLOCK,
+                            data: {
+                                pos: { x: 2168, y: -19 },
+                                vel: { x: -29.958401433280066, y: 0 },
+                                loc: { x: 111, y: -1 }
+                            }
+                        })
+                    });
+
+                    break;
+                }
                 case msgTypes.TELEPORT: {
                     if (parsedMsg.data.tol) {
                         console.log("user asked to teleport to", parsedMsg.data.tol)
@@ -472,9 +479,9 @@ class ArchivedAreaManager {
                         data: toClient({ m: msgTypes.SYNC_BLOCK, data: {
                             loc: data.loc,
                             sta: {
-                                sta: 1,
-                                uid: defaultPlayer.rid,
-                                tid: 555
+                                sta: 1, //TODO: figure out proper state based on the triggered block's attributes
+                                uid: defaultPlayer.rid, // TODO
+                                tid: 555 // TODO: actually keep track of ids
                             }
                         }})
                     });
@@ -651,7 +658,7 @@ const msgTypes = {
     "MAP_EDIT_REJECTED": "th",
     "REQUEST_PLAYER_LIST": "eh", //sent 500ms after loading a new sector
     "REQUEST_PLAYER_DATA": "zd",
-    "DONTKNOWHOT": "sd", //sent on initialization complete, ws re-open, window focus and immediately after entering a new sector?
+    "REQUEST_SYNCBLOCK_HOT": "sd", //sent on initialization complete, ws re-open, window focus and immediately after entering a new sector. Server replies with SYNC_BLOCKs
     "SET_SPAWNPOINT": "jq",
     "RESET_SPAWNPOINT": "xu",
     "DONTKNOW_ATT": "ok", //add or remove attachment
