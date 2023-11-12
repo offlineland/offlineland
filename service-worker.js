@@ -23,11 +23,6 @@ importScripts("/static/libs/zod.umd.js");
 
 
 
-
-
-
-
-
 // Wrap the entire code in a function to get proper type inference on `self`
 const main = (
     /** @type { ServiceWorkerGlobalScope } */ self,
@@ -38,28 +33,11 @@ const main = (
 ) => {
 
 
+// #region boilerplate
 
-
-//    SSSSSSSSSSSSSSS     tttt                                  tttt                             
-//  SS:::::::::::::::S ttt:::t                               ttt:::t                             
-// S:::::SSSSSS::::::S t:::::t                               t:::::t                             
-// S:::::S     SSSSSSS t:::::t                               t:::::t                             
-// S:::::S       ttttttt:::::ttttttt     aaaaaaaaaaaaa ttttttt:::::ttttttt       eeeeeeeeeeee    
-// S:::::S       t:::::::::::::::::t     a::::::::::::at:::::::::::::::::t     ee::::::::::::ee  
-//  S::::SSSS    t:::::::::::::::::t     aaaaaaaaa:::::t:::::::::::::::::t    e::::::eeeee:::::ee
-//   SS::::::SSSStttttt:::::::tttttt              a::::tttttt:::::::tttttt   e::::::e     e:::::e
-//     SSS::::::::SS   t:::::t             aaaaaaa:::::a     t:::::t         e:::::::eeeee::::::e
-//        SSSSSS::::S  t:::::t           aa::::::::::::a     t:::::t         e:::::::::::::::::e 
-//             S:::::S t:::::t          a::::aaaa::::::a     t:::::t         e::::::eeeeeeeeeee  
-//             S:::::S t:::::t    ttttta::::a    a:::::a     t:::::t    ttttte:::::::e           
-// SSSSSSS     S:::::S t::::::tttt:::::a::::a    a:::::a     t::::::tttt:::::e::::::::e          
-// S::::::SSSSSS:::::S tt::::::::::::::a:::::aaaa::::::a     tt::::::::::::::te::::::::eeeeeeee  
-// S:::::::::::::::SS    tt:::::::::::tta::::::::::aa:::a      tt:::::::::::tt ee:::::::::::::e  
-//  SSSSSSSSSSSSSSS        ttttttttttt   aaaaaaaaaa  aaaa        ttttttttttt     eeeeeeeeeeeeee  
-// #region State
-
+// #region misc
+const z = Zod;
 const ringAreas = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
-
 const bundledAreasFile = {
     //"test2": {
     //    areaId: "53ed27dfb3f6f9c3205157e1",
@@ -95,7 +73,362 @@ const bundledAreasFile = {
     //    },
     //},
 }
+const getAreaList = async () => {
+    // TODO get the file
+    return Object.keys(bundledAreasFile)
+}
 
+
+/** * @param {string} clientId * @param {any} msg */
+const sendWsMessageToClient = async (clientId, msg) => {
+    const client = await self.clients.get(clientId)
+
+    if (client) {
+        client.postMessage(msg);
+    }
+}
+
+/**
+ * 
+ * @template K, V
+ * @param {Map<K, V>} map 
+ * @param {(key: K) => V} ctor 
+ * @returns {(key: K) => V}
+ */
+const makeGetOrCreate = (map, ctor) => {
+    return (key) => {
+        const value = map.get(key);
+        if (value) return value;
+
+        const newValue = ctor(key)
+        map.set(key, newValue)
+        return newValue;
+    }
+}
+
+/**
+ * 
+ * @param {number} timestamp
+ * @param {number} machineId
+ * @param {number} processId
+ * @param {number} counter
+ * @returns {string}
+ */
+const generateObjectId_ = (timestamp, machineId, processId, counter) => {
+  const hexTimestamp = Math.floor(timestamp / 1000).toString(16).padStart(8, '0');
+  const hexMachineId = machineId.toString(16).padStart(6, '0');
+  const hexProcessId = processId.toString(16).padStart(4, '0');
+  const hexCounter = counter.toString(16).padStart(6, '0');
+
+  return hexTimestamp + hexMachineId + hexProcessId + hexCounter;
+}
+let objIdCounter = 0;
+const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter++)
+
+// #endregion misc
+
+
+// #region WS
+const msgTypes = {
+    "PLAYER_SPAWN": "qv",
+    "SIM_PLAYER_SPAWN": "po", //only received, unhandled
+    "PLAYER_DATA": "uq",
+    "PLAYER_LIST": "qq",
+    "OWN_INFO": "on",
+    "STATE_UPDATE_NON_BINARY": "ej",
+    "PLAYER_DEATH": "ud",
+    "PLAYER_DESPAWN": "lm",
+    "MAP_EDIT": "bd",
+    "MAP_EDIT_REJECTED": "th",
+    "REQUEST_PLAYER_LIST": "eh", //sent 500ms after loading a new sector
+    "REQUEST_PLAYER_DATA": "zd",
+    "REQUEST_SYNCBLOCK_HOT": "sd", //sent on initialization complete, ws re-open, window focus and immediately after entering a new sector. Server replies with SYNC_BLOCKs
+    "SET_SPAWNPOINT": "jq",
+    "RESET_SPAWNPOINT": "xu",
+    "DONTKNOW_ATT": "ok", //add or remove attachment
+    "CHANGE_NAME": "pw",
+    "TELEPORT": "lr",
+    "PORTAL": "lc",
+    "PORTALRING": "fc",
+    "SYNC_BLOCK": "iy", //only received, used to update status for item throwers, gatherables, movers and crumblings (dunno if more) {loc: {}, pos, vel, sta, evt?, } || { loc: { x: 34, y: 13 }, sta: 0 } only received, no rid, broadcast
+    "TRIGGER": "zr", //only sent, received by others as SYNC_BLOCK
+    "SPEECH": "en",
+    "SPARKLE_LINE": "it",
+    "PLAYER_VOTE_UP": "mo", //only sent {id}
+    "PLAYER_VOTE_DOWN": "ss",
+    "PLAYER_ADD_FLAG": "zo",
+    "PLAYER_REMOVE_FLAG": "si",
+    "PEACEPARKER": "dy", //hmm
+    "UNUSED_MAINTENANCE": "ot", //only received, unhandled
+    "WSS_CHANGE": "ba", //only received, WSS Change CMD: {h, p}, client reopens a connection to h(ost):p(ort)
+    "RELOAD": "rl",
+    "RANKUPDATE": "rk",
+    "HEARTBEAT": "md",
+    "UNUSED1": "qj", //unhandled and unsent
+    "CHANGE_ATTACHMENT": "us",
+    "THROW_ATTACHMENT": "mw",
+    "PASTE": "zc",
+    "INSTRUMENT_NOTE": "xf",
+    "WELCOME_INVITATION": "cf",
+    "HOLDABLE_INTERACTION": "ef",
+    "MOTION": "ff",
+    "EQUIPMENT_ACTION": "ub",
+    "HOLDER_VIEWED": "qw",
+    "INTERACTING_ACTIVITY": "nv",
+    "MODIFY_POSSESSION_SET": "ep",
+    "LATENCY_CHECK": "fd",
+    "HELD_OFFSET": "wf", //they both share the same key?
+    //"ECHO": "wf", //unhandled and unsent
+    "PING_FRIEND": "lh",
+    "ADDED_LINES": "rj",
+    "CLEAR_LINES": "cl",
+    "MIFT_ALERT": "ua",
+    "AREA_BAN": "dm",
+    "EDITOR_RIGHTS_CHANGE": "ux",
+    "BOOST_STARTED": "zn",
+    "BOOST_RESPONSE": "ex",
+    "BOOST_REJECTED": "rt",
+    "SNAPSHOT_TAKEN": "bn",
+    "AREA_SETTINGS_EDITED": "gh",
+    "MOVER_BODY_HEALTH_CHANGE": "le",
+    "CLOCK_SYNC_PING": "pe",
+    "TRANSPORT_REJECTED": "oj",
+    "MULTITHING_ACTIVITY": "od",
+    "WSLIMIT": "ey",
+    "PAINTER_ACTIVITY": "pa",
+}
+
+const msgTypes_rev = reverseObject(msgTypes)
+function reverseObject(obj) {
+    let reversed = {};
+    for (let key in obj) {
+        reversed[obj[key]] = key;
+    }
+    return reversed;
+}
+
+
+const mappingClientToServer = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":false,"g":',"B" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":true,"g":',"J" : '"m":"st","data":{"pos":{"x":',"C" : '"m":"sh","data":{"key":"_c',"D" : '","rotation":0,"flip":0},"',"&" : '"m":"rq","data":null}',"E" : '"m":"rm","data":null}',"F" : ',"def":null,"rId":"',"G" : '"vel":{"x":0,"y":0}',"H" : '"acl":{"x":0,"y":0}',"K" : '"m":"me","data":{',"~" : '"ani":"swimming',"L" : ',"def":{"tid":"',"M" : '"ani":"idle"',"N" : '"ani":"jump"',"O" : '"ani":"fall"',"P" : '"ani":"afk"',"Q" : '"ani":"run"',"R" : '"flp":false',"W" : '"pos":{"x":',"X" : '"acl":{"x":',"V" : '"vel":{"x":',"S" : '"flp":true',"T" : '"m":"hb"}',"U" : ',"data":{',"!" : '"act":',"@" : '"g":',"Y" : '"x":',"Z" : '"y":',"?" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3",">" : "4","(" : "0",")" : "5"};
+const mappingServerToClient = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},',"B" : '"m":"mu","data":{"loc":{"x":',"C" : '"m":"st","data":{"rid":"',"/" : '"m":"sh","data":{"rid":"',"D" : '"m":"np","data":{',"E" : '"flp":false,"g":',"F" : '"flp":true,"g":',"G" : '"ani":"idle"',"H" : '"ani":"jump"',"J" : '"ani":"fall"',"O" : '"flp":false,',"K" : '"ani":"afk"',"L" : '"pos":{"x":',"M" : '"vel":{"x":',"N" : '"acl":{"x":',"P" : '"ani":"run"',"Q" : '"flp":true,',"R" : '"map":{"p":',"@" : '","data":{',"T" : '},"sta":0',"U" : '},"sta":1',"?" : '"key":"_',"V" : '"ach":"',"W" : '"rid":"',"X" : '"aid":"',"Y" : '"snm":"',"S" : '"wid":',"Z" : '"r":',"!" : '"x":',"#" : '"y":',">" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3","(" : "0",")" : "5"};
+
+/**
+ * 
+ * @param {Record<string, string>} mapping 
+ * @param {string} str 
+ * @return {unknown}
+ */
+const expand = (mapping, str) => {
+    if (str[0] === "{") {
+        return JSON.parse(str);
+    }
+    else {
+        let expanded = str;
+
+        for (const short in mapping) {
+            const long = mapping[short];
+            expanded = replaceAll(expanded, short, long);
+        }
+
+        console.log("expanded: {" + expanded)
+        return JSON.parse("{" + expanded);
+    }
+}
+
+/**
+ * 
+ * @param {Record<string, string>} mapping 
+ * @param {any} data 
+ * @returns { string }
+ */
+const minify = (mapping, data) => {
+    const str = JSON.stringify(data);
+
+    const strHasCharFromMapping = Object.keys(mapping).some(short => str.includes(short))
+
+    if (strHasCharFromMapping) {
+        return str;
+    }
+ 
+    if (str[0] === "{") {
+        let minified = str.slice(1);
+
+        for (const short in mapping) {
+            const long = mapping[short];
+            minified = replaceAll(minified, long, short);
+        }
+
+        return minified;
+    }
+    else {
+        console.log(`WARNING: JSON ws send string did not start with '{'! ${str}`)
+        return str;
+    }
+} 
+
+const toServer = (data) => minify(mappingClientToServer, data)
+const fromServer = (str) => expand(mappingServerToClient, str)
+
+const toClient = (data) => minify(mappingServerToClient, data)
+const fromClient = (str) => expand(mappingClientToServer, str)
+
+function replaceAll(str, find, replace) {
+    return str.toString().replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+
+function escapeRegExp(str) {
+    return str.toString().replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+// #endregion WS
+
+
+
+// #region basicrouterboilerplate
+
+/**
+ * @param {string} dataUrl
+ * @returns {Blob}
+ */
+const dataURLtoBlob = (dataUrl) => {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+
+    return new Blob([u8arr], { type: mime });
+}
+
+/**
+ * @param {Request} request 
+ * @returns {Promise<any>}
+ */
+const readRequestBody = async (request) => {
+    const text = await request.text();
+    const data = Qs.parse(text);
+
+    return data;
+}
+
+
+
+
+const groundId = "50372a99f5d33dc56f000001"
+const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
+const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
+const GET = "GET";
+const POST = "POST";
+
+
+
+
+
+
+// This is fairly naive but good enough
+const routes = new Set();
+
+
+/**
+ * @typedef {Object} RouteHandlersBagOfTricks
+ * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
+ * @property {FetchEvent} event
+ * @property {Request} request
+ * @property {string} clientId
+ * @property {(json: any) => Response} json
+ */
+/**
+ * 
+ * @param {"GET" | "POST"} method 
+ * @param {string} matcher 
+ * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
+ * @returns 
+ */
+const addRouteHandler = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
+
+/**
+ * 
+ * @param {"GET" | "POST"} method 
+ * @param {string} pathname 
+ * @param {FetchEvent} event
+ * @returns 
+ */
+const matchRoute = async (method, pathname, event) => {
+    for (const route of routes) {
+        if (route.method !== method) continue;
+
+        const matchRes = route.matcher(pathname);
+        if (matchRes === false) continue;
+
+
+        return await route.handler({
+            params: matchRes.params,
+            event: event,
+            request: event.request,
+            clientId: event.clientId,
+            json: (data) => Response.json( data ),
+        });
+    }
+}
+
+
+// #endregion basicrouterboilerplate
+
+
+// #region zodschemas
+// #region ws
+const ws_trigger = z.object({
+    loc: z.object({
+        x: z.number(),
+        y: z.number(),
+    }),
+    trd: z.number(),
+})
+// #endregion ws
+
+
+// #region http
+const schema_aps_s = Zod.object({
+    areaGroupId: Zod.string(),
+    ids: Zod.string().array().optional(),
+})
+// #endregion http
+// #endregion zodschemas
+
+
+// #endregion boilerplate
+
+
+
+
+
+
+
+
+
+
+//    SSSSSSSSSSSSSSS     tttt                                  tttt                             
+//  SS:::::::::::::::S ttt:::t                               ttt:::t                             
+// S:::::SSSSSS::::::S t:::::t                               t:::::t                             
+// S:::::S     SSSSSSS t:::::t                               t:::::t                             
+// S:::::S       ttttttt:::::ttttttt     aaaaaaaaaaaaa ttttttt:::::ttttttt       eeeeeeeeeeee    
+// S:::::S       t:::::::::::::::::t     a::::::::::::at:::::::::::::::::t     ee::::::::::::ee  
+//  S::::SSSS    t:::::::::::::::::t     aaaaaaaaa:::::t:::::::::::::::::t    e::::::eeeee:::::ee
+//   SS::::::SSSStttttt:::::::tttttt              a::::tttttt:::::::tttttt   e::::::e     e:::::e
+//     SSS::::::::SS   t:::::t             aaaaaaa:::::a     t:::::t         e:::::::eeeee::::::e
+//        SSSSSS::::S  t:::::t           aa::::::::::::a     t:::::t         e:::::::::::::::::e 
+//             S:::::S t:::::t          a::::aaaa::::::a     t:::::t         e::::::eeeeeeeeeee  
+//             S:::::S t:::::t    ttttta::::a    a:::::a     t:::::t    ttttte:::::::e           
+// SSSSSSS     S:::::S t::::::tttt:::::a::::a    a:::::a     t::::::tttt:::::e::::::::e          
+// S::::::SSSSSS:::::S tt::::::::::::::a:::::aaaa::::::a     tt::::::::::::::te::::::::eeeeeeee  
+// S:::::::::::::::SS    tt:::::::::::tta::::::::::aa:::a      tt:::::::::::tt ee:::::::::::::e  
+//  SSSSSSSSSSSSSSS        ttttttttttt   aaaaaaaaaa  aaaa        ttttttttttt     eeeeeeeeeeeeee  
+// #region State
+
+
+//#region Player
 class Player {
     constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
         this.name = name || "explorer 123";
@@ -125,6 +458,7 @@ class Player {
             "rid": this.rid,
             "snm": this.name,
             "aid":"80-1-1-f",
+            // TODO: this should be handled by the AreaManager
             "att":{
                 "b":"00000000000000000000074f",
                 "w":null,
@@ -133,6 +467,7 @@ class Player {
                 "br":null
             },
             "r":10,
+            // TODO: this should be handled by the AreaManager
             "pos":{"x":288,"y":288},
             "ani":"idle",
             "flp":false,
@@ -143,8 +478,10 @@ class Player {
         }
     }
 }
+//#endregion Player
 
 
+//#region AreaManager
 // TODO: store changes locally
 // TODO: Networking?
 class LocalAreaManager {
@@ -504,14 +841,9 @@ class ArchivedAreaManager {
     }
 }
 
-const z = Zod;
-const ws_trigger = z.object({
-    loc: z.object({
-        x: z.number(),
-        y: z.number(),
-    }),
-    trd: z.number(),
-})
+//#endregion AreaManager
+
+
 
 const getAreaManagerClassForAreaId = (areaId) => {
     // TODO
@@ -523,6 +855,7 @@ const getAreaManagerClassForAreaId = (areaId) => {
 
     return LocalAreaManager;
 }
+
 
 class AreaManagerManager {
     wssCount = 0;
@@ -560,24 +893,6 @@ class AreaManagerManager {
 
 
 
-/**
- * 
- * @param {number} timestamp
- * @param {number} machineId
- * @param {number} processId
- * @param {number} counter
- * @returns {string}
- */
-const generateObjectId_ = (timestamp, machineId, processId, counter) => {
-  const hexTimestamp = Math.floor(timestamp / 1000).toString(16).padStart(8, '0');
-  const hexMachineId = machineId.toString(16).padStart(6, '0');
-  const hexProcessId = processId.toString(16).padStart(4, '0');
-  const hexCounter = counter.toString(16).padStart(6, '0');
-
-  return hexTimestamp + hexMachineId + hexProcessId + hexCounter;
-}
-let objIdCounter = 0;
-const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter++)
 
 
 
@@ -587,19 +902,11 @@ const areaManagerMgr = new AreaManagerManager();
 // TODO
 // @ts-ignore
 const defaultPlayer = new Player({ name: "explorer 123" });
-/**
- * 
- * @param {string} clientId 
- * @returns {Player}
- */
+/** @param {string} clientId  @returns {Player} */
 const getPlayerForClient = (clientId) => defaultPlayer;
 
 // TODO
-/**
- * 
- * @param {string} areaUrlName
- * @returns {string}
- */
+/** @param {string} areaUrlName @returns {string} */
 const getAreaIdForAreaName = (areaUrlName) => {
     const areaData = bundledAreasFile[areaUrlName]
 
@@ -626,186 +933,6 @@ const getAreaManagerFor = async (clientId, areaUrlName) => {
 
 
 
-//  WWWWWWWW                           WWWWWWWW    SSSSSSSSSSSSSSS 
-//  W::::::W                           W::::::W  SS:::::::::::::::S
-//  W::::::W                           W::::::W S:::::SSSSSS::::::S
-//  W::::::W                           W::::::W S:::::S     SSSSSSS
-//   W:::::W           WWWWW           W:::::W  S:::::S            
-//    W:::::W         W:::::W         W:::::W   S:::::S            
-//     W:::::W       W:::::::W       W:::::W     S::::SSSS         
-//      W:::::W     W:::::::::W     W:::::W       SS::::::SSSSS    
-//       W:::::W   W:::::W:::::W   W:::::W          SSS::::::::SS  
-//        W:::::W W:::::W W:::::W W:::::W              SSSSSS::::S 
-//         W:::::W:::::W   W:::::W:::::W                    S:::::S
-//          W:::::::::W     W:::::::::W                     S:::::S
-//           W:::::::W       W:::::::W          SSSSSSS     S:::::S
-//            W:::::W         W:::::W           S::::::SSSSSS:::::S
-//             W:::W           W:::W            S:::::::::::::::SS 
-//              WWW             WWW              SSSSSSSSSSSSSSS   
-// #region WS
-
-
-const msgTypes = {
-    "PLAYER_SPAWN": "qv",
-    "SIM_PLAYER_SPAWN": "po", //only received, unhandled
-    "PLAYER_DATA": "uq",
-    "PLAYER_LIST": "qq",
-    "OWN_INFO": "on",
-    "STATE_UPDATE_NON_BINARY": "ej",
-    "PLAYER_DEATH": "ud",
-    "PLAYER_DESPAWN": "lm",
-    "MAP_EDIT": "bd",
-    "MAP_EDIT_REJECTED": "th",
-    "REQUEST_PLAYER_LIST": "eh", //sent 500ms after loading a new sector
-    "REQUEST_PLAYER_DATA": "zd",
-    "REQUEST_SYNCBLOCK_HOT": "sd", //sent on initialization complete, ws re-open, window focus and immediately after entering a new sector. Server replies with SYNC_BLOCKs
-    "SET_SPAWNPOINT": "jq",
-    "RESET_SPAWNPOINT": "xu",
-    "DONTKNOW_ATT": "ok", //add or remove attachment
-    "CHANGE_NAME": "pw",
-    "TELEPORT": "lr",
-    "PORTAL": "lc",
-    "PORTALRING": "fc",
-    "SYNC_BLOCK": "iy", //only received, used to update status for item throwers, gatherables, movers and crumblings (dunno if more) {loc: {}, pos, vel, sta, evt?, } || { loc: { x: 34, y: 13 }, sta: 0 } only received, no rid, broadcast
-    "TRIGGER": "zr", //only sent, received by others as SYNC_BLOCK
-    "SPEECH": "en",
-    "SPARKLE_LINE": "it",
-    "PLAYER_VOTE_UP": "mo", //only sent {id}
-    "PLAYER_VOTE_DOWN": "ss",
-    "PLAYER_ADD_FLAG": "zo",
-    "PLAYER_REMOVE_FLAG": "si",
-    "PEACEPARKER": "dy", //hmm
-    "UNUSED_MAINTENANCE": "ot", //only received, unhandled
-    "WSS_CHANGE": "ba", //only received, WSS Change CMD: {h, p}, client reopens a connection to h(ost):p(ort)
-    "RELOAD": "rl",
-    "RANKUPDATE": "rk",
-    "HEARTBEAT": "md",
-    "UNUSED1": "qj", //unhandled and unsent
-    "CHANGE_ATTACHMENT": "us",
-    "THROW_ATTACHMENT": "mw",
-    "PASTE": "zc",
-    "INSTRUMENT_NOTE": "xf",
-    "WELCOME_INVITATION": "cf",
-    "HOLDABLE_INTERACTION": "ef",
-    "MOTION": "ff",
-    "EQUIPMENT_ACTION": "ub",
-    "HOLDER_VIEWED": "qw",
-    "INTERACTING_ACTIVITY": "nv",
-    "MODIFY_POSSESSION_SET": "ep",
-    "LATENCY_CHECK": "fd",
-    "HELD_OFFSET": "wf", //they both share the same key?
-    //"ECHO": "wf", //unhandled and unsent
-    "PING_FRIEND": "lh",
-    "ADDED_LINES": "rj",
-    "CLEAR_LINES": "cl",
-    "MIFT_ALERT": "ua",
-    "AREA_BAN": "dm",
-    "EDITOR_RIGHTS_CHANGE": "ux",
-    "BOOST_STARTED": "zn",
-    "BOOST_RESPONSE": "ex",
-    "BOOST_REJECTED": "rt",
-    "SNAPSHOT_TAKEN": "bn",
-    "AREA_SETTINGS_EDITED": "gh",
-    "MOVER_BODY_HEALTH_CHANGE": "le",
-    "CLOCK_SYNC_PING": "pe",
-    "TRANSPORT_REJECTED": "oj",
-    "MULTITHING_ACTIVITY": "od",
-    "WSLIMIT": "ey",
-    "PAINTER_ACTIVITY": "pa",
-}
-
-const msgTypes_rev = reverseObject(msgTypes)
-function reverseObject(obj) {
-    let reversed = {};
-    for (let key in obj) {
-        reversed[obj[key]] = key;
-    }
-    return reversed;
-}
-
-
-const mappingClientToServer = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":false,"g":',"B" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":true,"g":',"J" : '"m":"st","data":{"pos":{"x":',"C" : '"m":"sh","data":{"key":"_c',"D" : '","rotation":0,"flip":0},"',"&" : '"m":"rq","data":null}',"E" : '"m":"rm","data":null}',"F" : ',"def":null,"rId":"',"G" : '"vel":{"x":0,"y":0}',"H" : '"acl":{"x":0,"y":0}',"K" : '"m":"me","data":{',"~" : '"ani":"swimming',"L" : ',"def":{"tid":"',"M" : '"ani":"idle"',"N" : '"ani":"jump"',"O" : '"ani":"fall"',"P" : '"ani":"afk"',"Q" : '"ani":"run"',"R" : '"flp":false',"W" : '"pos":{"x":',"X" : '"acl":{"x":',"V" : '"vel":{"x":',"S" : '"flp":true',"T" : '"m":"hb"}',"U" : ',"data":{',"!" : '"act":',"@" : '"g":',"Y" : '"x":',"Z" : '"y":',"?" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3",">" : "4","(" : "0",")" : "5"};
-const mappingServerToClient = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},',"B" : '"m":"mu","data":{"loc":{"x":',"C" : '"m":"st","data":{"rid":"',"/" : '"m":"sh","data":{"rid":"',"D" : '"m":"np","data":{',"E" : '"flp":false,"g":',"F" : '"flp":true,"g":',"G" : '"ani":"idle"',"H" : '"ani":"jump"',"J" : '"ani":"fall"',"O" : '"flp":false,',"K" : '"ani":"afk"',"L" : '"pos":{"x":',"M" : '"vel":{"x":',"N" : '"acl":{"x":',"P" : '"ani":"run"',"Q" : '"flp":true,',"R" : '"map":{"p":',"@" : '","data":{',"T" : '},"sta":0',"U" : '},"sta":1',"?" : '"key":"_',"V" : '"ach":"',"W" : '"rid":"',"X" : '"aid":"',"Y" : '"snm":"',"S" : '"wid":',"Z" : '"r":',"!" : '"x":',"#" : '"y":',">" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3","(" : "0",")" : "5"};
-
-/**
- * 
- * @param {Record<string, string>} mapping 
- * @param {string} str 
- * @return {unknown}
- */
-const expand = (mapping, str) => {
-    if (str[0] === "{") {
-        return JSON.parse(str);
-    }
-    else {
-        let expanded = str;
-
-        for (const short in mapping) {
-            const long = mapping[short];
-            expanded = replaceAll(expanded, short, long);
-        }
-
-        console.log("expanded: {" + expanded)
-        return JSON.parse("{" + expanded);
-    }
-}
-
-/**
- * 
- * @param {Record<string, string>} mapping 
- * @param {any} data 
- * @returns { string }
- */
-const minify = (mapping, data) => {
-    const str = JSON.stringify(data);
-
-    const strHasCharFromMapping = Object.keys(mapping).some(short => str.includes(short))
-
-    if (strHasCharFromMapping) {
-        return str;
-    }
- 
-    if (str[0] === "{") {
-        let minified = str.slice(1);
-
-        for (const short in mapping) {
-            const long = mapping[short];
-            minified = replaceAll(minified, long, short);
-        }
-
-        return minified;
-    }
-    else {
-        console.log(`WARNING: JSON ws send string did not start with '{'! ${str}`)
-        return str;
-    }
-} 
-
-const toServer = (data) => minify(mappingClientToServer, data)
-const fromServer = (str) => expand(mappingServerToClient, str)
-
-const toClient = (data) => minify(mappingServerToClient, data)
-const fromClient = (str) => expand(mappingClientToServer, str)
-
-function replaceAll(str, find, replace) {
-    return str.toString().replace(new RegExp(escapeRegExp(find), 'g'), replace);
-}
-
-function escapeRegExp(str) {
-    return str.toString().replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-}
-
-// #endregion WS
-
-
-
-
-
-
-
-
-
-
 
 
 //   HHHHHHHHH     HHHHHHHHH  TTTTTTTTTTTTTTTTTTTTTTT  TTTTTTTTTTTTTTTTTTTTTTT  PPPPPPPPPPPPPPPPP   
@@ -824,112 +951,13 @@ function escapeRegExp(str) {
 //   H:::::::H     H:::::::H        T:::::::::T              T:::::::::T        P::::::::P          
 //   H:::::::H     H:::::::H        T:::::::::T              T:::::::::T        P::::::::P          
 //   HHHHHHHHH     HHHHHHHHH        TTTTTTTTTTT              TTTTTTTTTTT        PPPPPPPPPP          
-// #region HTTP
-
-// #region basicrouterboilerplate
-
-
-
-/**
- * @param {string} dataUrl
- * @returns {Blob}
- */
-const dataURLtoBlob = (dataUrl) => {
-    const arr = dataUrl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-
-    return new Blob([u8arr], { type: mime });
-}
-
-/**
- * @param {Request} request 
- * @returns {Promise<any>}
- */
-const readRequestBody = async (request) => {
-    const text = await request.text();
-    const data = Qs.parse(text);
-
-    return data;
-}
-
-
-
-
-const groundId = "50372a99f5d33dc56f000001"
-const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
-const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
-const GET = "GET";
-const POST = "POST";
-
-
-
-
-
-
-// This is fairly naive but good enough
-const routes = new Set();
-
-
-/**
- * @typedef {Object} RouteHandlersBagOfTricks
- * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
- * @property {FetchEvent} event
- * @property {Request} request
- * @property {string} clientId
- * @property {(json: any) => Response} json
- */
-/**
- * 
- * @param {"GET" | "POST"} method 
- * @param {string} matcher 
- * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
- * @returns 
- */
-const addRouteHandler = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
-
-/**
- * 
- * @param {"GET" | "POST"} method 
- * @param {string} pathname 
- * @param {FetchEvent} event
- * @returns 
- */
-const matchRoute = async (method, pathname, event) => {
-    for (const route of routes) {
-        if (route.method !== method) continue;
-
-        const matchRes = route.matcher(pathname);
-        if (matchRes === false) continue;
-
-
-        return await route.handler({
-            params: matchRes.params,
-            event: event,
-            request: event.request,
-            clientId: event.clientId,
-            json: (data) => Response.json( data ),
-        });
-    }
-}
-
-
-// #endregion basicrouterboilerplate
-
-
+// #region HTTP routes
 
 //  ██████   ██████  ██    ██ ████████ ███████ ███████ 
 //  ██   ██ ██    ██ ██    ██    ██    ██      ██      
 //  ██████  ██    ██ ██    ██    ██    █████   ███████ 
 //  ██   ██ ██    ██ ██    ██    ██    ██           ██ 
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
-// #region routes
 
 // Area init
 addRouteHandler(POST, "/j/i/", async ({ json, request, clientId, }) => {
@@ -1154,10 +1182,6 @@ addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) 
 
 
 // AreaPossessions
-const schema_aps_s = Zod.object({
-    areaGroupId: Zod.string(),
-    ids: Zod.string().array().optional(),
-})
 addRouteHandler(POST, "/j/aps/s/", async ({ request, json }) => {
     const body = await readRequestBody(request)
 
@@ -1181,8 +1205,7 @@ addRouteHandler(POST, "/j/:splat+", ({ event }) => {
 })
 
 
-// #endregion routes
-// #endregion HTTP
+// #endregion HTTP routes
 
 
 
@@ -1221,6 +1244,7 @@ console.log("Hi from service worker global context")
 
 
 const CACHE_NAME = 'cache-v1';
+const CACHE_AREAS_V2 = "cache_areas_v2"
 const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
     .split(" ").map(s => s + ".cloudfront.net")
 const originUrl = new URL(self.origin)
@@ -1246,12 +1270,7 @@ const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {R
 }
 
 
-const getAreaList = async () => {
-    // TODO get the file
-    return Object.keys(bundledAreasFile)
-}
 
-const CACHE_AREAS_V2 = "cache_areas_v2"
 
 
 
@@ -1364,7 +1383,7 @@ const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
 }
 
 
-const onInstall = async (/** @type {Event} */ event) => {
+const onInstall = async (/** @type {ExtendableEvent} */ event) => {
     try {
         console.log("service worker install event")
 
@@ -1381,48 +1400,13 @@ const onInstall = async (/** @type {Event} */ event) => {
     self.skipWaiting();
 }
 
-self.addEventListener("error", (event) => console.error("error event", event))
-self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
 
-
-// Utils
-
-/**
- * 
- * @param {string} clientId 
- * @param {any} msg 
- */
-const sendWsMessageToClient = async (clientId, msg) => {
-    const client = await self.clients.get(clientId)
-
-    if (client) {
-        client.postMessage(msg);
-    }
-}
-
-/**
- * 
- * @template K, V
- * @param {Map<K, V>} map 
- * @param {(key: K) => V} ctor 
- * @returns {(key: K) => V}
- */
-const makeGetOrCreate = (map, ctor) => {
-    return (key) => {
-        const value = map.get(key);
-        if (value) return value;
-
-        const newValue = ctor(key)
-        map.set(key, newValue)
-        return newValue;
-    }
-}
 
 
 
 // Listeners
 
-self.addEventListener('install', event => event.waitUntil(onInstall()) );
+self.addEventListener('install', event => event.waitUntil(onInstall(event)) );
 
 // Update and take over as soon as possible
 self.addEventListener('activate', event => {
@@ -1432,6 +1416,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => event.respondWith(handleFetchEvent(event)))
 self.addEventListener('message', handleClientMessage)
+
+self.addEventListener("error", (event) => console.error("error event", event))
+self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
 
 
 
