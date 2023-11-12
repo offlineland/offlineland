@@ -1507,7 +1507,6 @@ const handleFetchEvent = async (event) => {
             }
 
             // If nothing else matches, we assume it's trying to load an area's index.html (TODO: would request headers indicate client only accepts html?)
-            // TODO: move /mainscreen.html to /index.html so that it's the first file loaded. Current /index.html can become /game.html or something
             // TODO: check if area is available locally. If not, display an error page and/or redirect to /
             return fetch("/game.html")
         }
