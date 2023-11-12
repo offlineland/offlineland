@@ -4,30 +4,42 @@
         <script src="/_code/libs/redom.js"></script>
         <script type="module">
             import { registerServiceWorker } from "/_code/register-service-worker.js"
-            const { el, mount } = globalThis.redom;
+            const { el, mount, setChildren } = globalThis.redom;
+
+            const areaListEl = el("ul", [
+                el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
+                el("li", "loading..."),
+            ])
+
+
+            const updateAreaList = (data) => {
+                setChildren(areaListEl, [
+                    el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
+                    data.availableAreas.map((areaUrlName) => (
+                        el("li", [
+                            el("a", { href: "/" + areaUrlName}, areaUrlName),
+                            data.areasStoredLocally.includes(areaUrlName) || el("button", "download area")
+                        ])
+                    ))
+                ])
+            }
+
+            const main = el("main", [
+                el("h1", "Hello world!"),
+                el("div", [
+                    el("h2", "available areas"),
+                    areaListEl,
+                ]),
+            ])
+
+            mount(document.body, main);
 
             await registerServiceWorker()
 
             // TODO: use indexedDB instead?
             const dataRes = await fetch("/_mlspinternal_/getdata");
             const data = await dataRes.json();
-
-            const main = el("main", [
-                el("h1", "Hello world!"),
-                el("div", [
-                    el("h2", "available areas"),
-                    el("ul", [
-                        el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
-                        data.availableAreas.map((areaUrlName) => (
-                            el("li", [
-                                el("a", { href: "/" + areaUrlName}, areaUrlName),
-                                data.areasStoredLocally.includes(areaUrlName) || el("button", "download area")
-                            ])
-                        ))
-                    ]),
-                ]),
-            ])
-            mount(document.body, main);
+            updateAreaList(data);
         </script>
     </body>
 </html>
