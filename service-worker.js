@@ -23,6 +23,7 @@ importScripts("/_code/libs/path-to-regexp.js");
 importScripts("/_code/libs/qs.js");
 importScripts("/_code/libs/jszip.js");
 importScripts("/_code/libs/zod.umd.js");
+importScripts("/_code/libs/idb-keyval.umd.js");
 
 
 
@@ -38,6 +39,7 @@ const main = (
     /** @type { import('qs' )} */ Qs,
     /** @type { import('jszip' )} */ JSZip,
     /** @type { import('zod' )} */ Zod,
+    /** @type { import('idb-keyval/dist/index.cjs' )} */ idbKeyval,
 ) => {
 
 try {
@@ -460,6 +462,7 @@ const makeRouter = () => {
 
 // #region zodschemas
 // #region ws
+// TODO: put this in an object?
 const ws_trigger = z.object({
     loc: z.object({
         x: z.number(),
@@ -467,6 +470,15 @@ const ws_trigger = z.object({
     }),
     trd: z.number(),
 })
+// TODO: why do they appear as optional even with .required?
+const ws_set_spawnpoint = Zod.object({
+    x: Zod.number(),
+    y: Zod.number(),
+}).required()
+const ws_change_attachment = Zod.object({
+    ats: Zod.string(),
+    ati: Zod.string().nullable(),
+}).required()
 // #endregion ws
 
 
@@ -510,6 +522,10 @@ const schema_aps_s = Zod.object({
 // #region State
 
 
+
+
+
+
 //#region Player
 class Player {
     constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
@@ -521,12 +537,24 @@ class Player {
         this.isBacker = isBacker || true;
         this.boostsLeft = boostsLeft || 19191919;
         this.hasMinfinity = hasMinfinity || true;
+
+        idbKeyval.update(`attachments-p${this.rid}`, (/** @type {Attachments | undefined} */ value) => {
+            if (value) return value
+            else return {
+                // TODO: pick a random base body
+                "b":"00000000000000000000074f",
+                "w":null,
+                "m":null,
+                "h":null,
+                "br":null
+            }
+        })
     }
 
     getInitData_http() {
         return {
             "rid": this.rid,
-            "age": this.isBacker,
+            "age": this.age,
             "ifa": this.isFullAccount,
             "lma": this.leftMinfinityAmount,
             "isb": this.isBacker,
@@ -535,22 +563,25 @@ class Player {
         }
     }
 
-    getInitData_ws() {
+    async setAttachment(slot, id) {
+        await idbKeyval.update(`attachments-p${this.rid}`, (value) => {
+            const atts = (value || {});
+            atts[slot] = id;
+            return atts;
+        })
+    }
+
+    async getAttachments() {
+        return await idbKeyval.get(`attachments-p${this.rid}`)
+    }
+
+    async getInitData_ws() {
         return {
             "rid": this.rid,
             "snm": this.name,
             "aid":"80-1-1-f",
-            // TODO: this should be handled by the AreaManager
-            "att":{
-                "b":"00000000000000000000074f",
-                "w":null,
-                "m":null,
-                "h":null,
-                "br":null
-            },
+            "att": await this.getAttachments(),
             "r":10,
-            // TODO: this should be handled by the AreaManager
-            "pos":{"x":288,"y":288},
             "ani":"idle",
             "flp":false,
             "wof":{
@@ -561,6 +592,24 @@ class Player {
     }
 }
 //#endregion Player
+
+
+
+
+/**
+ * @typedef {Object} PositionPixels
+ * @property {number} x
+ * @property {number} y
+ */
+
+/**
+ * @typedef {Object} Attachments
+ * @property { string | null } b - body
+ * @property { string | null } w - wearable
+ * @property { string | null } h - holdable
+ * @property { string | null } m - mount
+ * @property { string | null } br - brain
+ */
 
 
 //#region AreaManager
@@ -580,7 +629,7 @@ class LocalAreaManager {
         return new LocalAreaManager(wssUrl, areaId)
     }
 
-    getInitData(player, urlName) {
+    async getInitData(player, urlName) {
         const playerData = player.getInitData_http();
         const defaultData = {
             "wsh": this.wssUrl,
@@ -658,14 +707,14 @@ class LocalAreaManager {
         }
     }
 
-    onWsConnection(client) {
+    async onWsConnection(client) {
         const player = getPlayerForClient(client.id);
 
         client.postMessage({ m: "WS_OPEN" });
         const initDataMsg = JSON.stringify({
             "m":"on",
             "data":{
-                ...player.getInitData_ws(),
+                ...await player.getInitData_ws(),
 
                 "neo":true, // ?
                 "map":{ "p":0,"a": this.areaId },
@@ -692,14 +741,39 @@ class LocalAreaManager {
 }
 
 
+// Possessions (and numbers) are set to the AreaGroupId, so this makes it easier to set/retrieve
+class AreaPossessionsManager {
+    constructor() {
+    }
+
+    /** @param {string} groupAreaId @param {string[] | null} ids */
+    async setPossessions(groupAreaId, ids) {
+        await idbKeyval.set(`area-possessions-${groupAreaId}`, ids)
+    }
+
+    /** @param {string} areaGroupId @returns {Promise<string[] | null>} data */
+    async getPossessions(areaGroupId) {
+        return await idbKeyval.get(`area-possessions-${areaGroupId}`)
+    }
+}
+
 
 class ArchivedAreaManager {
     clients = new Set();
 
-    constructor(wssUrl, areaId, data, zip) {
+    /**
+     * 
+     * @param {string} wssUrl
+     * @param {string} areaId
+     * @param {*} data 
+     * @param {*} zip 
+     * @param {AreaPossessionsManager} possessionsMgr
+     */
+    constructor(wssUrl, areaId, data, zip, possessionsMgr) {
         this.zip = zip;
         this.wssUrl = wssUrl;
         this.areaId = areaId;
+        this.possessionsMgr = possessionsMgr;
 
         this.isRingArea = areaId === "" || ringAreas.includes(areaId)
 
@@ -721,7 +795,14 @@ class ArchivedAreaManager {
         this.mpv = data.mpv;
     }
 
-    static async make(wssUrl, areaId) {
+    /**
+     * 
+     * @param {string} wssUrl
+     * @param {string} areaId
+     * @param {AreaPossessionsManager} possessionsMgr
+     * @returns 
+     */
+    static async make(wssUrl, areaId, possessionsMgr) {
         // TODO: fetch data from storage
         // TODO: cache
         const res = await fetch(`/static/data/v2/${areaId}.zip`)
@@ -741,11 +822,29 @@ class ArchivedAreaManager {
         // TODO: load creation data to cache
         // TODO: load sector data to database?
 
-        return new ArchivedAreaManager(wssUrl, areaId, data, zip)
+        //const playerData = await db.getPlayerData(areaId)
+        //if (playerData === undefined) {
+        //    // TODO: set different spawnpoint based on ring area
+        //    const isRingArea = areaId === "" || ringAreas.includes(areaId)
+
+        //    await db.setPlayerData(areaId, {
+        //        pos:{ "x": 288, "y": 288 },
+        //        inSub: false,
+        //        possessions: [],
+        //    })
+        //}
+
+        return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
     }
 
-    getInitData(player, urlName) {
+    /**
+     * 
+     * @param {Player} player
+     * @returns 
+     */
+    async getInitData(player) {
         const playerData = player.getInitData_http();
+
         const defaultData = {
             "wsh": this.wssUrl,
             "wsp": 80,
@@ -786,8 +885,10 @@ class ArchivedAreaManager {
                 adr: this.drift,
                 apr: this.protection,
                 iid: this.globalInteractingId,
-                // AreaPossessions TODO
-                aps: { ids: null, values: null }, 
+                aps: {
+                    ids: await this.possessionsMgr.getPossessions(this.areaGroupId),
+                    values: null //TODO
+                },
 
                 axx: this.isLocked,
                 aul: this.isUnlisted,
@@ -812,15 +913,37 @@ class ArchivedAreaManager {
         return data;
     }
 
-    onWsConnection(client) {
+    getSpawnpoint() {
+        if (this.isRingArea) {
+            // TODO some ring areas have a specific spawnpoint
+            return { x: 288, y: 288 }
+        }
+        else {
+            return { x: 288, y: 288 }
+        }
+    }
+
+    /** @returns { Promise<PositionPixels> } */
+    async getPlayerPosition() {
+        const storedPos = await idbKeyval.get(`area-position-${this.areaId}`)
+        if (storedPos) return storedPos;
+
+        return this.getSpawnpoint()
+    }
+    /** @param {PositionPixels} pos @returns { Promise<void> } */
+    async setPlayerPosition(pos) {
+        await idbKeyval.set(`area-position-${this.areaId}`, pos)
+    }
+
+    async onWsConnection(client) {
         const player = getPlayerForClient(client.id);
 
         client.postMessage({ m: "WS_OPEN" });
         const initDataMsg = JSON.stringify({
             "m":"on",
             "data":{
-                ...player.getInitData_ws(),
-                //pos: { x: 2261, y: 57 },
+                ...await player.getInitData_ws(),
+                pos: await this.getPlayerPosition(),
 
                 "ach":"[0,4,10,11,12,8,39,5,35,9]",
                 "neo":true, // ?
@@ -872,6 +995,8 @@ class ArchivedAreaManager {
                     break;
                 }
                 case msgTypes.TELEPORT: {
+                    // TODO: store current player position once we actually decode it from binary messages
+
                     if (parsedMsg.data === null) {
                         console.log("tried to go to elsewhere")
                         client.postMessage({ m: "NAVIGATE_TO_MAINSCREEN" })
@@ -890,7 +1015,19 @@ class ArchivedAreaManager {
                 }
 
                 case msgTypes.SET_SPAWNPOINT: {
+                    const {x, y} = ws_set_spawnpoint.parse(parsedMsg.data);
+                    this.setPlayerPosition({ x: x * 19, y: y * 19 })
 
+                    break;
+                }
+                case msgTypes.RESET_SPAWNPOINT: {
+                    this.setPlayerPosition(this.getSpawnpoint())
+                    break;
+                }
+                case msgTypes.CHANGE_ATTACHMENT: {
+                    const {ats, ati} = ws_change_attachment.parse(parsedMsg.data);
+                    // TODO do we keep this defaultPlayer thing?
+                    defaultPlayer.setAttachment(ats, ati)
                     break;
                 }
 
@@ -948,12 +1085,20 @@ class AreaManagerManager {
     areaManagerByWSSUrl = new Map();
     areaManagerByAreaId = new Map();
 
+    /**
+     * 
+     * @param {AreaPossessionsManager} areaPossessionsMgr
+     */
+    constructor(areaPossessionsMgr) {
+        this.areaPossessionsMgr = areaPossessionsMgr;
+    }
+
     async makeAreaManager(/** @type { string } */ areaId) {
         console.log("AreaManagerManager: makeAreaManager()", areaId)
         const wssUrl = `ws191919x${String(this.wssCount++)}.ws.manyland.local`;
 
         const amClass = getAreaManagerClassForAreaId(areaId)
-        const am = await amClass.make(wssUrl, areaId)
+        const am = await amClass.make(wssUrl, areaId, this.areaPossessionsMgr)
 
         this.areaManagerByWSSUrl.set(wssUrl, am)
         this.areaManagerByAreaId.set(areaId, am)
@@ -1029,7 +1174,8 @@ const getPlayerForClient = (clientId) => defaultPlayer;
 
 class FakeAPI {
     constructor(
-        /** @type { AreaManagerManager } */ areaManagerMgr
+        /** @type { AreaManagerManager } */ areaManagerMgr,
+        /** @type { AreaPossessionsManager } */ areaPossessionsMgr,
     ) {
         const router = this.router = makeRouter()
 
@@ -1042,7 +1188,7 @@ class FakeAPI {
 
             const areaManager = await areaManagerMgr.getByAreaName(clientId, data.urlName);
             const player = getPlayerForClient(clientId);
-            const areaData = areaManager.getInitData(player, data.urlName);
+            const areaData = await areaManager.getInitData(player, data.urlName);
 
             //clientIdToAreas.set(clientId, data.urlName)
 
@@ -1261,7 +1407,7 @@ class FakeAPI {
             const body = await readRequestBody(request)
 
             const { areaGroupId, ids } = schema_aps_s.parse(body);
-            // TODO
+            areaPossessionsMgr.setPossessions(areaGroupId, ids)
 
             return json({ ok: true })
         });
@@ -1310,8 +1456,9 @@ class FakeAPI {
 //#region main
 
 console.log("Hi from service worker global context")
-const areaManagerMgr = new AreaManagerManager();
-const fakeAPI = new FakeAPI(areaManagerMgr);
+const areaPossessionsMgr = new AreaPossessionsManager();
+const areaManagerMgr = new AreaManagerManager(areaPossessionsMgr);
+const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr);
 
 /***
  *     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
@@ -1473,6 +1620,8 @@ main(
     JSZip,
     // @ts-ignore
     Zod,
+    // @ts-ignore
+    idbKeyval
 )
 
 //#endregion boilerplate
