@@ -20,10 +20,10 @@ The only thing available is `importScripts`, which syncronously runs a separate 
 I could make classes in separate files and use them here, but then my editor would lose track of them and their types.
 */
 
-importScripts("/static/libs/path-to-regexp.js");
-importScripts("/static/libs/qs.js");
-importScripts("/static/libs/jszip.js");
-importScripts("/static/libs/zod.umd.js");
+importScripts("/_code/libs/path-to-regexp.js");
+importScripts("/_code/libs/qs.js");
+importScripts("/_code/libs/jszip.js");
+importScripts("/_code/libs/zod.umd.js");
 
 
 
