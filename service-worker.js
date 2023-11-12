@@ -2,15 +2,23 @@
 
 
 
+
+
+//  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
+//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
+//  ██████  ██    ██ ██ ██      █████   ██████  ██████  ██      ███████    ██    █████   
+//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██      ██      ██   ██    ██    ██      
+//  ██████   ██████  ██ ███████ ███████ ██   ██ ██      ███████ ██   ██    ██    ███████ 
+// #region boilerplate
+
+
+
 // #region libs
-
-
 /*
 Firefox does not handle ES import/export syntax in service workers (see https://bugzilla.mozilla.org/show_bug.cgi?id=1360870).
 The only thing available is `importScripts`, which syncronously runs a separate script.
 I could make classes in separate files and use them here, but then my editor would lose track of them and their types.
 */
-
 
 importScripts("/static/libs/path-to-regexp.js");
 importScripts("/static/libs/qs.js");
@@ -19,7 +27,9 @@ importScripts("/static/libs/jszip.js");
 importScripts("/static/libs/zod.umd.js");
 
 
+
 // #endregion libs
+
 
 
 
@@ -33,11 +43,16 @@ const main = (
 ) => {
 
 
-// #region boilerplate
 
 // #region misc
 const z = Zod;
+
+const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
+    .split(" ").map(s => s + ".cloudfront.net")
+const originUrl = new URL(self.origin)
+
 const ringAreas = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+
 const bundledAreasFile = {
     //"test2": {
     //    areaId: "53ed27dfb3f6f9c3205157e1",
@@ -76,6 +91,14 @@ const bundledAreasFile = {
 const getAreaList = async () => {
     // TODO get the file
     return Object.keys(bundledAreasFile)
+}
+/** @param {string} areaUrlName @returns {string} */
+const getAreaIdForAreaName = (areaUrlName) => {
+    // TODO: read from file
+    const areaData = bundledAreasFile[areaUrlName]
+
+    if (areaData) return areaData.areaId;
+    else return generateObjectId();
 }
 
 
@@ -126,6 +149,46 @@ let objIdCounter = 0;
 const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter++)
 
 // #endregion misc
+
+
+// #region cache
+const CACHE_NAME = 'cache-v1';
+const CACHE_AREAS_V2 = "cache_areas_v2"
+
+const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
+    const cache = await self.caches.open(cacheName);
+
+    const cacheMatch = await cache.match(request)
+
+    if (cacheMatch) return cacheMatch;
+
+
+
+    const fetchRes = await fetch(request.clone());
+    if (fetchRes.ok) {
+        cache.put(request, fetchRes.clone())
+    }
+
+    return fetchRes;
+}
+
+const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
+    const cacheKeys = await self.caches.keys();
+
+    const deletePromises = cacheKeys.map(cacheKey => {
+        if (cacheWhitelist.includes(cacheKey) === false) {
+            return caches.delete(cacheKey);
+        }
+    });
+
+    await Promise.all(deletePromises);
+}
+
+
+
+
+// #endregion cache
+
 
 
 // #region WS
@@ -328,49 +391,64 @@ const POST = "POST";
 
 
 // This is fairly naive but good enough
-const routes = new Set();
+const makeRouter = () => {
+    const routes = new Set();
 
 
-/**
- * @typedef {Object} RouteHandlersBagOfTricks
- * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
- * @property {FetchEvent} event
- * @property {Request} request
- * @property {string} clientId
- * @property {(json: any) => Response} json
- */
-/**
- * 
- * @param {"GET" | "POST"} method 
- * @param {string} matcher 
- * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
- * @returns 
- */
-const addRouteHandler = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
+    /**
+     * @typedef {Object} RouteHandlersBagOfTricks
+     * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
+     * @property {FetchEvent} event
+     * @property {Request} request
+     * @property {string} clientId
+     * @property {(json: any) => Response} json
+     */
 
-/**
- * 
- * @param {"GET" | "POST"} method 
- * @param {string} pathname 
- * @param {FetchEvent} event
- * @returns 
- */
-const matchRoute = async (method, pathname, event) => {
-    for (const route of routes) {
-        if (route.method !== method) continue;
+    /**
+     * 
+     * @param {"GET" | "POST"} method 
+     * @param {string} matcher 
+     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
+     * @returns 
+     */
+    const route = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
+    /**
+     * @param {string} matcher 
+     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
+     */
+    const get = (matcher, handler) => route(GET, matcher, handler);
+    /**
+     * @param {string} matcher 
+     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
+     */
+    const post = (matcher, handler) => route(GET, matcher, handler);
 
-        const matchRes = route.matcher(pathname);
-        if (matchRes === false) continue;
+    /**
+     * 
+     * @param {"GET" | "POST"} method 
+     * @param {string} pathname 
+     * @param {FetchEvent} event
+     * @returns 
+     */
+    const matchRoute = async (method, pathname, event) => {
+        for (const route of routes) {
+            if (route.method !== method) continue;
+
+            const matchRes = route.matcher(pathname);
+            if (matchRes === false) continue;
 
 
-        return await route.handler({
-            params: matchRes.params,
-            event: event,
-            request: event.request,
-            clientId: event.clientId,
-            json: (data) => Response.json( data ),
-        });
+            return await route.handler({
+                params: matchRes.params,
+                event: event,
+                request: event.request,
+                clientId: event.clientId,
+                json: (data) => Response.json( data ),
+            });
+        }
     }
+
+    return { route, get, post, matchRoute }
 }
 
 
@@ -399,6 +477,7 @@ const schema_aps_s = Zod.object({
 
 
 // #endregion boilerplate
+
 
 
 
@@ -887,6 +966,12 @@ class AreaManagerManager {
         if (am) return am;
         else return await this.makeAreaManager(areaId);
     }
+
+    async getByAreaName(clientId, /** @type { string } */ areaUrlName) {
+        // TODO: handle cases where client is in a subarea
+        const areaId = getAreaIdForAreaName(areaUrlName);
+        return await this.getByAreaId(areaId)
+    }
 }
 
 
@@ -896,8 +981,6 @@ class AreaManagerManager {
 
 
 
-
-const areaManagerMgr = new AreaManagerManager();
 
 // TODO
 // @ts-ignore
@@ -905,30 +988,8 @@ const defaultPlayer = new Player({ name: "explorer 123" });
 /** @param {string} clientId  @returns {Player} */
 const getPlayerForClient = (clientId) => defaultPlayer;
 
-// TODO
-/** @param {string} areaUrlName @returns {string} */
-const getAreaIdForAreaName = (areaUrlName) => {
-    const areaData = bundledAreasFile[areaUrlName]
-
-    if (areaData) return areaData.areaId;
-    else return generateObjectId();
-}
-// TODO
-const getAreaManagerFor = async (clientId, areaUrlName) => {
-    // TODO: handle subareas eventually (maybe via url?)
-    const areaId = getAreaIdForAreaName(areaUrlName);
-    return await areaManagerMgr.getByAreaId(areaId)
-}
-
-
-
-
-
-
-
-
-
 // #endregion State
+
 
 
 
@@ -959,251 +1020,271 @@ const getAreaManagerFor = async (clientId, areaUrlName) => {
 //  ██   ██ ██    ██ ██    ██    ██    ██           ██ 
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
 
-// Area init
-addRouteHandler(POST, "/j/i/", async ({ json, request, clientId, }) => {
-    const data = await readRequestBody(request)
-    
-    console.log("getting area manager for area", data)
-
-    const areaManager = await getAreaManagerFor(clientId, data.urlName);
-    const player = getPlayerForClient(clientId);
-    const areaData = areaManager.getInitData(player, data.urlName);
-
-    //clientIdToAreas.set(clientId, data.urlName)
-
-    console.log("sending area data", { areaData, areaManager })
-    
-    return json(areaData)
-});
+class FakeAPI {
+    constructor(
+        /** @type { AreaManagerManager } */ areaManagerMgr
+    ) {
+        const router = this.router = makeRouter()
 
 
+        // Area init
+        router.post("/j/i/", async ({ json, request, clientId, }) => {
+            const data = await readRequestBody(request)
+            
+            console.log("getting area manager for area", data)
 
-// #region User
-// Friends And Blocked
-addRouteHandler(GET, "/j/u/fab/", ({ json }) => json({ "friends":[],"blocked":[] }) );
-// GetFreshRank
-addRouteHandler(POST, "/j/u/gfr/", ({ json }) => json( 10 ) );
-// Achievement
-addRouteHandler(POST, "/j/u/a/", async ({ json, request, clientId }) => {
-    const { id } = await readRequestBody(request)
-    return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
-})
-// PlayerInfo
-addRouteHandler(POST, "/j/u/pi/", async ({ json, request, clientId }) => {
-    const { id, planeId, areaId } = await readRequestBody(request)
-    return json({
-        isFullAccount: true,
-        hasMinfinity: true,
-        isBacker: true,
-        screenName: "todo",
-        rank: 10,
-        stat_ItemsPlaced: 191919,
-        unfindable: true,
-        ageDays: 191919,
-        profileItemIds: [],
-        profileColor: null,
-        profileBackId: null,
-        profileDynaId: null,
-        online: false,
-        flagged: false,
-        isEditorHere: true,
-    });
-})
-// TopCreatedR
-addRouteHandler(GET, "/j/i/tcr/:playerId", async ({ params, json }) => {
-    return json([]);
-});
-// #endregion User
+            const areaManager = await areaManagerMgr.getByAreaName(clientId, data.urlName);
+            const player = getPlayerForClient(clientId);
+            const areaData = areaManager.getInitData(player, data.urlName);
+
+            //clientIdToAreas.set(clientId, data.urlName)
+
+            console.log("sending area data", { areaData, areaManager })
+            
+            return json(areaData)
+        });
 
 
 
+        // #region User
+        // Friends And Blocked
+        router.get("/j/u/fab/", ({ json }) => json({ "friends":[],"blocked":[] }) );
+        // GetFreshRank
+        router.post("/j/u/gfr/", ({ json }) => json( 10 ) );
+        // Achievement
+        router.post("/j/u/a/", async ({ json, request, clientId }) => {
+            const { id } = await readRequestBody(request)
+            return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
+        })
+        // PlayerInfo
+        router.post("/j/u/pi/", async ({ json, request, clientId }) => {
+            const { id, planeId, areaId } = await readRequestBody(request)
+            return json({
+                isFullAccount: true,
+                hasMinfinity: true,
+                isBacker: true,
+                screenName: "todo",
+                rank: 10,
+                stat_ItemsPlaced: 191919,
+                unfindable: true,
+                ageDays: 191919,
+                profileItemIds: [],
+                profileColor: null,
+                profileBackId: null,
+                profileDynaId: null,
+                online: false,
+                flagged: false,
+                isEditorHere: true,
+            });
+        })
+        // TopCreatedR
+        router.get("/j/i/tcr/:playerId", async ({ params, json }) => {
+            return json([]);
+        });
+        // #endregion User
 
-// #region Items
-// ItemDef
-const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
-addRouteHandler(GET, "/j/i/def/:creationId", ({ params, json }) => {
-    if (typeof params.creationId === "string" && params.creationId.length === 24) {
-        return fetch("https://" + itemDefRoot_CDN + params.creationId);
+
+
+
+        // #region Items
+        // ItemDef
+        const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
+        router.get("/j/i/def/:creationId", ({ params, json }) => {
+            if (typeof params.creationId === "string" && params.creationId.length === 24) {
+                return fetch("https://" + itemDefRoot_CDN + params.creationId);
+            }
+            else return Response.error();
+        });
+        // Motions
+        router.get("/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
+        // Statistics
+        router.get("/j/i/st/:creationId", async ({ params, json }) => {
+            return json({ timesCd: 191919, timesPd: 191919 });
+        });
+        // CreatorInfoNaame
+        router.get("/j/i/cin/:creationId", async ({ params, json }) => {
+            const creatorId = generateObjectId();
+            return json({ id: creatorId, name: "todo" });
+        });
+        // Collectors
+        router.get("/j/i/cols/:creationId", async ({ params, json }) => {
+            return json({
+                collectors: [
+                    { _id: generateObjectId(), name: "todo" },
+                    { _id: generateObjectId(), name: "todo" },
+                    { _id: generateObjectId(), name: "todo" },
+                ],
+                lastCollector: { _id: generateObjectId(), name: "todo" },
+            });
+        });
+        // GetUnlisted
+        router.post("/j/i/gu/", async ({ request, json }) => {
+            const { id } = await readRequestBody(request)
+            return json({ unlisted: false });
+        });
+        // #endregion Items
+
+
+
+        // #region Collections
+        // TODO proper inventory
+        // inventory - Collections
+        const inventory = [ groundId ]
+        // Get collected
+        router.get("/j/c/r/:start/:end", ({ params, json }) => json({ items: inventory, itemCount: 1 }) );
+        // Collect
+        router.post("/j/c/c", async ({ request, json }) => {
+            const data = await readRequestBody(request)
+
+            const alreadyExisted = inventory.includes(data.itemId);
+            inventory.splice(data.index, 0, data.itemId)
+
+            return json({
+                alreadyExisted: alreadyExisted,
+                actionWasBlocked: false,
+            });
+        });
+        // Get Created
+        router.get("/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
+        // #endregion Collections
+
+
+
+        // #region Search
+        // Search Item
+        router.post("/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
+        // #endregion Search
+
+
+
+        // #region News
+        // GetUnreadCount
+        router.get("/j/n/guc/", ({ json }) => json( 319 ) );
+        // GetLatestNews
+        router.get("/j/n/gln/", ({ json }) => json( [
+            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+        ] ) );
+        // #endregion News
+
+
+
+        // #region Mifts
+        // GetUnseenMifts
+        router.get("/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
+        // #endregion Mifts
+
+
+
+        // #region Map
+        // CreatedMapVersion(?) TODO
+        router.post("/j/m/cmv/", ({ json }) => json({ v: 1 }) );
+        // SectorPlus
+        router.get("/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
+            const am = await areaManagerMgr.getByAreaId(params.aid)
+            const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+            const sectors = await Promise.all([
+                s(-1, -1), s(-1, 0), s(-1, 1),
+                s( 0, -1), s( 0, 0), s( 0, 1),
+                s( 1, -1), s( 1, 0), s( 1, 1),
+            ])
+
+            return json(sectors.filter(e => !!e))
+        });
+        // SectorPlusLoading (not exactly sure what's different)
+        router.get("/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
+            console.log("TESTDEBUG sectorPlusLoading params:", params)
+
+            const am = await areaManagerMgr.getByAreaId(params.aid)
+            const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+            const sectors = await Promise.all([
+                s(-1, -1), s(-1, 0), s(-1, 1),
+                s( 0, -1), s( 0, 0), s( 0, 1),
+                s( 1, -1), s( 1, 0), s( 1, 1),
+            ])
+            console.log("sectors,", sectors)
+
+            return json(sectors.filter(e => !!e))
+        });
+        router.post("/j/m/s/", async ({ request, json }) => {
+            const body = await readRequestBody(request)
+
+            const areaId = body.a;
+            const areaPane = body.p;
+            const requestedSectors = JSON.parse(body.s);
+
+            const sectorData = [];
+            const am = await areaManagerMgr.getByAreaId(areaId)
+
+            for (const [x, y] of requestedSectors) {
+                const temp = await am.getDataForSector(x, y)
+                if (!temp) continue;
+
+                sectorData.push(temp)
+            }
+
+
+
+            return json(sectorData)
+        });
+        // DeletionMarkerForSectors
+        router.post("/j/m/dmss/", async ({ json, request }) => {
+            console.log("TESTDEBUG deletionmarker request body:", await readRequestBody(request))
+
+            return json([]);
+        })
+        // placer
+        router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
+            const placerId = generateObjectId();
+            return json({
+                id: placerId,
+                name: "todo",
+                ts: new Date().toISOString(),
+            })
+        })
+
+
+        // AreaPossessions
+        router.post("/j/aps/s/", async ({ request, json }) => {
+            const body = await readRequestBody(request)
+
+            const { areaGroupId, ids } = schema_aps_s.parse(body);
+            // TODO
+
+            return json({ ok: true })
+        });
+        // #endregion Map
+
+
+
+        // Catch-all
+        router.get("/j/:splat+", ({ event }) => {
+            console.log("FETCH no match for", event.request.url)
+            return new Response("Not found or not implemented", { status: 404 })
+        })
+        router.post("/j/:splat+", ({ event }) => {
+            console.log("FETCH no match for", event.request.url)
+            return new Response("Not found or not implemented", { status: 404 })
+        })
+
     }
-    else return Response.error();
-});
-// Motions
-addRouteHandler(GET, "/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
-// Statistics
-addRouteHandler(GET, "/j/i/st/:creationId", async ({ params, json }) => {
-    return json({ timesCd: 191919, timesPd: 191919 });
-});
-// CreatorInfoNaame
-addRouteHandler(GET, "/j/i/cin/:creationId", async ({ params, json }) => {
-    const creatorId = generateObjectId();
-    return json({ id: creatorId, name: "todo" });
-});
-// Collectors
-addRouteHandler(GET, "/j/i/cols/:creationId", async ({ params, json }) => {
-    return json({
-        collectors: [
-            { _id: generateObjectId(), name: "todo" },
-            { _id: generateObjectId(), name: "todo" },
-            { _id: generateObjectId(), name: "todo" },
-        ],
-        lastCollector: { _id: generateObjectId(), name: "todo" },
-    });
-});
-// GetUnlisted
-addRouteHandler(POST, "/j/i/gu/", async ({ request, json }) => {
-    const { id } = await readRequestBody(request)
-    return json({ unlisted: false });
-});
-// #endregion Items
 
-
-
-// #region Collections
-// TODO proper inventory
-// inventory - Collections
-const inventory = [ groundId ]
-// Get collected
-addRouteHandler(GET, "/j/c/r/:start/:end", ({ params, json }) => json({ items: inventory, itemCount: 1 }) );
-// Collect
-addRouteHandler(POST, "/j/c/c", async ({ request, json }) => {
-    const data = await readRequestBody(request)
-
-    const alreadyExisted = inventory.includes(data.itemId);
-    inventory.splice(data.index, 0, data.itemId)
-
-    return json({
-        alreadyExisted: alreadyExisted,
-        actionWasBlocked: false,
-    });
-});
-// Get Created
-addRouteHandler(GET, "/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
-// #endregion Collections
-
-
-
-// #region Search
-// Search Item
-addRouteHandler(POST, "/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
-// #endregion Search
-
-
-
-// #region News
-// GetUnreadCount
-addRouteHandler(GET, "/j/n/guc/", ({ json }) => json( 319 ) );
-// GetLatestNews
-addRouteHandler(GET, "/j/n/gln/", ({ json }) => json( [
-    { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-    { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-    { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-    { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-    { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-] ) );
-// #endregion News
-
-
-
-// #region Mifts
-// GetUnseenMifts
-addRouteHandler(GET, "/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
-// #endregion Mifts
-
-
-
-// #region Map
-// CreatedMapVersion(?) TODO
-addRouteHandler(POST, "/j/m/cmv/", ({ json }) => json({ v: 1 }) );
-// SectorPlus
-addRouteHandler(GET, "/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
-    const am = await areaManagerMgr.getByAreaId(params.aid)
-    const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
-
-    const sectors = await Promise.all([
-        s(-1, -1), s(-1, 0), s(-1, 1),
-        s( 0, -1), s( 0, 0), s( 0, 1),
-        s( 1, -1), s( 1, 0), s( 1, 1),
-    ])
-
-    return json(sectors.filter(e => !!e))
-});
-// SectorPlusLoading (not exactly sure what's different)
-addRouteHandler(GET, "/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
-    console.log("TESTDEBUG sectorPlusLoading params:", params)
-
-    const am = await areaManagerMgr.getByAreaId(params.aid)
-    const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
-
-    const sectors = await Promise.all([
-        s(-1, -1), s(-1, 0), s(-1, 1),
-        s( 0, -1), s( 0, 0), s( 0, 1),
-        s( 1, -1), s( 1, 0), s( 1, 1),
-    ])
-    console.log("sectors,", sectors)
-
-    return json(sectors.filter(e => !!e))
-});
-addRouteHandler(POST, "/j/m/s/", async ({ request, json }) => {
-    const body = await readRequestBody(request)
-
-    const areaId = body.a;
-    const areaPane = body.p;
-    const requestedSectors = JSON.parse(body.s);
-
-    const sectorData = [];
-    const am = await areaManagerMgr.getByAreaId(areaId)
-
-    for (const [x, y] of requestedSectors) {
-        const temp = await am.getDataForSector(x, y)
-        if (!temp) continue;
-
-        sectorData.push(temp)
+    /**
+     * 
+     * @param {"GET" | "POST"} method 
+     * @param {string} pathname 
+     * @param {FetchEvent} event
+     * @returns 
+     */
+    handle(method, pathname, event) {
+        return this.router.matchRoute(method, pathname, event)
     }
-
-
-
-    return json(sectorData)
-});
-// DeletionMarkerForSectors
-addRouteHandler(POST, "/j/m/dmss/", async ({ json, request }) => {
-    console.log("TESTDEBUG deletionmarker request body:", await readRequestBody(request))
-
-    return json([]);
-})
-// placer
-addRouteHandler(GET, "/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
-    const placerId = generateObjectId();
-    return json({
-        id: placerId,
-        name: "todo",
-        ts: new Date().toISOString(),
-    })
-})
-
-
-// AreaPossessions
-addRouteHandler(POST, "/j/aps/s/", async ({ request, json }) => {
-    const body = await readRequestBody(request)
-
-    const { areaGroupId, ids } = schema_aps_s.parse(body);
-    // TODO
-
-    return json({ ok: true })
-});
-// #endregion Map
-
-
-
-// Catch-all
-addRouteHandler(GET, "/j/:splat+", ({ event }) => {
-    console.log("FETCH no match for", event.request.url)
-    return new Response("Not found or not implemented", { status: 404 })
-})
-addRouteHandler(POST, "/j/:splat+", ({ event }) => {
-    console.log("FETCH no match for", event.request.url)
-    return new Response("Not found or not implemented", { status: 404 })
-})
-
+}
 
 // #endregion HTTP routes
 
@@ -1211,81 +1292,27 @@ addRouteHandler(POST, "/j/:splat+", ({ event }) => {
 
 
 
-
-
-
-//  MMMMMMMM               MMMMMMMM    iiii                                       
-//  M:::::::M             M:::::::M   i::::i                                      
-//  M::::::::M           M::::::::M    iiii                                       
-//  M:::::::::M         M:::::::::M                                               
-//  M::::::::::M       M::::::::::M  iiiiiii       ssssssssss         cccccccccccccccc
-//  M:::::::::::M     M:::::::::::M  i:::::i     ss::::::::::s      cc:::::::::::::::c
-//  M:::::::M::::M   M::::M:::::::M   i::::i   ss:::::::::::::s    c:::::::::::::::::c
-//  M::::::M M::::M M::::M M::::::M   i::::i   s::::::ssss:::::s  c:::::::cccccc:::::c
-//  M::::::M  M::::M::::M  M::::::M   i::::i    s:::::s  ssssss   c::::::c     ccccccc
-//  M::::::M   M:::::::M   M::::::M   i::::i      s::::::s        c:::::c             
-//  M::::::M    M:::::M    M::::::M   i::::i         s::::::s     c:::::c             
-//  M::::::M     MMMMM     M::::::M   i::::i   ssssss   s:::::s   c::::::c     ccccccc
-//  M::::::M               M::::::M  i::::::i  s:::::ssss::::::s  c:::::::cccccc:::::c
-//  M::::::M               M::::::M  i::::::i  s::::::::::::::s    c:::::::::::::::::c
-//  M::::::M               M::::::M  i::::::i   s:::::::::::ss      cc:::::::::::::::c
-//  MMMMMMMM               MMMMMMMM  iiiiiiii    sssssssssss          cccccccccccccccc
-// #region Misc
-
-//
-//  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
-//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
-//  ██████  ██    ██ ██ ██      █████   ██████  ██████  ██      ███████    ██    █████   
-//  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██      ██      ██   ██    ██    ██      
-//  ██████   ██████  ██ ███████ ███████ ██   ██ ██      ███████ ██   ██    ██    ███████ 
-// #region boilerplate
+/***
+ *    ███    ███  █████  ██ ███    ██
+ *    ████  ████ ██   ██ ██ ████   ██
+ *    ██ ████ ██ ███████ ██ ██ ██  ██
+ *    ██  ██  ██ ██   ██ ██ ██  ██ ██
+ *    ██      ██ ██   ██ ██ ██   ████
+ */
+//#region main
 
 console.log("Hi from service worker global context")
-
-
-const CACHE_NAME = 'cache-v1';
-const CACHE_AREAS_V2 = "cache_areas_v2"
-const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
-    .split(" ").map(s => s + ".cloudfront.net")
-const originUrl = new URL(self.origin)
-
-
-
-
-const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
-    const cache = await self.caches.open(cacheName);
-
-    const cacheMatch = await cache.match(request)
-
-    if (cacheMatch) return cacheMatch;
-
-
-
-    const fetchRes = await fetch(request.clone());
-    if (fetchRes.ok) {
-        cache.put(request, fetchRes.clone())
-    }
-
-    return fetchRes;
-}
-
-
-
-
-
-
-
+const areaManagerMgr = new AreaManagerManager();
+const fakeAPI = new FakeAPI(areaManagerMgr)
 
 /***
- *    ███    ███  █████  ██ ███    ██     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
- *    ████  ████ ██   ██ ██ ████   ██     ██   ██ ██    ██ ██    ██    ██    ██ ████   ██ ██       
- *    ██ ████ ██ ███████ ██ ██ ██  ██     ██████  ██    ██ ██    ██    ██    ██ ██ ██  ██ ██   ███ 
- *    ██  ██  ██ ██   ██ ██ ██  ██ ██     ██   ██ ██    ██ ██    ██    ██    ██ ██  ██ ██ ██    ██ 
- *    ██      ██ ██   ██ ██ ██   ████     ██   ██  ██████   ██████     ██    ██ ██   ████  ██████  
- *                                                                                                 
- *                                                                                                 
+ *     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
+ *     ██   ██ ██    ██ ██    ██    ██    ██ ████   ██ ██       
+ *     ██████  ██    ██ ██    ██    ██    ██ ██ ██  ██ ██   ███ 
+ *     ██   ██ ██    ██ ██    ██    ██    ██ ██  ██ ██ ██    ██ 
+ *     ██   ██  ██████   ██████     ██    ██ ██   ████  ██████  
  */
-
+//#region main_routing
 /**
  * @param { FetchEvent } event
  * @returns { Promise<Response> }
@@ -1300,7 +1327,7 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
-            if (url.pathname.startsWith("/j/")) return await matchRoute(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
+            if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
@@ -1344,6 +1371,8 @@ const handleFetchEvent = async (event) => {
     }
 };
 
+//#endregion main_routing
+
 /**
  * @param {ExtendableMessageEvent} event
  */
@@ -1370,18 +1399,11 @@ const handleClientMessage = async (event) => {
     }
 };
 
-const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
-    const cacheKeys = await self.caches.keys();
+//#endregion main
 
-    const deletePromises = cacheKeys.map(cacheKey => {
-        if (cacheWhitelist.includes(cacheKey) === false) {
-            return caches.delete(cacheKey);
-        }
-    });
 
-    await Promise.all(deletePromises);
-}
 
+//#region boilerplate
 
 const onInstall = async (/** @type {ExtendableEvent} */ event) => {
     try {
@@ -1404,7 +1426,7 @@ const onInstall = async (/** @type {ExtendableEvent} */ event) => {
 
 
 
-// Listeners
+// Service Worker's Listeners
 
 self.addEventListener('install', event => event.waitUntil(onInstall(event)) );
 
@@ -1422,13 +1444,13 @@ self.addEventListener("unhandledrejection", (event) => console.error("unhandledr
 
 
 
-// #endregion boilerplate
-// #endregion Misc
-
-}
 
 
 
+
+}; //main() ends here
+
+// Now we call main() with everything in global scope while telling tsc to squint
 main(
     // @ts-ignore
     self,
@@ -1441,3 +1463,5 @@ main(
     // @ts-ignore
     Zod,
 )
+
+//#endregion boilerplate
