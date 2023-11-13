@@ -522,7 +522,119 @@ const schema_aps_s = Zod.object({
 // #region State
 
 
+const getPixelsFor = async (/** @type { Blob } */ blob) => {
+    const imageBitmap = await self.createImageBitmap(blob)
 
+    const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+    const context = offscreenCanvas.getContext('2d');
+    context.drawImage(imageBitmap, 0, 0);
+    const imageData = context.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
+
+    return imageData.data;
+}
+
+/** @param { Uint8ClampedArray } pixels */
+const getMostUsedColor = (pixels) => {
+  const colorCount = new Map();
+  let maxCount = 0;
+  let mostUsedColor = null;
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    // Get the color as a string in the format "r,g,b,a"
+    const color = `${pixels[i]},${pixels[i + 1]},${pixels[i + 2]},${pixels[i + 3]}`;
+
+    // Update the count for this color
+    const count = (colorCount.get(color) || 0) + 1;
+    colorCount.set(color, count);
+
+    // Update the most used color if this color has a higher count
+    if (count > maxCount) {
+      maxCount = count;
+      mostUsedColor = color;
+    }
+  }
+
+  // Return the most used color as an array [r, g, b]
+  return mostUsedColor ? mostUsedColor.split(',').map(Number) : null;
+
+}
+
+/** @param {string} creationId @param {Blob} blob */
+const setCreationToCache = async (creationId, blob) => {
+    const cache = await self.caches.open("CREATION-SPRITES-V1");
+
+    const url = self.origin + "/sprites/" + creationId;
+    await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
+}
+
+const getCreationFromCache = async (creationId) => {
+    const cache = await self.caches.open("CREATION-SPRITES-V1");
+
+    const url = self.origin + "/sprites/" + creationId;
+    const cacheMatch = await cache.match(url)
+
+    return cacheMatch;
+}
+
+const getMapPixelColorFor = async (creationId) => {
+    console.log("getMapPixelColorFor", creationId)
+    const fromDb = await idbKeyval.get(`pixelColor-c${creationId}`);
+    if (fromDb) return fromDb;
+
+
+    const creationRes = await getCreationFromCache(creationId)
+
+    if (!creationRes) {
+        console.error("getMapColorFor(): creation does not exist in cache!", creationId)
+        throw new Error("creation missing from cache")
+    }
+
+    const blob = await creationRes.blob();
+    const pixels = await getPixelsFor(blob);
+    // TODO: this isn't exactly how ML picks it's colors, but we don't have access to creation palette here.
+    const mostUsedColor = getMostUsedColor(pixels)
+
+    await idbKeyval.set(`pixelColor-c${creationId}`, mostUsedColor);
+
+    return mostUsedColor;
+}
+
+/**
+ * 
+ * @param {[number, number, [ number, number, number, number]][]} xyc 
+ */
+const generateMinimapTile = async (xyc) => {
+    const size = 32;
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+
+    // Default fill is black
+    //ctx.fillStyle = 'black';
+    //ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    xyc.forEach(item => {
+        const [x, y, color] = item;
+        ctx.fillStyle = `rgba(${color.join(',')})`;
+        ctx.fillRect(x, y, 1, 1); // Fill in one pixel at the specified position
+    });
+
+    return await canvas.convertToBlob();
+}
+
+/**
+ * @typedef {Object} MinimapPlacenameData
+ * @property {number} x
+ * @property {number} y
+ * @property {string} n
+ */
+
+/**
+ * @typedef {Object} MinimapTileData
+ * @property {number} x
+ * @property {number} y
+ * @property {string | null} id
+ * @property {MinimapPlacenameData[]} pn
+ */
 
 
 
@@ -933,6 +1045,53 @@ class ArchivedAreaManager {
     /** @param {PositionPixels} pos @returns { Promise<void> } */
     async setPlayerPosition(pos) {
         await idbKeyval.set(`area-position-${this.areaId}`, pos)
+    }
+
+    async getMinimapData_Tile(x, y) {
+        console.log("getMinimapData_Tile", x, y, this.areaId)
+        const key = `area-minimaptile-${this.areaId}_${x}_${y}`;
+        const fromDb = await idbKeyval.get(key)
+        if (fromDb) return fromDb;
+
+
+        console.log("getMinimapData_Tile", x, y, "getting sector")
+        const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
+
+        if (sectorFile === null) {
+            const data = { x: x, y: y, id: null, pn: [] }
+            await idbKeyval.set(key, data);
+            return data;
+        }
+
+
+        console.log("getMinimapData_Tile", x, y, "opening cache")
+        const maptilesCache = await caches.open("MAP_TILES_V1");
+
+        console.log("getMinimapData_Tile", x, y, "reading sector")
+        const sector = JSON.parse(await sectorFile.async("string"))
+        console.log("getMinimapData_Tile", x, y, "reading sector ok", sector)
+
+        const colors = await Promise.all(sector.iix.map(id => getMapPixelColorFor(id)))
+        console.log("generating minimapTileBlob...")
+        const minimapTileBlob = await generateMinimapTile(sector.ps.map(([x, y, i]) => [x, y, colors[i]]))
+
+        // Nobody said they HAD to be mongoIds...
+        const tileId = `maptilefakeid-${this.areaId}-${x}-${y}`
+        const url = new URL(self.origin + "/sct/" + tileId + ".png")
+        console.log("storing to cache as", url.toString())
+        await maptilesCache.put(url, new Response(minimapTileBlob, { headers: { 'Content-Type': 'image/png' } }))
+
+
+        // TODO: find place names!
+        const placeNames = [];
+        const data = { x: x, y: y, id: tileId, pn: placeNames }
+        console.log("storing to db...")
+        await idbKeyval.set(key, data);
+        return data;
+    }
+
+    async getMinimapData_Region(x1, y1, x2, y2) {
+
     }
 
     async onWsConnection(client) {
@@ -1414,6 +1573,33 @@ class FakeAPI {
         // #endregion Map
 
 
+        // #region Minimap
+
+        // ExploredSectorIndividual? Info?
+        router.get("/j/a/mal/:areaid", async ({ params, json }) => {
+            // TODO
+            return json([])
+        })
+        router.get("/j/e/esi/:x/:y/:ap/:aid", async ({ params, json }) => {
+            const am = await areaManagerMgr.getByAreaId(params.aid)
+
+            const data = await am.getMinimapData_Tile(Number(params.x), Number(params.y))
+            /** @type { MinimapTileData } */
+            //const data = { x: Number(params.x), y: Number(params.y), id: null, pn: [ { x: 0, y: 0, n: "test"} ] }
+
+            return json(data)
+        });
+        // ExploredSectorRegion?
+        router.get("/j/e/esr/:x1/:y1/:x2/:y2/:ap/:aid", async ({ params, json }) => {
+            const am = await areaManagerMgr.getByAreaId(params.aid)
+
+            // TODO: generate all the numbers between xy1 and xy2
+            const data = await am.getMinimapData_Tile(Number(params.x1), Number(params.y1))
+
+            return json([ data ])
+        });
+        // #endregion Minimap
+
 
         // Catch-all
         router.get("/j/:splat+", ({ event }) => {
@@ -1489,6 +1675,11 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
+            if (url.pathname.startsWith("/sct/")) {
+                const maptilesCache = await caches.open("MAP_TILES_V1");
+                return await maptilesCache.match(url);
+            }
+
 
 
 
@@ -1554,9 +1745,29 @@ const handleFetchEvent = async (event) => {
 
         if (cloudfrontHosts.includes(url.hostname)) {
             console.log("FETCH matched cloudfront hostname", url.href)
-            // Serve ground on all cloudfront reqs
-            //return new Response(SpriteGroundBlob)
-            return getOrSetFromCache(CACHE_NAME, event.request);
+
+            const creationId = url.pathname.slice(1)
+            const fromCache = await getCreationFromCache(creationId)
+
+            if (fromCache) {
+                return fromCache;
+            }
+
+            console.log("creation not in cache!")
+
+
+            const FETCH_SPRITES_FROM_LIVE_CDN = true;
+
+            if (FETCH_SPRITES_FROM_LIVE_CDN) {
+                const res = await fetch(url);
+                setCreationToCache(creationId, await res.clone().blob())
+                return res;
+            }
+
+
+
+            // Serve ground otherwise
+            return new Response(SpriteGroundBlob)
         }
 
         return new Response("No rules match this request!", { status: 404 })
