@@ -1093,7 +1093,27 @@ class ArchivedAreaManager {
     }
 
     async getMinimapData_Region(x1, y1, x2, y2) {
+        const coords = [];
+        const keys = [];
 
+        for (let x = x1; x <= x2; x++) {
+            for (let y = y1; y <= y2; y++) {
+                coords.push([x, y])
+                keys.push(`area-minimaptile-${this.areaId}_${x}_${y}`);
+            }
+        }
+
+
+        const fromDb = await idbKeyval.getMany(keys)
+        const tiles = Promise.all(fromDb.map((tile, i) => {
+            if (tile) return tile;
+            else {
+                const [ x, y ] = coords[i];
+                return this.getMinimapData_Tile(x, y);
+            }
+        }))
+
+        return tiles;
     }
 
     async onWsConnection(client) {
@@ -1675,10 +1695,9 @@ class FakeAPI {
         router.get("/j/e/esr/:x1/:y1/:x2/:y2/:ap/:aid", async ({ params, json }) => {
             const am = await areaManagerMgr.getByAreaId(params.aid)
 
-            // TODO: generate all the numbers between xy1 and xy2
-            const data = await am.getMinimapData_Tile(Number(params.x1), Number(params.y1))
+            const data = await am.getMinimapData_Region(Number(params.x1), Number(params.y1), Number(params.x2), Number(params.y2))
 
-            return json([ data ])
+            return json(data)
         });
         // #endregion Minimap
 
