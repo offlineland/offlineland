@@ -522,6 +522,7 @@ const schema_aps_s = Zod.object({
 // #region State
 
 
+// #region Minimap
 const getPixelsFor = async (/** @type { Blob } */ blob) => {
     const imageBitmap = await self.createImageBitmap(blob)
 
@@ -636,6 +637,7 @@ const generateMinimapTile = async (xyc) => {
  * @property {MinimapPlacenameData[]} pn
  */
 
+// #endregion Minimap
 
 
 //#region Player
@@ -1167,6 +1169,25 @@ class ArchivedAreaManager {
                         }
                         else {
                             console.log("no subarea..")
+                        }
+                    }
+                    // TODO: use Zod unions to figure out the object's shape
+                    else if (parsedMsg.data.a) {
+                        // TODO: this can be used to teleport across areas!
+                        console.log("tried to teleport via minimap")
+                        if (parsedMsg.data.a === this.areaId) {
+                            console.log("in this area. Setting player position then sending teleport event")
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.TELEPORT,
+                                    data: {
+                                        rid: defaultPlayer.rid,
+                                        gun: null,
+                                    }
+                                })
+                            });
+                            this.setPlayerPosition({x: parsedMsg.data.x * 19, y: parsedMsg.data.y * 19})
                         }
                     }
 

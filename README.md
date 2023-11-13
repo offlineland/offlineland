@@ -26,6 +26,7 @@ There's one branch where I tried to set up require.js since all the libs are UMD
 
 
 ## TODO:
+- map-teleport redirects to / for some reason. Is the game doing that?
 - make the service worker registration/update asynchronous, display a little loading spinner and auto-refresh on update
 - do proper caching and update of static assets
 - interface at `/` to list available areas
