@@ -1388,6 +1388,47 @@ class FakeAPI {
         router.post("/j/u/a/", async ({ json, request, clientId }) => {
             const { id } = await readRequestBody(request)
             return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
+            const achievements = {
+              MOVED: 0,
+              OPENED_CHNG_BODY: 4,
+              OPENED_PEOPLE: 5,
+              PASSED_CTEST: 6,
+              ISSUED_CTEST: 7,
+              ADDED_SNAPSHOT: 8,
+              TELEPORTED: 9,
+              DID_INWORLD_BUILD: 10,
+              DID_INWORLD_REMOVE: 11,
+              USED_MEET: 12,
+              TRIGGERED_WELCOME_INVITATION: 13,
+              SAVED_CREATION: 14,
+              CREATED_AREA_SNAPSHOT: 15,
+              USED_FILL_BUILD: 16,
+              SAVED_CLONED_CREATION: 17,
+              SAW_FRIEND_ON_FRIENDS_LIST: 18,
+              SAVED_SPECIFIC_INTERACTING: 19,
+              CHANGED_BODY: 20,
+              SAVED_WRITABLE_COMMENT: 21,
+              SAVED_SPECIFIC_FLYING_MOUNT: 22,
+              USED_MOVE_BACKWARDS_BOOST: 23,
+              USED_ALTERNATIVE_COLORS_VIEW: 24,
+              SEARCHED_IN_BIN: 25,
+              CONSUMED_HOT_EDIBLE: 26,
+              CAUGHT_ITEM_FROM_ITEM_THROWER: 27,
+              PLAYED_CHORD_WITH_KEYS: 28,
+              PLACED_FILL_LIGHT: 29,
+              ATTACHED_MOTION: 30,
+              SAT_DOWN_IN_BUSY_CREATED_AREA: 31,
+              PLACED_SOMETHING_IN_GRID_HOLDER: 32,
+              TELEPORTED_HOME: 33,
+              SOLVED_BASE_POST_KEY: 34,
+              DID_CREATE_AREA: 35,
+              BLOCKED_AD: 36,
+              SAW_DIALOG_REVIEW_MOBILE: 37,
+              SAW_DIALOG_REVIEW_STEAM: 38,
+              SAW_DIALOG_MOBILE_VERSION_AVAILABLE: 39
+            }
+          console.log("Achievement registered: " + Object.keys(achievements).find(key => achievements[key] === parseInt(id)));
+          return json(true);
         })
         // PlayerInfo
         router.post("/j/u/pi/", async ({ json, request, clientId }) => {
