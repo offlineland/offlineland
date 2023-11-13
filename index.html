@@ -11,14 +11,26 @@
                 el("li", "loading..."),
             ])
 
+            let data = {
+                availableAreas: [],
+                areasStoredLocally: [],
+            }
 
-            const updateAreaList = (data) => {
+            const triggerAreaDownload = async (areaUrlName) => {
+                // TODO: trigger fancy animations here
+                await fetch(`/_mlspinternal_/dlArea?area=${areaUrlName}`)
+
+                data.areasStoredLocally.push(areaUrlName)
+                updateAreaList()
+            }
+
+            const updateAreaList = () => {
                 setChildren(areaListEl, [
                     el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
                     data.availableAreas.map((areaUrlName) => (
                         el("li", [
                             el("a", { href: "/" + areaUrlName}, areaUrlName),
-                            data.areasStoredLocally.includes(areaUrlName) || el("button", "download area")
+                            data.areasStoredLocally.includes(areaUrlName) || el("button", "download area", { onclick: () => triggerAreaDownload(areaUrlName) })
                         ])
                     ))
                 ])
@@ -38,7 +50,7 @@
 
             // TODO: use indexedDB instead?
             const dataRes = await fetch("/_mlspinternal_/getdata");
-            const data = await dataRes.json();
+            data = await dataRes.json();
             updateAreaList(data);
         </script>
     </body>

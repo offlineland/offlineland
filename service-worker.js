@@ -1478,11 +1478,22 @@ const handleFetchEvent = async (event) => {
         console.log("FETCH", event.clientId, url.pathname, { event })
 
         if (url.host === originUrl.host) {
-            if (url.pathname === "/") return fetch("/index.html");
+            if (url.pathname === "/") {
+                // TODO: why is this cached??
+                const res = await fetch("/index.html?CACHEBUST");
+                console.log("asked for mainscreen, sending", await res.clone().text())
+                return res;
+            }
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
+
+
+
+
+            /** * @param {string} id */
+            const getZipUrlForAreaId = (id) => new URL(self.origin + `/static/data/v2/${id}.zip`).toString()
 
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
@@ -1490,13 +1501,43 @@ const handleFetchEvent = async (event) => {
                 const areasv2cache = await caches.open(CACHE_AREAS_V2);
                 const areasStoredLocally = []
                 for (const areaUrlName of availableAreas) {
-                    if (await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))) {
+                    const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))
+                    if (cachematch) {
                         areasStoredLocally.push(areaUrlName)
                     }
                 }
 
                 return Response.json({ areasStoredLocally, availableAreas });
             }
+            if (url.pathname === "/_mlspinternal_/dlArea") {
+                const areaName = url.searchParams.get("area");
+
+                // TODO: extract this to a function
+                const areasv2cache = await caches.open(CACHE_AREAS_V2);
+
+                const areaData = bundledAreasFile[areaName]
+                if (!areaData) {
+                    console.error("asked to download an area that isn't referenced in our file!")
+                    return Response.json({ ok: false });
+                }
+
+
+                try {
+                    const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId);
+                    await areasv2cache.addAll([
+                        getZipUrlForAreaId(areaData.areaId),
+                        ...subareaIds.map(id => getZipUrlForAreaId(id)),
+                    ]);
+
+                    return Response.json({ ok: true });
+                } catch(e) {
+                    console.log("error while caching! Are you sure the files exist?", e)
+                    return Response.json({ ok: false });
+                }
+
+            }
+
+
 
             // Special pages
             if ( url.pathname.startsWith("/info")
