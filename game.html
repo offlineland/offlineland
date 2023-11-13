@@ -131,6 +131,7 @@ margin-right: auto;
         }
 
         send(msg) {
+            // TODO: send areaname and/or id (have the sw send it to us?) instead of wsUrl; if the sw goes to sleep, it will lose it's memory of "areaMgrByWsUrl"
             postMessage_({ m: "WSMSG", data: { wsUrl: this.url, msg: msg } })
         }
 
