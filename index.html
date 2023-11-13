@@ -2,56 +2,7 @@
 <html lang="en">
     <body>
         <script src="/_code/libs/redom.js"></script>
-        <script type="module">
-            import { registerServiceWorker } from "/_code/register-service-worker.js"
-            const { el, mount, setChildren } = globalThis.redom;
-
-            const areaListEl = el("ul", [
-                el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
-                el("li", "loading..."),
-            ])
-
-            let data = {
-                availableAreas: [],
-                areasStoredLocally: [],
-            }
-
-            const triggerAreaDownload = async (areaUrlName) => {
-                // TODO: trigger fancy animations here
-                await fetch(`/_mlspinternal_/dlArea?area=${areaUrlName}`)
-
-                data.areasStoredLocally.push(areaUrlName)
-                updateAreaList()
-            }
-
-            const updateAreaList = () => {
-                setChildren(areaListEl, [
-                    el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
-                    data.availableAreas.map((areaUrlName) => (
-                        el("li", [
-                            el("a", { href: "/" + areaUrlName}, areaUrlName),
-                            data.areasStoredLocally.includes(areaUrlName) || el("button", "download area", { onclick: () => triggerAreaDownload(areaUrlName) })
-                        ])
-                    ))
-                ])
-            }
-
-            const main = el("main", [
-                el("h1", "Hello world!"),
-                el("div", [
-                    el("h2", "available areas"),
-                    areaListEl,
-                ]),
-            ])
-
-            mount(document.body, main);
-
-            await registerServiceWorker()
-
-            // TODO: use indexedDB instead?
-            const dataRes = await fetch("/_mlspinternal_/getdata");
-            data = await dataRes.json();
-            updateAreaList(data);
-        </script>
+        <script src="/_code/libs/zod.umd.js"></script>
+        <script type="module" src="/_code/mainscreen.mjs"></script>
     </body>
 </html>
