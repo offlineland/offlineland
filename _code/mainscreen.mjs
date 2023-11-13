@@ -14,13 +14,24 @@ let data = {
     areasStoredLocally: [],
 }
 
+
+const dlAreaResSchema = z.object({ ok: z.boolean() })
 const triggerAreaDownload = async (areaUrlName) => {
     console.log("a")
     // TODO: trigger fancy animations here
-    await fetch(`/_mlspinternal_/dlArea?area=${areaUrlName}`)
 
-    data.areasStoredLocally.push(areaUrlName)
-    updateAreaList()
+    const res = await fetch(`/_mlspinternal_/dlArea?area=${areaUrlName}`)
+    const json = await res.json()
+    const { ok } = dlAreaResSchema.parse(json)
+
+    if (ok) {
+        data.areasStoredLocally.push(areaUrlName)
+        updateAreaList()
+    }
+    else {
+        // TODO: fancy UI
+        console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?")
+    }
 }
 
 const updateAreaList = () => {

@@ -1531,7 +1531,7 @@ const handleFetchEvent = async (event) => {
 
                     return Response.json({ ok: true });
                 } catch(e) {
-                    console.log("error while caching! Are you sure the files exist?", e)
+                    console.log("error while caching! Are you sure the files exist (for all subareas too)?", e)
                     return Response.json({ ok: false });
                 }
 

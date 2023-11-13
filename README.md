@@ -27,6 +27,7 @@ There's one branch where I tried to set up require.js since all the libs are UMD
 
 ## TODO:
 - make the service worker registration/update asynchronous, display a little loading spinner and auto-refresh on update
+- do proper caching and update of static assets
 - interface at `/` to list available areas
     - make the "download area" button actually work (make a fetch for the SW to intercept, SW dls and caches area, add fancy UI animations when done)
     - also list snaps for that area? And buttons to teleport to it. The SW can handle placing people anywhere
