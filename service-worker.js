@@ -933,20 +933,24 @@ class ArchivedAreaManager {
         const data = JSON.parse(await zip.file("area_settings.json").async("string"))
         console.log("reading settings file ok", { areaId, data, zip })
 
-        // TODO: load creation data to cache
-        // TODO: load sector data to database?
+        zip.folder("creations/").forEach((path, file) => {
+            const filenameWithoutExtension = path.slice(0, path.lastIndexOf("."))
+            if (filenameWithoutExtension.length !== 24) {
+                console.warn("got a file that does not seem to be a creationId!", path, file)
+                return;
+            }
 
-        //const playerData = await db.getPlayerData(areaId)
-        //if (playerData === undefined) {
-        //    // TODO: set different spawnpoint based on ring area
-        //    const isRingArea = areaId === "" || ringAreas.includes(areaId)
+            // TODO: do this when "downloading" the area instead
+            // TODO: check if not already in cache
+            if (path.endsWith(".png")) {
+                console.log("adding", filenameWithoutExtension, "to cache")
+                file.async("blob").then(blob => setCreationToCache(filenameWithoutExtension, blob))
+            }
+            else if (path.endsWith(".json")) {
+                // TODO: store def too
+            }
+        })
 
-        //    await db.setPlayerData(areaId, {
-        //        pos:{ "x": 288, "y": 288 },
-        //        inSub: false,
-        //        possessions: [],
-        //    })
-        //}
 
         return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
     }
