@@ -1483,6 +1483,14 @@ class FakeAPI {
         router.get("/j/i/st/:creationId", async ({ params, json }) => {
             return json({ timesCd: 191919, timesPd: 191919 });
         });
+        // Report Missing Item
+        router.post("/j/i/rmi/", async ({ request, json }) => {
+          const data = await readRequestBody(request)
+          //data.itemId
+          //data.areaID
+          //data.context
+          return json({ ok: true });
+        });
         // CreatorInfoNaame
         router.get("/j/i/cin/:creationId", async ({ params, json }) => {
             const creatorId = generateObjectId();
