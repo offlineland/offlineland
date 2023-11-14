@@ -1980,6 +1980,8 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
+            // Why is the painter fetched at /media/painter/spritesheet.png instead of using window.staticroot...?
+            if (url.pathname === "/media/painter/spritesheet.png") return getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
             if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
             if (url.pathname.startsWith("/sct/")) {
@@ -2043,6 +2045,11 @@ const handleFetchEvent = async (event) => {
             || url.pathname.startsWith("/intermission")
             ) {
                 return new Response("Not implemented sorry", { status: 500 })
+            }
+
+            // Catch-all in case we're somehow trying to fetch a ressource or something
+            if (url.pathname.slice(1).includes("/")) {
+                return new Response("Not sure what you're querying here", { status: 500 })
             }
 
             // If nothing else matches, we assume it's trying to load an area's index.html (TODO: would request headers indicate client only accepts html?)
