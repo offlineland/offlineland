@@ -156,8 +156,114 @@ const generateObjectId_ = (timestamp, machineId, processId, counter) => {
 let objIdCounter = 0;
 const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter++)
 
+
+
+
+
+
 // #endregion misc
 
+// #region creation
+
+// thank you chatGPT
+const decompressAscii = (compressedString) => {
+    const indexToCharMap = {};
+    let currentIndex = 256, previousChar = "", currentChar, decompressedString = "";
+
+    // Initialize the map with ASCII characters
+    for (let i = 0; i < 256; i++) {
+        indexToCharMap[i] = String.fromCharCode(i);
+    }
+
+    // Convert the input JSON string to an array
+    const indexArray = JSON.parse(compressedString);
+
+    // Iterate through the array to build the decompressed string
+    for (let i = 0; i < indexArray.length; i++) {
+        const index = indexArray[i];
+
+        if (indexToCharMap[index]) {
+            // If the index exists in the map, retrieve the character sequence
+            currentChar = indexToCharMap[index];
+        } else {
+            // If the index does not exist, it must be the current sequence + its first character
+            currentChar = previousChar + previousChar.charAt(0);
+        }
+
+        decompressedString += currentChar;
+
+        // Add new sequences to the map
+        if (previousChar !== "") {
+            indexToCharMap[currentIndex++] = previousChar + currentChar.charAt(0);
+        }
+
+        previousChar = currentChar;
+    }
+
+    return decompressedString;
+}
+
+const tileWidthDefault = 19;
+const tileHeightDefault = 19;
+
+/**
+ * @param {{r: number, g: number, b: number, a: number}[]} colors 
+ * @param {number[][][]} cells - a 3D array for a x-y grid of palette indexes, wrapped into cells `cells[0][x][y]`
+ */
+const generateCreationSpriteFromPixels = async (colors, cells) => {
+    if (cells.length > 1) {
+        // TODO
+        throw new Error("Creations with multiple cells are not implemented yet!")
+    }
+
+    const canvas = new OffscreenCanvas(cells[0].length, cells[0][0].length);
+    const ctx = canvas.getContext('2d');
+
+    const fillStyles = colors.map(({r, g, b, a}) => `rgba(${[r, g, b, a].join(',')})`)
+
+    for (const cell of cells) {
+        for (const x in cell) {
+            const row = cell[x];
+
+            for (const y in row) {
+                const paletteIndex = cell[x][y];
+                ctx.fillStyle = fillStyles[paletteIndex];
+                ctx.fillRect(Number(x), Number(y), 1, 1); // Fill in one pixel at the specified position
+
+            }
+        }
+    }
+
+    return await canvas.convertToBlob();
+}
+
+const saveCreation = async (itemData) => {
+    console.log("client tried to create something!", itemData)
+
+    const pixels = JSON.parse(decompressAscii(itemData.pixels));
+    const spriteBlob = await generateCreationSpriteFromPixels(itemData.colors, pixels);
+
+    // TODO: is it fine if it's longer than an objectId? Do we really need to differentiate?
+    const itemId = "localitem-" + generateObjectId()
+
+    const itemDef = {
+        id: itemId,
+        name: itemData.name,
+        base: itemData.type,
+        creator: defaultPlayer.rid,
+        prop: itemData.prop,
+        // TODO: anything else?
+    }
+
+    await cache_setCreationSprite(itemId, spriteBlob);
+    await cache_setCreationDef(itemId, JSON.stringify(itemDef));
+
+    return {
+        itemId: itemId,
+    }
+}
+
+// #endregion creation
 
 // #region cache
 const CACHE_NAME = 'cache-v1';
@@ -1686,14 +1792,12 @@ class FakeAPI {
         });
 
         // Create
-        router.post("/j/i/c/", async ({ request, json }) => {
-            const creationData = await readRequestBody(request)
-            console.log("client tried to create something!", creationData)
 
-            // TODO!
-            // Note: we probably will want to do the same thing as for creating minimap tiles on the fly: make an OffscreenCanvas of the right size, write pixels to it, save as blob
-            // We just need to decode it...
-            return Response.error();
+        router.post("/j/i/c/", async ({ request, json }) => {
+            const { itemData } = await readRequestBody(request)
+            const { itemId } = await saveCreation(itemData)
+
+            return json( { itemId: itemId });
         });
 
         // Motions
