@@ -7,12 +7,13 @@ let lastWsInstance = null;
 // Relay messages from Service Worker to the FakeWebSocket instance
 navigator.serviceWorker?.addEventListener("message", (ev) => {
     const msg = ev.data;
-    console.log("SW msg:", msg)
+    console.log("SW msg:", msg, lastWsInstance)
 
     if (msg.m === "WS_MSG") {
         lastWsInstance?.onmessage({ data: msg.data })
     }
     else if (msg.m === "WS_OPEN") {
+        console.info("SW sent WS_OPEN")
         lastWsInstance?.onopen()
     }
     else if (msg.m === "NAVIGATE_TO_MAINSCREEN") {
@@ -36,6 +37,7 @@ class FakeWebSocket {
         this.url = url;
         lastWsInstance = this;
 
+        console.info("FakeWebSocket instantiated! Sending PLS_OPEN_WS to service worker...")
         postMessage_({ m: "PLS_OPEN_WS", data: { wsUrl: this.url }})
     }
 

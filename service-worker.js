@@ -1168,11 +1168,15 @@ class LocalAreaManager {
     }
 
     async onWsConnection(client) {
+        console.log("received WS connection!", { client })
         const player = getPlayerForClient(client.id);
 
+        console.log("sending WS_OPEN message...")
         client.postMessage({ m: "WS_OPEN" });
-        const initDataMsg = JSON.stringify({
-            "m":"on",
+
+        console.log("sending own info message...")
+        const initDataMsg = toClient({
+            "m": msgTypes.OWN_INFO,
             "data":{
                 ...await player.getInitData_ws(),
 
@@ -1467,11 +1471,15 @@ class ArchivedAreaManager {
     }
 
     async onWsConnection(client) {
+        console.log("received WS connection!", { client })
         const player = getPlayerForClient(client.id);
 
+        console.log("sending WS_OPEN message...")
         client.postMessage({ m: "WS_OPEN" });
-        const initDataMsg = JSON.stringify({
-            "m":"on",
+
+        console.log("sending own info message...")
+        const initDataMsg = toClient({
+            "m": msgTypes.OWN_INFO,
             "data":{
                 ...await player.getInitData_ws(),
                 pos: await this.getPlayerPosition(),
