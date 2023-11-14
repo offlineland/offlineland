@@ -1684,25 +1684,42 @@ class FakeAPI {
             }
             else return Response.error();
         });
+
+        // Create
+        router.post("/j/i/c/", async ({ request, json }) => {
+            const creationData = await readRequestBody(request)
+            console.log("client tried to create something!", creationData)
+
+            // TODO!
+            // Note: we probably will want to do the same thing as for creating minimap tiles on the fly: make an OffscreenCanvas of the right size, write pixels to it, save as blob
+            // We just need to decode it...
+            return Response.error();
+        });
+
         // Motions
+        // TODO
         router.get("/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
+
         // Statistics
         router.get("/j/i/st/:creationId", async ({ params, json }) => {
+            // TODO?
             return json({ timesCd: 191919, timesPd: 191919 });
         });
+
         // Report Missing Item
         router.post("/j/i/rmi/", async ({ request, json }) => {
           const data = await readRequestBody(request)
-          //data.itemId
-          //data.areaID
-          //data.context
+          console.warn("client reported missing item!", data)
+
           return json({ ok: true });
         });
-        // CreatorInfoNaame
+
+        // CreatorInfoName
         router.get("/j/i/cin/:creationId", async ({ params, json }) => {
             const creatorId = generateObjectId();
             return json({ id: creatorId, name: "todo" });
         });
+
         // Collectors
         router.get("/j/i/cols/:creationId", async ({ params, json }) => {
             return json({
@@ -1714,7 +1731,7 @@ class FakeAPI {
                 lastCollector: { _id: generateObjectId(), name: "todo" },
             });
         });
-        // GetUnlisted
+
         router.post("/j/i/gu/", async ({ request, json }) => {
             const { id } = await readRequestBody(request)
             return json({ unlisted: false });
