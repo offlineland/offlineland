@@ -1534,6 +1534,10 @@ class FakeAPI {
                 actionWasBlocked: false,
             });
         });
+        // Check if Collected (always returns false for now)
+        router.get("/j/c/check/:itemId/", ({ json }) => json( false ));
+        // Check if I Flagged Item (always returns false for now)
+        router.get("/j/i/chkf/:itemId", ({ json }) => json( false ));
         // Get Created
         router.get("/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
         // #endregion Collections
