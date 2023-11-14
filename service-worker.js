@@ -229,7 +229,7 @@ const getCreationSpriteRes = async (creationId) => {
 
 
 
-    if (FETCH_MISSING_DEFS_FROM_LIVE_CDN) {
+    if (FETCH_MISSING_SPRITES_FROM_LIVE_CDN) {
         // TODO: the game actually shards over multiple CDNs in a deterministic manner
         const url = "https://d3sru0o8c0d5ho.cloudfront.net/" + creationId;
 
