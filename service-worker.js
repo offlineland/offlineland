@@ -61,27 +61,33 @@ const bundledAreasFile = {
     //},
     "chronology": {
         areaId: "56ed2214c94d7b0e132538b9",
+        tags: []
     },
     "oosforest": {
         areaId: "5963e0d370c6b17b13c75b26",
+        tags: [ "exploration" ]
     },
     "oosjungle": {
         areaId: "5bc003b5051ec03628866ecb",
+        tags: [ "exploration" ]
     },
     "hell": {
         areaId: "5b76e3f46c3ef97b26871968",
+        tags: [ "exploration" ],
         subareas: {
             //"jungle spawn": ,
         }
     },
     "blancnoir": {
         areaId: "540f4a6fbcd7bbcf2e509c8d",
+        tags: [ "puzzle" ],
         subareas: {
             "level one": "544c7e89f06c47f141f4bc96",
         }
     },
     "gemcastle": {
         areaId: "541b035c44aff03338610fca",
+        tags: [ "parkour" ],
     },
     //"sandcastle": {
     //    areaId: "5522c6f01c963d1308f12e0a",
