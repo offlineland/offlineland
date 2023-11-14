@@ -211,27 +211,34 @@ const tileHeightDefault = 19;
  * @param {number[][][]} cells - a 3D array for a x-y grid of palette indexes, wrapped into cells `cells[0][x][y]`
  */
 const generateCreationSpriteFromPixels = async (colors, cells) => {
-    if (cells.length > 1) {
-        // TODO
-        throw new Error("Creations with multiple cells are not implemented yet!")
-    }
+    // TODO: is this the right way to do it? (Taking the length of every cell)
+    const width = cells.reduce((width, currentCell) => width + currentCell.length, 0)
+    const height = cells[0][0].length
 
-    const canvas = new OffscreenCanvas(cells[0].length, cells[0][0].length);
+    const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
     const fillStyles = colors.map(({r, g, b, alpha}) => `rgba(${[r, g, b, alpha].join(',')})`)
 
-    for (const cell of cells) {
+    let currCellOffset = 0;
+    for (const cellIndex in cells) {
+        const cell = cells[cellIndex];
+
         for (const x in cell) {
             const row = cell[x];
 
             for (const y in row) {
                 const paletteIndex = cell[x][y];
                 ctx.fillStyle = fillStyles[paletteIndex];
-                ctx.fillRect(Number(x), Number(y), 1, 1); // Fill in one pixel at the specified position
+
+                const spriteX = currCellOffset + Number(x);
+                const spriteY = Number(y);
+                ctx.fillRect(spriteX, spriteY, 1, 1); // Fill in one pixel at the specified position
 
             }
         }
+
+        currCellOffset += cell.length;
     }
 
     return await canvas.convertToBlob();
@@ -988,7 +995,7 @@ const inventory_deleteCreated = async (playerId, itemId) => {
         return inventory;
     })
 }
-// #region inventory_creations
+// #endregion inventory_creations
 
 
 

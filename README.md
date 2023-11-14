@@ -46,5 +46,3 @@ There's one branch where I tried to set up require.js since all the libs are UMD
 
 - Room-based multiplayer?
     - Allow to "copy" an area and use it as a LocalArea, then save all changes as a CRDT log or something
-
-- allow creating things with more than one cell
