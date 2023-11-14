@@ -665,6 +665,72 @@ const generateMinimapTile = async (xyc) => {
 
 // #endregion Minimap
 
+// #region inventory
+// Note: Loading one big array to/from indexedDB will probably trash a lot if people start collecting everything they see. Not really a design goal though
+
+/**
+ * @param {string} playerId
+ * @param {string} itemId
+ * @param {number} atIndex
+ */
+const inventory_collect = async (playerId, itemId, atIndex) => {
+    let alreadyExisted = false;
+    await idbKeyval.update(`playerinventory-collected-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
+        const inventory = (val || []);
+
+        const indexIfAlreadyCollected = inventory.indexOf(itemId)
+        if (indexIfAlreadyCollected > -1) {
+            alreadyExisted = true;
+            inventory.splice(indexIfAlreadyCollected, 1)
+        }
+
+        inventory.splice(atIndex, 0, itemId)
+
+        return inventory;
+    })
+
+    return { alreadyExisted }
+}
+
+/**
+ * @param {string} playerId
+ * @returns { Promise<string[]> }
+ */
+const inventory_getCollected = async (playerId) => {
+    return await idbKeyval.get(`playerinventory-collected-p${playerId}`) || [];
+}
+
+/**
+ * @param {string} playerId
+ * @param {number} start
+ * @param {number} end
+ */
+const inventory_getCollectedPage = async (playerId, start, end) => {
+    const fullInventory = await inventory_getCollected(playerId);
+    return {
+        items: fullInventory.slice(start, end),
+        itemCount: fullInventory.length
+    };
+}
+
+/**
+ * @param {string} playerId
+ * @param {string} itemId
+ */
+const inventory_deleteCollected = async (playerId, itemId) => {
+    await idbKeyval.update(`playerinventory-collected-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
+        const inventory = (val || []);
+
+        const indexIfAlreadyCollected = inventory.indexOf(itemId)
+        if (indexIfAlreadyCollected > -1) {
+            inventory.splice(indexIfAlreadyCollected, 1)
+        }
+
+        return inventory;
+    })
+}
+// #endregion inventory
+
 //#region Player
 class Player {
     constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
@@ -1551,28 +1617,45 @@ class FakeAPI {
 
 
         // #region Collections
-        // TODO proper inventory
-        // inventory - Collections
-        const inventory = [ groundId ]
         // Get collected
-        router.get("/j/c/r/:start/:end", ({ params, json }) => json({ items: inventory, itemCount: 1 }) );
+        router.get("/j/c/r/:start/:end", async ({ params, json }) => {
+            const data = await inventory_getCollectedPage(defaultPlayer.rid, Number(params.start), Number(params.end))
+            return json(data)
+        });
+
         // Collect
         router.post("/j/c/c", async ({ request, json }) => {
             const data = await readRequestBody(request)
 
-            const alreadyExisted = inventory.includes(data.itemId);
-            inventory.splice(data.index, 0, data.itemId)
+            const { alreadyExisted } = await inventory_collect(defaultPlayer.rid, data.itemId, data.index)
 
             return json({
                 alreadyExisted: alreadyExisted,
                 actionWasBlocked: false,
             });
         });
-        // Check if Collected (always returns false for now)
-        router.get("/j/c/check/:itemId/", ({ json }) => json( false ));
+
+        // Delete
+        router.post("/j/c/d", async ({ request, json }) => {
+            const { itemId } = await readRequestBody(request)
+
+            await inventory_deleteCollected(defaultPlayer.rid, itemId)
+
+            // TODO: what does the server actually returns?
+            return json( true );
+        });
+
+        // Check if Collected
+        router.get("/j/c/check/:itemId/", async ({ params, json }) => {
+            return json( (await inventory_getCollected(defaultPlayer.rid)).includes(params.itemId) )
+        });
+
         // Check if I Flagged Item (always returns false for now)
         router.get("/j/i/chkf/:itemId", ({ json }) => json( false ));
+
+
         // Get Created
+        // TODO
         router.get("/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
         // #endregion Collections
 
