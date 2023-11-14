@@ -1020,7 +1020,6 @@ class LocalAreaManager {
 
     onWsMessage(client, msg) {
         if (typeof msg === "string")
-            // TODO the de-minification is a bit more complex!
             // TODO actually handle messages
             console.log("onWsMessage()", fromClient(msg))
         else {
@@ -1332,7 +1331,6 @@ class ArchivedAreaManager {
      */
     onWsMessage(client, msg) {
         if (typeof msg === "string") {
-            // TODO actually handle messages
             // TODO: validate
             const parsedMsg = /** @type { { data: any, m: string } } */ (fromClient(msg))
             console.log("onWsMessage()", msgTypes_rev[parsedMsg.m], parsedMsg)
@@ -1883,11 +1881,11 @@ class FakeAPI {
 
         // #region Minimap
 
-        // ExploredSectorIndividual? Info?
         router.get("/j/a/mal/:areaid", async ({ params, json }) => {
             // TODO
             return json([])
         })
+        // ExploredSectorIndividual? Info?
         router.get("/j/e/esi/:x/:y/:ap/:aid", async ({ params, json }) => {
             const am = await areaManagerMgr.getByAreaId(params.aid)
 
@@ -1971,6 +1969,8 @@ const handleFetchEvent = async (event) => {
         console.log("FETCH", event.clientId, event.request.url, { event })
 
         if (url.host === originUrl.host) {
+            // TODO: properly handle cache, following best practices. Cache the .html pages, and set up a mechanism to properly update them when they change + reload the client
+
             if (url.pathname === "/") {
                 // TODO: why is this cached??
                 const res = await fetch("/index.html?CACHEBUST");

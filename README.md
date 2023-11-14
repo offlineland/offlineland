@@ -38,7 +38,6 @@ There's one branch where I tried to set up require.js since all the libs are UMD
     - allow to join as explorer, non-editor and editor? (set config to url query, send to SW on open event?)
     - display the area thumbnail on the card, and also the area's creator (get avatar from boards), manyunity-style
 
-- store inventory
 - store numbers (figure out how they are saved, then do the same thing as possessions)
 
 - make all the where-does-data-comes-from logic more explicit and configurable (CDN, origin's server, another url...)
