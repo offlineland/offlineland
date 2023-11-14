@@ -587,7 +587,9 @@ const getMapPixelColorFor = async (creationId) => {
 
     if (!creationRes) {
         console.error("getMapColorFor(): creation does not exist in cache!", creationId)
-        throw new Error("creation missing from cache")
+        // Note: this means that it will generate *and cache* the minimap tile with this red pixel!
+        // This is probably alright, since the map is just there to get around
+        return [255, 0, 0, 1];
     }
 
     const blob = await creationRes.blob();
@@ -608,10 +610,6 @@ const generateMinimapTile = async (xyc) => {
     const size = 32;
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext('2d');
-
-    // Default fill is black
-    //ctx.fillStyle = 'black';
-    //ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     xyc.forEach(item => {
         const [x, y, color] = item;
@@ -1701,7 +1699,7 @@ class FakeAPI {
 
             const data = await am.getMinimapData_Region(Number(params.x1), Number(params.y1), Number(params.x2), Number(params.y2))
 
-            return json(data)
+            return json({ sectors: data })
         });
         // #endregion Minimap
 
