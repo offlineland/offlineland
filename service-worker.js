@@ -2297,13 +2297,15 @@ const handleClientMessage = async (event) => {
             amgr.onWsMessage(client, message.data.msg)
         }
         else if (message.m === "PLS_OPEN_WS") {
-            const [host, port] = message.data.wsUrl.slice(5).split(':');
-            const amgr = await areaManagerMgr.getByWSSUrl(host)
+            console.log("client sent PLS_OPEN_WS!", message)
+
+            const wsUrl = new URL(message.data.wsUrl);
+            const amgr = await areaManagerMgr.getByWSSUrl(wsUrl.host)
 
             amgr.onWsConnection(client)
         }
     } catch(e) {
-        console.error("MSG: error processing message!", e)
+        console.error("MSG: error processing message!", { message: event.data, error: e })
     }
 };
 
