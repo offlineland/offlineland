@@ -1938,9 +1938,10 @@ class FakeAPI {
             return json( true );
         });
 
-        // Check if Collected
+        // Display checkmark
+        // This is for a scrapped feature?
         router.get("/j/c/check/:itemId/", async ({ params, json }) => {
-            return json( (await inventory_getCollected(defaultPlayer.rid)).includes(params.itemId) )
+            return json( false );
         });
 
         // Check if I Flagged Item (always returns false for now)
