@@ -207,7 +207,7 @@ const tileWidthDefault = 19;
 const tileHeightDefault = 19;
 
 /**
- * @param {{r: number, g: number, b: number, a: number}[]} colors 
+ * @param {{r: number, g: number, b: number, alpha: number}[]} colors 
  * @param {number[][][]} cells - a 3D array for a x-y grid of palette indexes, wrapped into cells `cells[0][x][y]`
  */
 const generateCreationSpriteFromPixels = async (colors, cells) => {
@@ -219,7 +219,7 @@ const generateCreationSpriteFromPixels = async (colors, cells) => {
     const canvas = new OffscreenCanvas(cells[0].length, cells[0][0].length);
     const ctx = canvas.getContext('2d');
 
-    const fillStyles = colors.map(({r, g, b, a}) => `rgba(${[r, g, b, a].join(',')})`)
+    const fillStyles = colors.map(({r, g, b, alpha}) => `rgba(${[r, g, b, alpha].join(',')})`)
 
     for (const cell of cells) {
         for (const x in cell) {
