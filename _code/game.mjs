@@ -10,11 +10,24 @@ navigator.serviceWorker?.addEventListener("message", (ev) => {
     console.log("SW msg:", msg, lastWsInstance)
 
     if (msg.m === "WS_MSG") {
-        lastWsInstance?.onmessage({ data: msg.data })
+        if (!lastWsInstance) {
+            console.error("Received WS_MSG event but there is no FakeWebSocket in lastWsInstance!")
+            return;
+        }
+
+        lastWsInstance.onmessage({ data: msg.data })
     }
     else if (msg.m === "WS_OPEN") {
         console.info("SW sent WS_OPEN")
-        lastWsInstance?.onopen()
+        const { areaId } = msg.data;
+
+        if (!lastWsInstance) {
+            console.error("Received WS_OPEN event but there is no FakeWebSocket in lastWsInstance!")
+            return;
+        }
+
+        lastWsInstance.__setAreaId(areaId)
+        lastWsInstance.onopen()
     }
     else if (msg.m === "NAVIGATE_TO_MAINSCREEN") {
         window.location = "/";
@@ -38,12 +51,26 @@ class FakeWebSocket {
         lastWsInstance = this;
 
         console.info("FakeWebSocket instantiated! Sending PLS_OPEN_WS to service worker...")
-        postMessage_({ m: "PLS_OPEN_WS", data: { wsUrl: this.url }})
+        postMessage_({
+            m: "PLS_OPEN_WS",
+            data: {
+                wsUrl: this.url,
+                areaId: this.areaId, // We don't have this yet, so the SW will use wsUrl
+            }})
+    }
+
+    __setAreaId(areaId) {
+        this.areaId = areaId;
     }
 
     send(msg) {
-        // TODO: send areaname and/or id (have the sw send it to us?) instead of wsUrl; if the sw goes to sleep, it will lose it's memory of "areaMgrByWsUrl"
-        postMessage_({ m: "WSMSG", data: { wsUrl: this.url, msg: msg } })
+        postMessage_({
+            m: "WSMSG",
+            data: {
+                wsUrl: this.url, // Used by the SW to figure out which AreaManager to route this message to
+                areaId: this.areaId, // Ditto
+                msg: msg,
+            } })
     }
 
     close(closeCode) {

@@ -1172,7 +1172,7 @@ class LocalAreaManager {
         const player = getPlayerForClient(client.id);
 
         console.log("sending WS_OPEN message...")
-        client.postMessage({ m: "WS_OPEN" });
+        client.postMessage({ m: "WS_OPEN", data: { areaId: this.areaId } });
 
         console.log("sending own info message...")
         const initDataMsg = toClient({
@@ -1475,7 +1475,7 @@ class ArchivedAreaManager {
         const player = getPlayerForClient(client.id);
 
         console.log("sending WS_OPEN message...")
-        client.postMessage({ m: "WS_OPEN" });
+        client.postMessage({ m: "WS_OPEN", data: { areaId: this.areaId } });
 
         console.log("sending own info message...")
         const initDataMsg = toClient({
@@ -2291,8 +2291,8 @@ const handleClientMessage = async (event) => {
 
         //console.log("MSG", client.id, message, { event })
         if (message.m === "WSMSG") {
-            const [host, port] = message.data.wsUrl.slice(5).split(':');
-            const amgr = await areaManagerMgr.getByWSSUrl(host)
+            const { areaId } = message.data;
+            const amgr = await areaManagerMgr.getByAreaId(areaId)
 
             amgr.onWsMessage(client, message.data.msg)
         }
