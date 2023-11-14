@@ -195,20 +195,120 @@ const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
 
 // #region creations_cache
 /** @param {string} creationId @param {Blob} blob */
-const setCreationToCache = async (creationId, blob) => {
+const cache_setCreationSprite = async (creationId, blob) => {
     const cache = await self.caches.open("CREATION-SPRITES-V1");
 
     const url = self.origin + "/sprites/" + creationId;
     await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
 }
 
-const getCreationFromCache = async (creationId) => {
+/** @param {string} creationId */
+const cache_getCreationSprite = async (creationId) => {
     const cache = await self.caches.open("CREATION-SPRITES-V1");
 
     const url = self.origin + "/sprites/" + creationId;
     const cacheMatch = await cache.match(url)
 
     return cacheMatch;
+}
+
+
+const FETCH_MISSING_SPRITES_FROM_LIVE_CDN = true;
+const FETCH_MISSING_DEFS_FROM_LIVE_CDN = true;
+const CLOUDFRONT_ROOT_ITEMDEFS = "d2h9in11vauk68.cloudfront.net"
+
+/** @param {string} creationId */
+const getCreationSpriteRes = async (creationId) => {
+    const fromCache = await cache_getCreationSprite(creationId)
+
+    if (fromCache) {
+        return fromCache;
+    }
+
+    console.log("creation sprite not in cache!", creationId)
+
+
+
+    if (FETCH_MISSING_DEFS_FROM_LIVE_CDN) {
+        // TODO: the game actually shards over multiple CDNs in a deterministic manner
+        const url = "https://d3sru0o8c0d5ho.cloudfront.net/" + creationId;
+
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                cache_setCreationSprite(creationId, await res.clone().blob())
+                return res;
+            }
+            else {
+                console.error("getCreaationSpriteRes: attempted to pull data from live CDN but request failed", url, res.status, res.statusText, res)
+                throw new Error("fetch not ok")
+            }
+        }
+        catch(e) {
+            console.warn("failed to pull from CDN or set to cache!", url, e)
+        }
+    }
+
+
+    // Serve placeholder otherwise
+    return new Response(SpriteGroundBlob)
+}
+
+
+
+
+
+/** @param {string} creationId @param {string} jsonStr */
+const cache_setCreationDef = async (creationId, jsonStr) => {
+    const cache = await self.caches.open("CREATION-DEFS-V1");
+
+    const url = self.origin + "/_mlspinternal_/defs/" + creationId;
+    await cache.put(url, new Response(jsonStr, { headers: { 'Content-Type': 'application/json' } }))
+}
+
+/** @param {string} creationId */
+const cache_getCreationDef = async (creationId) => {
+    const cache = await self.caches.open("CREATION-DEFS-V1");
+
+    const url = self.origin + "/_mlspinternal_/defs/" + creationId;
+    const cacheMatch = await cache.match(url)
+
+    return cacheMatch;
+}
+
+const getCreationDefRes = async (creationId) => {
+    const fromCache = await cache_getCreationDef(creationId)
+
+    if (fromCache) {
+        return fromCache;
+    }
+
+    console.warn("creation def not in cache!", creationId)
+
+
+
+    if (FETCH_MISSING_DEFS_FROM_LIVE_CDN) {
+        const url = originUrl.protocol + "//" + CLOUDFRONT_ROOT_ITEMDEFS + "/" + creationId;
+
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                cache_setCreationDef(creationId, await res.clone().text())
+                return res;
+            }
+            else {
+                console.error("getCreationDefRes: attempted to pull data from live CDN but request failed", url, res.status, res.statusText, res)
+                throw new Error("fetch not ok")
+            }
+        }
+        catch(e) {
+            console.warn("failed to pull from CDN or set to cache!", url, e)
+        }
+    }
+
+
+    // Serve placeholder otherwise
+    return Response.json({"base":undefined,"creator":undefined,"id":creationId,"name":"MISSING DATA"})
 }
 
 // #endregion creations_cache
@@ -629,7 +729,7 @@ const getMapPixelColorFor = async (creationId) => {
     if (fromDb) return fromDb;
 
 
-    const creationRes = await getCreationFromCache(creationId)
+    const creationRes = await cache_getCreationSprite(creationId)
 
     if (!creationRes) {
         console.error("getMapColorFor(): creation does not exist in cache!", creationId)
@@ -1019,11 +1119,12 @@ class ArchivedAreaManager {
             // TODO: do this when "downloading" the area instead
             // TODO: check if not already in cache
             if (path.endsWith(".png")) {
-                console.log("adding", filenameWithoutExtension, "to cache")
-                file.async("blob").then(blob => setCreationToCache(filenameWithoutExtension, blob))
+                console.log("adding", filenameWithoutExtension, "to cache (sprite)")
+                file.async("blob").then(blob => cache_setCreationSprite(filenameWithoutExtension, blob))
             }
             else if (path.endsWith(".json")) {
-                // TODO: store def too
+                console.log("adding", filenameWithoutExtension, "to cache (def)")
+                file.async("text").then(text => cache_setCreationDef(filenameWithoutExtension, text))
             }
         })
 
@@ -1477,6 +1578,14 @@ class FakeAPI {
             return json(areaData)
         });
 
+        // item data
+        router.get("/j/i/def/:creationId", async ({ params }) => {
+            const { creationId } = params;
+
+            return await getCreationDefRes(creationId)
+        })
+
+
 
 
         // #region User
@@ -1859,7 +1968,7 @@ const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr);
 const handleFetchEvent = async (event) => {
     try {
         const url = new URL(event.request.url);
-        console.log("FETCH", event.clientId, url.pathname, { event })
+        console.log("FETCH", event.clientId, event.request.url, { event })
 
         if (url.host === originUrl.host) {
             if (url.pathname === "/") {
@@ -1942,30 +2051,15 @@ const handleFetchEvent = async (event) => {
         }
 
         if (cloudfrontHosts.includes(url.hostname)) {
-            console.log("FETCH matched cloudfront hostname", url.href)
 
             const creationId = url.pathname.slice(1)
-            const fromCache = await getCreationFromCache(creationId)
+            return await getCreationSpriteRes(creationId)
+        }
+        // With the current settings, the game should query /def instead of the CDN
+        if (url.hostname === CLOUDFRONT_ROOT_ITEMDEFS) {
+            const creationId = url.pathname.slice(1);
 
-            if (fromCache) {
-                return fromCache;
-            }
-
-            console.log("creation not in cache!")
-
-
-            const FETCH_SPRITES_FROM_LIVE_CDN = true;
-
-            if (FETCH_SPRITES_FROM_LIVE_CDN) {
-                const res = await fetch(url);
-                setCreationToCache(creationId, await res.clone().blob())
-                return res;
-            }
-
-
-
-            // Serve ground otherwise
-            return new Response(SpriteGroundBlob)
+            return await getCreationDefRes(creationId)
         }
 
         return new Response("No rules match this request!", { status: 404 })
