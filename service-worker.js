@@ -193,9 +193,29 @@ const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
 }
 
 
+// #region creations_cache
+/** @param {string} creationId @param {Blob} blob */
+const setCreationToCache = async (creationId, blob) => {
+    const cache = await self.caches.open("CREATION-SPRITES-V1");
 
+    const url = self.origin + "/sprites/" + creationId;
+    await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
+}
 
-// #endregion cache
+const getCreationFromCache = async (creationId) => {
+    const cache = await self.caches.open("CREATION-SPRITES-V1");
+
+    const url = self.origin + "/sprites/" + creationId;
+    const cacheMatch = await cache.match(url)
+
+    return cacheMatch;
+}
+
+// #endregion creations_cache
+
+// #region areazips_cache
+// #endregion areazips_cache
+
 
 
 
@@ -497,6 +517,43 @@ const schema_aps_s = Zod.object({
 // #endregion zodschemas
 
 
+// #region typedefs
+
+/**
+ * @typedef {Object} MinimapPlacenameData
+ * @property {number} x
+ * @property {number} y
+ * @property {string} n
+ */
+
+/**
+ * @typedef {Object} MinimapTileData
+ * @property {number} x
+ * @property {number} y
+ * @property {string | null} id
+ * @property {MinimapPlacenameData[]} pn
+ */
+
+/**
+ * @typedef {Object} PositionPixels
+ * @property {number} x
+ * @property {number} y
+ */
+
+/**
+ * @typedef {Object} Attachments
+ * @property { string | null } b - body
+ * @property { string | null } w - wearable
+ * @property { string | null } h - holdable
+ * @property { string | null } m - mount
+ * @property { string | null } br - brain
+ */
+
+
+// #endregion typedefs
+
+
+
 // #endregion boilerplate
 
 
@@ -566,23 +623,6 @@ const getMostUsedColor = (pixels) => {
 
 }
 
-/** @param {string} creationId @param {Blob} blob */
-const setCreationToCache = async (creationId, blob) => {
-    const cache = await self.caches.open("CREATION-SPRITES-V1");
-
-    const url = self.origin + "/sprites/" + creationId;
-    await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
-}
-
-const getCreationFromCache = async (creationId) => {
-    const cache = await self.caches.open("CREATION-SPRITES-V1");
-
-    const url = self.origin + "/sprites/" + creationId;
-    const cacheMatch = await cache.match(url)
-
-    return cacheMatch;
-}
-
 const getMapPixelColorFor = async (creationId) => {
     console.log("getMapPixelColorFor", creationId)
     const fromDb = await idbKeyval.get(`pixelColor-c${creationId}`);
@@ -608,10 +648,7 @@ const getMapPixelColorFor = async (creationId) => {
     return mostUsedColor;
 }
 
-/**
- * 
- * @param {[number, number, [ number, number, number, number]][]} xyc 
- */
+/** @param {[number, number, [ number, number, number, number]][]} xyc */
 const generateMinimapTile = async (xyc) => {
     const size = 32;
     const canvas = new OffscreenCanvas(size, size);
@@ -626,23 +663,7 @@ const generateMinimapTile = async (xyc) => {
     return await canvas.convertToBlob();
 }
 
-/**
- * @typedef {Object} MinimapPlacenameData
- * @property {number} x
- * @property {number} y
- * @property {string} n
- */
-
-/**
- * @typedef {Object} MinimapTileData
- * @property {number} x
- * @property {number} y
- * @property {string | null} id
- * @property {MinimapPlacenameData[]} pn
- */
-
 // #endregion Minimap
-
 
 //#region Player
 class Player {
@@ -713,21 +734,6 @@ class Player {
 
 
 
-
-/**
- * @typedef {Object} PositionPixels
- * @property {number} x
- * @property {number} y
- */
-
-/**
- * @typedef {Object} Attachments
- * @property { string | null } b - body
- * @property { string | null } w - wearable
- * @property { string | null } h - holdable
- * @property { string | null } m - mount
- * @property { string | null } br - brain
- */
 
 
 //#region AreaManager
