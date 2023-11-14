@@ -243,8 +243,8 @@ const saveCreation = async (itemData) => {
     const pixels = JSON.parse(decompressAscii(itemData.pixels));
     const spriteBlob = await generateCreationSpriteFromPixels(itemData.colors, pixels);
 
-    // TODO: is it fine if it's longer than an objectId? Do we really need to differentiate?
-    const itemId = "localitem-" + generateObjectId()
+    // Magic numbers to get the id to end in "19191919"
+    const itemId = generateObjectId_(Date.now(), 0, 25, 1644825)
 
     const itemDef = {
         id: itemId,
@@ -257,6 +257,7 @@ const saveCreation = async (itemData) => {
 
     await cache_setCreationSprite(itemId, spriteBlob);
     await cache_setCreationDef(itemId, JSON.stringify(itemDef));
+    await inventory_addCreated(defaultPlayer.rid, itemId);
 
     return {
         itemId: itemId,
@@ -871,7 +872,7 @@ const generateMinimapTile = async (xyc) => {
 
 // #endregion Minimap
 
-// #region inventory
+// #region inventory_collect
 // Note: Loading one big array to/from indexedDB will probably trash a lot if people start collecting everything they see. Not really a design goal though
 
 /**
@@ -935,7 +936,63 @@ const inventory_deleteCollected = async (playerId, itemId) => {
         return inventory;
     })
 }
-// #endregion inventory
+// #endregion inventory_collect
+
+// #region inventory_creations
+/**
+ * @param {string} playerId
+ * @param {string} itemId
+ */
+const inventory_addCreated = async (playerId, itemId) => {
+    await idbKeyval.update(`playerinventory-created-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
+        const inventory = (val || []);
+        inventory.unshift(itemId)
+        return inventory;
+    })
+}
+
+/**
+ * @param {string} playerId
+ * @returns { Promise<string[]> }
+ */
+const inventory_getCreatedAll = async (playerId) => {
+    return await idbKeyval.get(`playerinventory-created-p${playerId}`) || [];
+}
+
+/**
+ * @param {string} playerId
+ * @param {number} start
+ * @param {number} end
+ */
+const inventory_getCreatedPage = async (playerId, start, end) => {
+    const fullInventory = await inventory_getCreatedAll(playerId);
+    return {
+        items: fullInventory.slice(start, end),
+        itemCount: fullInventory.length
+    };
+}
+
+/**
+ * @param {string} playerId
+ * @param {string} itemId
+ */
+const inventory_deleteCreated = async (playerId, itemId) => {
+    await idbKeyval.update(`playerinventory-created-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
+        const inventory = (val || []);
+
+        const indexIfAlreadyCollected = inventory.indexOf(itemId)
+        if (indexIfAlreadyCollected > -1) {
+            inventory.splice(indexIfAlreadyCollected, 1)
+        }
+
+        return inventory;
+    })
+}
+// #region inventory_creations
+
+
+
+
 
 //#region Player
 class Player {
@@ -1792,12 +1849,20 @@ class FakeAPI {
         });
 
         // Create
-
         router.post("/j/i/c/", async ({ request, json }) => {
             const { itemData } = await readRequestBody(request)
             const { itemId } = await saveCreation(itemData)
 
             return json( { itemId: itemId });
+        });
+
+        // Delete
+        router.post("/j/i/d/", async ({ request, json }) => {
+            const { itemId } = await readRequestBody(request)
+
+            await inventory_deleteCreated(defaultPlayer.rid, itemId);
+
+            return json( { ok: true } );
         });
 
         // Motions
@@ -1807,7 +1872,7 @@ class FakeAPI {
         // Statistics
         router.get("/j/i/st/:creationId", async ({ params, json }) => {
             // TODO?
-            return json({ timesCd: 191919, timesPd: 191919 });
+            return json({ timesCd: 19, timesPd: 19 });
         });
 
         // Report Missing Item
@@ -1883,8 +1948,10 @@ class FakeAPI {
 
 
         // Get Created
-        // TODO
-        router.get("/j/i/gcr/:start/:end", ({ params, json }) => json({ items: [ groundId ], itemCount: 1 }) );
+        router.get("/j/i/gcr/:start/:end", async ({ params, json }) => {
+            const data = await inventory_getCreatedPage(defaultPlayer.rid, Number(params.start), Number(params.end))
+            return json(data)
+        });
         // #endregion Collections
 
 
