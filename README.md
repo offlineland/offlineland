@@ -26,9 +26,17 @@ There's one branch where I tried to set up require.js since all the libs are UMD
 
 
 ## TODO:
-- map-teleport redirects to / for some reason. Is the game doing that?
+### Service Worker:
 - make the service worker registration/update asynchronous, display a little loading spinner and auto-refresh on update
 - do proper caching and update of static assets
+- make all the where-does-data-comes-from logic more explicit and configurable (CDN, origin's server, another url...)
+
+### Game:
+- handle subareas
+- map-teleport redirects to / for some reason. Is the game doing that?
+- store numbers (figure out how they are saved, then do the same thing as possessions)
+
+### Further features:
 - interface at `/` to list available areas
     - make the "download area" button actually work (make a fetch for the SW to intercept, SW dls and caches area, add fancy UI animations when done)
     - also list snaps for that area? And buttons to teleport to it. The SW can handle placing people anywhere
@@ -38,11 +46,15 @@ There's one branch where I tried to set up require.js since all the libs are UMD
     - allow to join as explorer, non-editor and editor? (set config to url query, send to SW on open event?)
     - display the area thumbnail on the card, and also the area's creator (get avatar from boards), manyunity-style
 
-- store numbers (figure out how they are saved, then do the same thing as possessions)
-
-- make all the where-does-data-comes-from logic more explicit and configurable (CDN, origin's server, another url...)
-
-- upload on github pages?
-
-- Room-based multiplayer?
+- Room-based multiplayer via libfabric?
     - Allow to "copy" an area and use it as a LocalArea, then save all changes as a CRDT log or something
+
+- Bundle as an Electron app? -> Steam store?
+- Add a manifest to go full PWA and allow Android/iOS to "install" the app (re: fix caching and sw registration)
+
+### For later: Monetization
+- If Philipp hosts it on the same domain or another he controls, adds back the yolla ads?
+    - How to handle ads if used offline? Simply disable them? Only allow "offline install" if you've bought minfinity? (is this possible?)
+- Integrate with Patreon's API to allow players to still buy minfinity? Potentially also gate more features (max 10 players in a room? custom room code à la Discord?)
+- libfabric node or actual HTTP server acting as the "mifts server" where people can list their mifts, and add new ones (if they pay, or if they have minfinity)
+
