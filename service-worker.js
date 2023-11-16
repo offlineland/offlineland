@@ -1836,6 +1836,77 @@ class FakeAPI {
                 isEditorHere: true,
             });
         })
+        router.get("/j/u/ps/:userId", async ({ params, json }) => {
+          return json({
+            hideInFriendsList: false,
+            unfindable: true,
+            status: "test test test",
+            crAreaUrlName: "stockpile"
+          });
+        })
+        // Ordered Our Friends?
+        router.get("/j/u/oof/", async ({ params, json }) => {
+          return json([]);
+        })
+        // Toggle Unfindable
+        router.post("/j/u/tu/", async ({ json, request, clientId }) => {
+          // toggles whatever state the server has the player in
+          // does not receive true/false from client
+          return json({ unfindable: false });
+        })
+        // Total Online Count
+        router.get("/j/u/toc/", async ({ params, json }) => {
+          return json({
+            "core": [
+              {
+                "p": "1",
+                "a": "1",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "2",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "3",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "4",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "5",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "6",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "7",
+                "n": 0
+              },
+              {
+                "p": "1",
+                "a": "8",
+                "n": 0
+              },
+              {
+                "p": "2",
+                "a": "1",
+                "n": 0
+              }
+            ],
+            "all": 1
+          });
+        })
         // RandomAvatarVariations
         router.get("/j/u/rav/:count", async ({ params, json }) => {
           // return random count of explorer bodies
