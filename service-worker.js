@@ -428,6 +428,108 @@ const getCreationDefRes = async (creationId) => {
 // #endregion creations_cache
 
 // #region areazips_cache
+
+
+const getAvailableAreas = async () => {
+    const areasStoredLocally = [];
+    const availableAreas = await getAreaList()
+
+    const areasv2cache = await caches.open(CACHE_AREAS_V2);
+    for (const areaUrlName of availableAreas) {
+        const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))
+        if (cachematch) {
+            areasStoredLocally.push(areaUrlName)
+        }
+    }
+
+    return { areasStoredLocally, availableAreas }
+}
+
+const isAreaInCache = async (areaId) => {
+    const areasv2cache = await caches.open(CACHE_AREAS_V2);
+    const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${areaId}.zip`))
+
+    return !!cachematch
+}
+
+
+
+const getAreaFromCache = (areaId) => getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
+
+const downloadAndHandleAreaArchive = async (areaId) => {
+    const cacheAreas = await caches.open(CACHE_AREAS_V2);
+
+    const res = await getAreaFromCache(areaId)
+    console.log("zip res", res, res.ok, res.status)
+
+    if (res.ok === false) {
+        console.warn("downloadAndHandleAreaArchive(): response not ok!", areaId, res)
+        throw new Error("request not ok")
+    }
+
+
+    const blob = await res.blob()
+
+    console.log("reading zip")
+    const zip = await JSZip.loadAsync(blob)
+    console.log("reading zip ok", zip)
+
+    console.log("reading settings file")
+    const data = JSON.parse(await zip.file("area_settings.json").async("string"))
+    console.log("reading settings file ok", { areaId, data, zip })
+
+
+    const loadingPromises = [];
+
+    zip.folder("creations/").forEach((path, file) => {
+        const filenameWithoutExtension = path.slice(0, path.lastIndexOf("."))
+        if (filenameWithoutExtension.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        if (path.endsWith(".png")) {
+            console.log("adding", filenameWithoutExtension, "to cache (sprite)")
+            loadingPromises.push(
+                file.async("blob").then(blob => cache_setCreationSprite(filenameWithoutExtension, blob))
+            )
+        }
+        else if (path.endsWith(".json")) {
+            console.log("adding", filenameWithoutExtension, "to cache (def)")
+            loadingPromises.push(
+                file.async("text").then(text => cache_setCreationDef(filenameWithoutExtension, text))
+            )
+        }
+    })
+
+    await Promise.all(loadingPromises);
+}
+
+const makeAreaAvailableOffline = async (areaName) => {
+    const areaData = bundledAreasFile[areaName]
+    if (!areaData) {
+        console.error("asked to download an area that isn't referenced in our file!")
+        return Response.json({ ok: false });
+    }
+
+    try {
+        await downloadAndHandleAreaArchive(areaData.areaId)
+
+        const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId);
+        for (const subareaId in subareaIds) {
+            await downloadAndHandleAreaArchive(subareaId)
+        }
+
+
+        // TODO: send a message to client?
+        return Response.json({ ok: true });
+    } catch(e) {
+        console.log("error while caching! Are you sure the files exist (for all subareas too)?", e)
+        return Response.json({ ok: false });
+    }
+
+}
+
 // #endregion areazips_cache
 
 
@@ -1266,9 +1368,13 @@ class ArchivedAreaManager {
      * @returns 
      */
     static async make(wssUrl, areaId, possessionsMgr) {
-        // TODO: fetch data from storage
-        // TODO: cache
-        const res = await fetch(`/static/data/v2/${areaId}.zip`)
+        if (await isAreaInCache(areaId) === false) {
+            // This shouldn't happen, but in case it ever does, we just load it on the fly
+            // TODO: send messages to inform progress?
+            await downloadAndHandleAreaArchive(areaId)
+        }
+
+        const res = await getAreaFromCache(areaId);
         // TODO handle errors?
         console.log("zip res", res, res.ok, res.status)
 
@@ -1282,24 +1388,6 @@ class ArchivedAreaManager {
         const data = JSON.parse(await zip.file("area_settings.json").async("string"))
         console.log("reading settings file ok", { areaId, data, zip })
 
-        zip.folder("creations/").forEach((path, file) => {
-            const filenameWithoutExtension = path.slice(0, path.lastIndexOf("."))
-            if (filenameWithoutExtension.length !== 24) {
-                console.warn("got a file that does not seem to be a creationId!", path, file)
-                return;
-            }
-
-            // TODO: do this when "downloading" the area instead
-            // TODO: check if not already in cache
-            if (path.endsWith(".png")) {
-                console.log("adding", filenameWithoutExtension, "to cache (sprite)")
-                file.async("blob").then(blob => cache_setCreationSprite(filenameWithoutExtension, blob))
-            }
-            else if (path.endsWith(".json")) {
-                console.log("adding", filenameWithoutExtension, "to cache (def)")
-                file.async("text").then(text => cache_setCreationDef(filenameWithoutExtension, text))
-            }
-        })
 
 
         return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
@@ -2290,49 +2378,17 @@ const handleFetchEvent = async (event) => {
 
 
 
-            /** * @param {string} id */
-            const getZipUrlForAreaId = (id) => new URL(self.origin + `/static/data/v2/${id}.zip`).toString()
 
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
-                const availableAreas = await getAreaList()
-                const areasv2cache = await caches.open(CACHE_AREAS_V2);
-                const areasStoredLocally = []
-                for (const areaUrlName of availableAreas) {
-                    const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))
-                    if (cachematch) {
-                        areasStoredLocally.push(areaUrlName)
-                    }
-                }
-
-                return Response.json({ areasStoredLocally, availableAreas });
+                return Response.json(await getAvailableAreas());
             }
+
+            // Note: we use an http call instead of a message because message events don't have a .respondWith
+            // I don't think downloading + processing an area's .zip would be long enough or that the browser would interrupt us, but better safe than sorry
             if (url.pathname === "/_mlspinternal_/dlArea") {
                 const areaName = url.searchParams.get("area");
-
-                // TODO: extract this to a function
-                const areasv2cache = await caches.open(CACHE_AREAS_V2);
-
-                const areaData = bundledAreasFile[areaName]
-                if (!areaData) {
-                    console.error("asked to download an area that isn't referenced in our file!")
-                    return Response.json({ ok: false });
-                }
-
-
-                try {
-                    const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId);
-                    await areasv2cache.addAll([
-                        getZipUrlForAreaId(areaData.areaId),
-                        ...subareaIds.map(id => getZipUrlForAreaId(id)),
-                    ]);
-
-                    return Response.json({ ok: true });
-                } catch(e) {
-                    console.log("error while caching! Are you sure the files exist (for all subareas too)?", e)
-                    return Response.json({ ok: false });
-                }
-
+                return await makeAreaAvailableOffline(areaName);
             }
 
 
@@ -2344,6 +2400,7 @@ const handleFetchEvent = async (event) => {
             ) {
                 return new Response("Not implemented sorry", { status: 500 })
             }
+
 
             // Catch-all in case we're somehow trying to fetch a ressource or something
             if (url.pathname.slice(1).includes("/")) {
@@ -2408,18 +2465,16 @@ const handleClientMessage = async (event) => {
 
 
 
-//#region boilerplate
+// #region boilerplate
+
 
 const onInstall = async (/** @type {ExtendableEvent} */ event) => {
     try {
         console.log("service worker install event")
 
         // TODO: create cache for sounds and other static assets
-        // This cache is for the v1 area archive storage and will probably be deleted later
-        const areasv2cache = await caches.open(CACHE_AREAS_V2);
-        await areasv2cache.addAll([
-            new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName("chronology")}.zip`).toString()
-        ]);
+        // TODO: create cache for code, update it on load
+        await makeAreaAvailableOffline("chronology");
     } catch(e) {
         console.error("onInstall error!", e)
     }
@@ -2474,4 +2529,4 @@ main(
     idbKeyval
 )
 
-//#endregion boilerplate
+// #endregion boilerplate
