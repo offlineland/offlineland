@@ -2358,7 +2358,7 @@ const handleFetchEvent = async (event) => {
 
             if (url.pathname === "/") {
                 // TODO: why is this cached??
-                const res = await fetch("/index.html?CACHEBUST");
+                const res = await fetch("/index.html?cachebust=" + Date.now());
                 console.log("asked for mainscreen, sending", await res.clone().text())
                 return res;
             }
