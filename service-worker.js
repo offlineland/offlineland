@@ -1996,6 +1996,29 @@ class FakeAPI {
         // #region Mifts
         // GetUnseenMifts
         router.get("/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
+        
+        router.post("/j/mf/grm/", async ({ request, json }) => {
+          const body = await readRequestBody(request)
+          
+          var miftData = {
+            "results": [{
+              "_id": generateObjectId(),
+              "fromId": generateObjectId(),
+              "fromName": "TODO",
+              "toId": defaultPlayer.rid,
+              "itemId": "57286c91b19fff08136aa4a5",
+              "text": "TODO",
+              "deliverySeenByRecipient": false,
+              "ts": new Date().toISOString()
+            }]
+          }
+          if(body.priv == "true"){
+            // we'll never have their private mifts
+            miftData = {"results": []};
+          }
+  
+          return json(miftData)
+        })
         // #endregion Mifts
 
 
