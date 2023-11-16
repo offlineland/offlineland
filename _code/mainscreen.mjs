@@ -34,14 +34,25 @@ const triggerAreaDownload = async (areaUrlName) => {
     }
 }
 
+const areaEl = (areaUrlName, isAvailableLocally) => {
+    if (isAvailableLocally) {
+        return el("li", [
+            el("a", { href: "/" + areaUrlName}, areaUrlName),
+        ])
+    }
+    else {
+        return el("li", [
+            el("span", areaUrlName),
+            el("button", "download area", { onclick: () => triggerAreaDownload(areaUrlName) })
+        ])
+    }
+}
+
 const updateAreaList = () => {
     setChildren(areaListEl, [
         el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
         data.availableAreas.map((areaUrlName) => (
-            el("li", [
-                el("a", { href: "/" + areaUrlName}, areaUrlName),
-                data.areasStoredLocally.includes(areaUrlName) || el("button", "download area", { onclick: () => triggerAreaDownload(areaUrlName) })
-            ])
+            el("li", [ areaEl(areaUrlName, data.areasStoredLocally.includes(areaUrlName) ) ])
         ))
     ])
 }
