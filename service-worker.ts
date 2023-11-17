@@ -356,11 +356,10 @@ const schema_aps_s = Zod.object({
  * @property {MinimapPlacenameData[]} pn
  */
 
-/**
- * @typedef {Object} PositionPixels
- * @property {number} x
- * @property {number} y
- */
+type PositionPixels = {
+    x: number;
+    y: number;
+}
 
 /**
  * @typedef {Object} Attachments
@@ -769,36 +768,29 @@ class AreaPossessionsManager {
 
 class ArchivedAreaManager {
     clients = new Set();
-    zip: any;
-    wssUrl: any;
-    areaId: any;
-    possessionsMgr: any;
+    zip: typeof JSZip;
+    wssUrl: string;
+    areaId: string;
+    possessionsMgr: AreaPossessionsManager;
     isRingArea: boolean;
-    isSubarea: any;
+    isSubarea: boolean;
     centerLocation: any;
-    areaGroupId: any;
-    areaRealName: any;
-    areaGroupName: any;
-    areaUrlName: any;
-    description: any;
-    globalInteractingId: any;
+    areaGroupId: string;
+    areaRealName: string;
+    areaGroupName: string;
+    areaUrlName: string;
+    description: string;
+    globalInteractingId: string | null;
     drift: any;
-    protection: any;
-    isLocked: any;
-    isUnlisted: any;
-    isSinglePlayerExperience: any;
-    explorerChatAllowed: any;
-    mpv: any;
+    protection: string;
+    isLocked: boolean;
+    isUnlisted: boolean;
+    isSinglePlayerExperience: boolean;
+    explorerChatAllowed: boolean;
+    mpv: number;
 
-    /**
-     * 
-     * @param {string} wssUrl
-     * @param {string} areaId
-     * @param {*} data 
-     * @param {*} zip 
-     * @param {AreaPossessionsManager} possessionsMgr
-     */
-    constructor(wssUrl, areaId, data, zip, possessionsMgr) {
+    constructor(wssUrl: string, areaId: string, data: any, zip: any, possessionsMgr: AreaPossessionsManager) {
+        console.log("ArchivedAreaManager constructor", wssUrl, areaId, data)
         this.zip = zip;
         this.wssUrl = wssUrl;
         this.areaId = areaId;
@@ -824,14 +816,7 @@ class ArchivedAreaManager {
         this.mpv = data.mpv;
     }
 
-    /**
-     * 
-     * @param {string} wssUrl
-     * @param {string} areaId
-     * @param {AreaPossessionsManager} possessionsMgr
-     * @returns 
-     */
-    static async make(wssUrl, areaId, possessionsMgr) {
+    static async make(wssUrl: string, areaId: string, possessionsMgr: AreaPossessionsManager) {
         if (await isAreaInCache(areaId) === false) {
             // This shouldn't happen, but in case it ever does, we just load it on the fly
             // TODO: send messages to inform progress?
@@ -840,29 +825,24 @@ class ArchivedAreaManager {
 
         const res = await getAreaFromCache(areaId);
         // TODO handle errors?
-        console.log("zip res", res, res.ok, res.status)
+        console.log("AreaManager make(): zip res", res, res.ok, res.status)
 
         const blob = await res.blob()
 
-        console.log("reading zip")
+        console.log("AreaManager make(): reading zip")
         const zip = await JSZip.loadAsync(blob)
-        console.log("reading zip ok", zip)
+        console.log("AreaManager make(): reading zip ok", zip)
 
-        console.log("reading settings file")
+        console.log("AreaManager make(): reading settings file")
         const data = JSON.parse(await zip.file("area_settings.json").async("string"))
-        console.log("reading settings file ok", { areaId, data, zip })
+        console.log("AreaManager make(): reading settings file ok", { areaId, data, zip })
 
 
 
         return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
     }
 
-    /**
-     * 
-     * @param {Player} player
-     * @returns 
-     */
-    async getInitData(player) {
+    async getInitData(player: Player) {
         const playerData = player.getInitData_http();
 
         const defaultData = {
@@ -919,7 +899,7 @@ class ArchivedAreaManager {
         }
     }
 
-    async getDataForSector(x, y) {
+    async getDataForSector(x: number, y: number) {
         console.log(`loadingsectordata ${x}:${y}: reading zip`)
         const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
         console.log(`loadingsectordata ${x}:${y}: reading zip ok`, sectorFile)
@@ -943,19 +923,17 @@ class ArchivedAreaManager {
         }
     }
 
-    /** @returns { Promise<PositionPixels> } */
-    async getPlayerPosition() {
+    async getPlayerPosition(): Promise<PositionPixels> {
         const storedPos = await idbKeyval.get(`area-position-${this.areaId}`)
         if (storedPos) return storedPos;
 
         return this.getSpawnpoint()
     }
-    /** @param {PositionPixels} pos @returns { Promise<void> } */
-    async setPlayerPosition(pos) {
+    async setPlayerPosition(pos: PositionPixels): Promise<void> {
         await idbKeyval.set(`area-position-${this.areaId}`, pos)
     }
 
-    async getMinimapData_Tile(x, y) {
+    async getMinimapData_Tile(x: number, y: number) {
         console.log("getMinimapData_Tile", x, y, this.areaId)
         const key = `area-minimaptile-${this.areaId}_${x}_${y}`;
         const fromDb = await idbKeyval.get(key)
@@ -1217,13 +1195,16 @@ class AreaManagerManager {
     }
 
     async getByWSSUrl(/** @type { string } */ wssUrl) {
-        //console.log("amm: getByWssUrl", wssUrl)
+        console.warn("amm: getByWssUrl", wssUrl)
+
         const am = this.areaManagerByWSSUrl.get(wssUrl);
         if (am) return am;
         else return await this.makeAreaManager("shouldnthappen_" + String(Date.now()));
     }
 
     async getByAreaId(/** @type { string } */ areaId) {
+        console.log("AreaManagerManager: getByAreaId()", areaId)
+
         const am = this.areaManagerByAreaId.get(areaId);
         if (am) return am;
         else return await this.makeAreaManager(areaId);
