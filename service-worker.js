@@ -2018,6 +2018,127 @@ class FakeAPI {
         // #endregion User
 
 
+        // #region Writable
+        
+        router.post("/j/f/ge", async ({ request, json }) => {
+          const { forumId, startDate, endDate } = await readRequestBody(request)
+          return json({ events: [] });
+        });
+        
+        // Get Settings (for Forum)
+        router.post("/j/f/gs", async ({ request, json }) => {
+          const { id } = await readRequestBody(request)
+          const writableConfig = {
+            name: "Todo Writable",
+            areaGroupId: "544fe6976e52f57f4d85702b", // stockpile
+            rgbBackground: "6,85,53",
+            rgbText: "176,176,176",
+            onlyEditorsCanRead: false,
+            onlyEditorsCanAddComments: false,
+            onlyEditorsCanAddThreads: false,
+            isBannedFromAssociatedArea: false,
+            isEditorOfAssociatedArea: false,
+            postKeyRequired: false
+          }
+          return json(writableConfig);
+        });
+        // Get Forum
+        router.post("/j/f/gf", async ({ request, json }) => {
+          const { id } = await readRequestBody(request)
+          const threads = {
+            threads: [
+              {
+                _id: "651a84b50fa36061e9e6b488",
+                userId: "5003d713a0b60c386b0000a1",
+                userName: "philipp",
+                title: "STATUS UPDATE: BUDGET ISSUES",
+                firstCommentId: "651a84b50fa36061e9e6b489",
+                sticky: true,
+                locked: false,
+                hasEvent: false,
+                lastComment: {
+                  content: null,
+                  userName: "username",
+                  userId: generateObjectId(),
+                  ts: "2023-11-01T06:44:47.796Z",
+                  id: "6541f3df633fc2043f3dd143"
+                },
+                ts: "2023-10-02T08:52:05.814Z"
+              },
+              {
+                _id: generateObjectId(),
+                userId: defaultPlayer.rid,
+                userName: "ToDo",
+                title: "ToDo",
+                firstCommentId: generateObjectId(),
+                sticky: false,
+                locked: false,
+                hasEvent: false,
+                lastComment: {
+                  content: null,
+                  userName: "Todo",
+                  userId: defaultPlayer.rid,
+                  ts: new Date().toISOString(),
+                  id: generateObjectId()
+                },
+                ts: new Date().toISOString()
+              }
+            ],
+            time: new Date().toISOString()
+          }
+          return json(threads);
+        });
+        // Get Contents
+        router.post("/j/f/gc", async ({ request, json }) => {
+          const { id } = await readRequestBody(request)
+          const contents = {
+            comments: [
+              {
+                _id: "651a84b50fa36061e9e6b489",
+                userId: "5003d713a0b60c386b0000a1",
+                userName: "philipp",
+                content: "Hi all! This is just a recap that we're facing budget issues. It's been a longstanding issue, but this year, our server provider Linode upped the prices quite a bit again. So at the moment, we're deep in the minus every month.\n\nThe main revenue stream right now are ad views, which depend on how many people there are, mostly. Minfinity does not make up a relevant portion of revenues, and we don't believe we can grow that part much at the current situation (though thanks to those who get Minfinity).\n\nWhile we had many discussions in the past of how to resolve the revenues issue, this post was mainly meant as a status update so you are all informed. Thanks everyone and much love!",
+                newestLikes: [
+                  {
+                    n: "todo",
+                    id: defaultPlayer.rid
+                  }
+                ],
+                oldestLikes: [
+                  {
+                    n: "Another Player",
+                    id: generateObjectId()
+                  }
+                ],
+                totalLikes: 1,
+                items: [
+                  ""
+                ],
+                ts: "2023-10-02T08:52:05.822Z"
+              },
+              {
+                _id: generateObjectId(),
+                userId: defaultPlayer.rid,
+                userName: "todo",
+                content: "hello, world!",
+                newestLikes: [],
+                oldestLikes: [
+                  {
+                    n: "philipp",
+                    id: "5003d713a0b60c386b0000a1"
+                  }
+                ],
+                totalLikes: 3,
+                items: [],
+                ts: "2023-10-02T09:36:31.764Z"
+              }
+            ],
+            time: "2023-11-12T02:31:00.506Z"
+          }
+          return json(contents);
+        });
+        
+        // #endregion Writable
 
 
         // #region Items
