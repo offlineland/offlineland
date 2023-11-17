@@ -1,28 +1,22 @@
 ## Dev setup:
 - Run a webserver that serves this folder (eg., `python -m http.server`)
+- `bun install`
+- `bun run tsc:w`
 - The game needs to run in a "Safe origin", make sure that either:
     - your devserver does https (Caddy!),
     - you use `127.0.0.1` or `localhost`,
     - or you configure your browser to assume your dev host is a safe origin.
-- If you want to actually code on it, run `bun install` to get types
-- Type checking works on my machine:TM: (VSCode), but if it doesn't for you you can use `bun run tsc:w` to get typechecking in the terminal
 
 
 ## What happens where:
 - `index.html` is the "loading screen"
 - `game.html` is the game
     - it overrides `window.WebSocket` with a class that pretends to be a WS but actually sends and receives messages to/from the Service Worker
-- `service-worker.js` is where everything else is. There are 3 interesting places:
+- `service-worker.ts` is where everything else is. There are 3 interesting places:
     - the `handleFetchEvent` function, which does top-level "routing"
     - the `FakeAPI` class which implements a basic express-like router and pretend to be ML's `/j/` endpoint
     - the `ArchivedAreaManager` class which handles all the area data (loads data from zip, serves sector data, replies to WS messages)
-
-The rest is mostly boilerplate. You're invited to abuse code folding on the `#region ` markers and the code minimap and "go to definition" / search, and potentially to install the `Region Viewer` vscode extension to get around.
-
-### Why is it all in one big file?
-Because Firefox does not handle ES module imports in Service Workers, but tsc doesn't handle `importScripts`. There's probably an arcane tool to do it, but I hate setting up tooling so we're stuck with this for now. Since there's basically only 3 code regions where stuff happens, I got used to it.
-
-There's one branch where I tried to set up require.js since all the libs are UMD modules, but then backed out because tsc lost type inference across files. There's also one branch where I set up tsc but then backed out because using tsc in `checkJs` mode + jsdocs isn't that bad, and I didn't want to add another build tool (also tsc type inference needs too much handholding and it got on my nerves).
+- `_code/service-worker/` is where the rest of the service worker lives. I might split the above 3 places into their own files, but for now it's mostly boilerplate.
 
 
 ## TODO:
