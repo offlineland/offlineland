@@ -8,11 +8,11 @@
 
         "module": "None",
         "moduleResolution": "Classic",
+        "isolatedModules": true,
         "baseUrl": ".",
         "paths": {
             "*": ["node_modules/*"]
         }
-
     },
     "include": [
         "_code/service-worker/**/*.ts",

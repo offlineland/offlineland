@@ -159,5 +159,3 @@ return {
     msgTypes_rev
 }
 }
-
-export type makeWs = typeof makeWs;

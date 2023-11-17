@@ -70,5 +70,3 @@ const makeRouter = (matchPath) => {
 
     return { route, get, post, matchRoute }
 }
-
-export type makeRouter = typeof makeRouter;

@@ -1,20 +1,9 @@
 /// <reference lib="webworker" />
 
-
-import type { makeRouter } from "./_code/service-worker/boilerplate/basicrouter"; 
-import type { makeWs } from "./_code/service-worker/boilerplate/ws";
-import type { makeLocalCreations } from "./_code/service-worker/localCreations";
-
 importScripts("/_code/service-worker/boilerplate/basicrouter.js");
 importScripts("/_code/service-worker/boilerplate/ws.js");
 importScripts("/_code/service-worker/localCreations.js");
 importScripts("/_code/service-worker/localMinimap.js");
-
-declare global {
-    var makeWs: makeWs;
-    var makeRouter: makeRouter;
-    var makeLocalCreations: makeLocalCreations;
-}
 
 
 
@@ -1567,7 +1556,7 @@ const getPlayerForClient = (clientId) => defaultPlayer;
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
 
 class FakeAPI {
-    router: ReturnType<makeRouter>;
+    router: ReturnType<typeof makeRouter>;
 
     constructor(
         /** @type { AreaManagerManager } */ areaManagerMgr,

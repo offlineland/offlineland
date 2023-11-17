@@ -82,5 +82,3 @@ const generateCreationSpriteFromPixels = async (colors, cells) => {
 
 return { decompressAscii, generateCreationSpriteFromPixels }
 }
-
-export type makeLocalCreations = typeof makeLocalCreations;
