@@ -76,11 +76,13 @@ const bundledAreasFile = {
     //},
     "chronology": {
         areaId: "56ed2214c94d7b0e132538b9",
-        tags: []
+        tags: [],
+        subareas: {},
     },
     "oosforest": {
         areaId: "5963e0d370c6b17b13c75b26",
-        tags: [ "exploration" ]
+        tags: [ "exploration" ],
+        subareas: {},
     },
     "oosjungle": {
         areaId: "5bc003b5051ec03628866ecb",
@@ -106,6 +108,7 @@ const bundledAreasFile = {
     "gemcastle": {
         areaId: "541b035c44aff03338610fca",
         tags: [ "parkour" ],
+        subareas: {},
     },
     //"sandcastle": {
     //    areaId: "5522c6f01c963d1308f12e0a",
@@ -624,6 +627,7 @@ class LocalAreaManager {
     isRingArea: boolean;
 
     constructor(wssUrl, areaId) {
+        console.warn("LocalAreaManager constructor", wssUrl, areaId)
         this.wssUrl = wssUrl;
         this.areaId = areaId;
 
@@ -763,6 +767,11 @@ class AreaPossessionsManager {
     async getPossessions(areaGroupId) {
         return await idbKeyval.get(`area-possessions-${areaGroupId}`)
     }
+}
+
+
+const getAreaOrSubareaIdFor = async (player: Player, areaGroupId: string): Promise<string> => {
+    return (await idbKeyval.get(`area-current-subarea-${areaGroupId}`)) || areaGroupId
 }
 
 
@@ -1028,8 +1037,10 @@ class ArchivedAreaManager {
             }
         })
         client.postMessage({ m: "WS_MSG", data: initDataMsg });
+    }
 
-
+    async setCurrentSubarea(subareaName: string | null) {
+        await idbKeyval.set(`area-current-subarea-${this.areaGroupId}`, subareaName)
     }
 
     /**
@@ -1071,8 +1082,38 @@ class ArchivedAreaManager {
                     }
                     else if (parsedMsg.data.tol) {
                         console.log("user asked to teleport to", parsedMsg.data.tol)
-                        if (bundledAreasFile[this.areaUrlName]?.subareas?.[parsedMsg.data.tol]) {
-                            console.log("subarea found!")
+                        const subareaName = parsedMsg.data.tol;
+                        const subareaId = bundledAreasFile[this.areaUrlName]?.subareas?.[subareaName];
+
+                        // NOTE: there are rare edge cases where there's actually a subarea with the same name as the current area. I'm going to ignore these
+                        // TODO: this might break if the area name is spelled using the areaRealName instead of the areaUrlName!
+                        if (subareaName === this.areaUrlName) {
+                            console.log("player asked to teleport to main area!")
+                            this.setCurrentSubarea(null)
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.TELEPORT,
+                                    data: {
+                                        rid: defaultPlayer.rid,
+                                        gun: null,
+                                    }
+                                })
+                            });
+                        } 
+                        else if (subareaId) {
+                            console.log(`subarea named "${subareaName} (id: "${subareaId}") found!`)
+                            this.setCurrentSubarea(subareaId)
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.TELEPORT,
+                                    data: {
+                                        rid: defaultPlayer.rid,
+                                        gun: null,
+                                    }
+                                })
+                            });
                         }
                         else {
                             console.log("no subarea..")
@@ -1161,6 +1202,10 @@ const getAreaManagerClassForAreaId = (areaId) => {
         if (area.areaId === areaId) {
             return ArchivedAreaManager;
         }
+
+        if (Object.values(area.subareas).includes(areaId)) {
+            return ArchivedAreaManager;
+        }
     }
 
     return LocalAreaManager;
@@ -1210,10 +1255,14 @@ class AreaManagerManager {
         else return await this.makeAreaManager(areaId);
     }
 
-    async getByAreaName(clientId, /** @type { string } */ areaUrlName) {
+    async getByAreaName(player: Player, areaUrlName: string) {
+        console.log("AreaManagerManager: getByAreaName()", areaUrlName)
+
         // TODO: handle cases where client is in a subarea
-        const areaId = getAreaIdForAreaName(areaUrlName);
-        return await this.getByAreaId(areaId)
+        const areaGroupId = getAreaIdForAreaName(areaUrlName);
+        const currentAreaId = await getAreaOrSubareaIdFor(player, areaGroupId)
+        console.log("AreaManagerManager: getByAreaName()", `player is currently in (sub)area ${currentAreaId} of area ${areaGroupId}(${areaUrlName})`)
+        return await this.getByAreaId(currentAreaId)
     }
 }
 
@@ -1278,8 +1327,8 @@ class FakeAPI {
             
             console.log("getting area manager for area", data)
 
-            const areaManager = await areaManagerMgr.getByAreaName(clientId, data.urlName);
             const player = getPlayerForClient(clientId);
+            const areaManager = await areaManagerMgr.getByAreaName(player, data.urlName);
             const areaData = await areaManager.getInitData(player, data.urlName);
 
             //clientIdToAreas.set(clientId, data.urlName)
