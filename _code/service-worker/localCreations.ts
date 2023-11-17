@@ -41,6 +41,7 @@ const decompressAscii = (compressedString) => {
 const tileWidthDefault = 19;
 const tileHeightDefault = 19;
 
+
 /**
  * @param {{r: number, g: number, b: number, alpha: number}[]} colors 
  * @param {number[][][]} cells - a 3D array for a x-y grid of palette indexes, wrapped into cells `cells[0][x][y]`
@@ -80,5 +81,33 @@ const generateCreationSpriteFromPixels = async (colors, cells) => {
 }
 
 
-return { decompressAscii, generateCreationSpriteFromPixels }
+const saveCreation = async (player, itemData, cache, inventory_addCreated) => {
+    console.log("client tried to create something!", itemData)
+
+    const pixels = JSON.parse(decompressAscii(itemData.pixels));
+    const spriteBlob = await generateCreationSpriteFromPixels(itemData.colors, pixels);
+
+    // Magic numbers to get the id to end in "19191919"
+    const itemId = generateObjectId_(Date.now(), 0, 25, 1644825)
+
+    const itemDef = {
+        id: itemId,
+        name: itemData.name,
+        base: itemData.type,
+        creator: player.rid,
+        prop: itemData.prop,
+        // TODO: anything else?
+    }
+
+    await cache.setCreationSprite(itemId, spriteBlob);
+    await cache.setCreationDef(itemId, JSON.stringify(itemDef));
+    await inventory_addCreated(player.rid, itemId);
+
+    return {
+        itemId: itemId,
+    }
+}
+
+
+return { saveCreation }
 }

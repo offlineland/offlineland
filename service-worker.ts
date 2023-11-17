@@ -1,11 +1,17 @@
 /// <reference lib="webworker" />
+try {
 
 importScripts("/_code/service-worker/boilerplate/basicrouter.js");
+importScripts("/_code/service-worker/boilerplate/cache.js");
+importScripts("/_code/service-worker/boilerplate/mongoId.js");
 importScripts("/_code/service-worker/boilerplate/ws.js");
 importScripts("/_code/service-worker/localCreations.js");
 importScripts("/_code/service-worker/localMinimap.js");
 
 
+} catch(e) {
+    console.log("error while trying to import a module. Are you sure the paths are correct?", e)
+}
 
 //  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
 //  ██   ██ ██    ██ ██ ██      ██      ██   ██ ██   ██ ██      ██   ██    ██    ██      
@@ -46,14 +52,21 @@ const main = (
     idbKeyval: typeof import('idb-keyval/dist/index.d.ts'),
 ) => {
 try {
-const { toServer, fromServer, fromClient, toClient, msgTypes, msgTypes_rev } = makeWs()
+const originUrl = new URL(self.origin)
+const groundId = "50372a99f5d33dc56f000001"
+const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
+const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
+
 
 // #region misc
 const z = Zod;
 
+const cache = makeCache(originUrl, SpriteGroundBlob);
+const { generateMinimapTile, getMapPixelColorFor } = makeMinimapGenerator(idbKeyval, cache.getCreationSprite)
+
+
 const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
     .split(" ").map(s => s + ".cloudfront.net")
-const originUrl = new URL(self.origin)
 
 const ringAreas = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
 
@@ -142,25 +155,6 @@ const makeGetOrCreate = (map, ctor) => {
     }
 }
 
-/**
- * 
- * @param {number} timestamp
- * @param {number} machineId
- * @param {number} processId
- * @param {number} counter
- * @returns {string}
- */
-const generateObjectId_ = (timestamp, machineId, processId, counter) => {
-  const hexTimestamp = Math.floor(timestamp / 1000).toString(16).padStart(8, '0');
-  const hexMachineId = machineId.toString(16).padStart(6, '0');
-  const hexProcessId = processId.toString(16).padStart(4, '0');
-  const hexCounter = counter.toString(16).padStart(6, '0');
-
-  return hexTimestamp + hexMachineId + hexProcessId + hexCounter;
-}
-let objIdCounter = 0;
-const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter++)
-
 
 
 
@@ -169,187 +163,11 @@ const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter+
 // #endregion misc
 
 // #region creation
-const { decompressAscii, generateCreationSpriteFromPixels } = makeLocalCreations()
-const saveCreation = async (itemData) => {
-    console.log("client tried to create something!", itemData)
-
-    const pixels = JSON.parse(decompressAscii(itemData.pixels));
-    const spriteBlob = await generateCreationSpriteFromPixels(itemData.colors, pixels);
-
-    // Magic numbers to get the id to end in "19191919"
-    const itemId = generateObjectId_(Date.now(), 0, 25, 1644825)
-
-    const itemDef = {
-        id: itemId,
-        name: itemData.name,
-        base: itemData.type,
-        creator: defaultPlayer.rid,
-        prop: itemData.prop,
-        // TODO: anything else?
-    }
-
-    await cache_setCreationSprite(itemId, spriteBlob);
-    await cache_setCreationDef(itemId, JSON.stringify(itemDef));
-    await inventory_addCreated(defaultPlayer.rid, itemId);
-
-    return {
-        itemId: itemId,
-    }
-}
+const { saveCreation } = makeLocalCreations()
 
 // #endregion creation
 
 // #region cache
-const CACHE_NAME = 'cache-v1';
-const CACHE_AREAS_V2 = "cache_areas_v2"
-
-const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
-    const cache = await self.caches.open(cacheName);
-
-    const cacheMatch = await cache.match(request)
-
-    if (cacheMatch) return cacheMatch;
-
-
-
-    const fetchRes = await fetch(request.clone());
-    if (fetchRes.ok) {
-        cache.put(request, fetchRes.clone())
-    }
-
-    return fetchRes;
-}
-
-const deleteCachesNotIn = async (/** @type {string[]} */ cacheWhitelist) => {
-    const cacheKeys = await self.caches.keys();
-
-    const deletePromises = cacheKeys.map(cacheKey => {
-        if (cacheWhitelist.includes(cacheKey) === false) {
-            return caches.delete(cacheKey);
-        }
-    });
-
-    await Promise.all(deletePromises);
-}
-
-
-// #region creations_cache
-/** @param {string} creationId @param {Blob} blob */
-const cache_setCreationSprite = async (creationId, blob) => {
-    const cache = await self.caches.open("CREATION-SPRITES-V1");
-
-    const url = self.origin + "/sprites/" + creationId;
-    await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'image/png' } }))
-}
-
-/** @param {string} creationId */
-const cache_getCreationSprite = async (creationId) => {
-    const cache = await self.caches.open("CREATION-SPRITES-V1");
-
-    const url = self.origin + "/sprites/" + creationId;
-    const cacheMatch = await cache.match(url)
-
-    return cacheMatch;
-}
-
-
-const FETCH_MISSING_SPRITES_FROM_LIVE_CDN = true;
-const FETCH_MISSING_DEFS_FROM_LIVE_CDN = true;
-const CLOUDFRONT_ROOT_ITEMDEFS = "d2h9in11vauk68.cloudfront.net"
-
-/** @param {string} creationId */
-const getCreationSpriteRes = async (creationId) => {
-    const fromCache = await cache_getCreationSprite(creationId)
-
-    if (fromCache) {
-        return fromCache;
-    }
-
-    console.log("creation sprite not in cache!", creationId)
-
-
-
-    if (FETCH_MISSING_SPRITES_FROM_LIVE_CDN) {
-        // TODO: the game actually shards over multiple CDNs in a deterministic manner
-        const url = "https://d3sru0o8c0d5ho.cloudfront.net/" + creationId;
-
-        try {
-            const res = await fetch(url);
-            if (res.ok) {
-                cache_setCreationSprite(creationId, await res.clone().blob())
-                return res;
-            }
-            else {
-                console.error("getCreaationSpriteRes: attempted to pull data from live CDN but request failed", url, res.status, res.statusText, res)
-                throw new Error("fetch not ok")
-            }
-        }
-        catch(e) {
-            console.warn("failed to pull from CDN or set to cache!", url, e)
-        }
-    }
-
-
-    // Serve placeholder otherwise
-    return new Response(SpriteGroundBlob)
-}
-
-
-
-
-
-/** @param {string} creationId @param {string} jsonStr */
-const cache_setCreationDef = async (creationId, jsonStr) => {
-    const cache = await self.caches.open("CREATION-DEFS-V1");
-
-    const url = self.origin + "/_mlspinternal_/defs/" + creationId;
-    await cache.put(url, new Response(jsonStr, { headers: { 'Content-Type': 'application/json' } }))
-}
-
-/** @param {string} creationId */
-const cache_getCreationDef = async (creationId) => {
-    const cache = await self.caches.open("CREATION-DEFS-V1");
-
-    const url = self.origin + "/_mlspinternal_/defs/" + creationId;
-    const cacheMatch = await cache.match(url)
-
-    return cacheMatch;
-}
-
-const getCreationDefRes = async (creationId) => {
-    const fromCache = await cache_getCreationDef(creationId)
-
-    if (fromCache) {
-        return fromCache;
-    }
-
-    console.warn("creation def not in cache!", creationId)
-
-
-
-    if (FETCH_MISSING_DEFS_FROM_LIVE_CDN) {
-        const url = originUrl.protocol + "//" + CLOUDFRONT_ROOT_ITEMDEFS + "/" + creationId;
-
-        try {
-            const res = await fetch(url);
-            if (res.ok) {
-                cache_setCreationDef(creationId, await res.clone().text())
-                return res;
-            }
-            else {
-                console.error("getCreationDefRes: attempted to pull data from live CDN but request failed", url, res.status, res.statusText, res)
-                throw new Error("fetch not ok")
-            }
-        }
-        catch(e) {
-            console.warn("failed to pull from CDN or set to cache!", url, e)
-        }
-    }
-
-
-    // Serve placeholder otherwise
-    return Response.json({"base":undefined,"creator":undefined,"id":creationId,"name":"MISSING DATA"})
-}
 
 // #endregion creations_cache
 
@@ -380,7 +198,7 @@ const isAreaInCache = async (areaId) => {
 
 
 
-const getAreaFromCache = (areaId) => getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
+const getAreaFromCache = (areaId) => cache.getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
 
 const downloadAndHandleAreaArchive = async (areaId) => {
     const cacheAreas = await caches.open(CACHE_AREAS_V2);
@@ -417,13 +235,13 @@ const downloadAndHandleAreaArchive = async (areaId) => {
         if (path.endsWith(".png")) {
             console.log("adding", filenameWithoutExtension, "to cache (sprite)")
             loadingPromises.push(
-                file.async("blob").then(blob => cache_setCreationSprite(filenameWithoutExtension, blob))
+                file.async("blob").then(blob => cache.setCreationSprite(filenameWithoutExtension, blob))
             )
         }
         else if (path.endsWith(".json")) {
             console.log("adding", filenameWithoutExtension, "to cache (def)")
             loadingPromises.push(
-                file.async("text").then(text => cache_setCreationDef(filenameWithoutExtension, text))
+                file.async("text").then(text => cache.setCreationDef(filenameWithoutExtension, text))
             )
         }
     })
@@ -442,7 +260,7 @@ const makeAreaAvailableOffline = async (areaName) => {
         await downloadAndHandleAreaArchive(areaData.areaId)
 
         const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId);
-        for (const subareaId in subareaIds) {
+        for (const subareaId of subareaIds) {
             await downloadAndHandleAreaArchive(subareaId)
         }
 
@@ -463,23 +281,6 @@ const makeAreaAvailableOffline = async (areaName) => {
 
 // #region basicrouterboilerplate
 
-/**
- * @param {string} dataUrl
- * @returns {Blob}
- */
-const dataURLtoBlob = (dataUrl) => {
-    const arr = dataUrl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-
-    return new Blob([u8arr], { type: mime });
-}
 
 /**
  * @param {Request} request 
@@ -495,9 +296,6 @@ const readRequestBody = async (request) => {
 
 
 
-const groundId = "50372a99f5d33dc56f000001"
-const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
-const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
 
 
 
@@ -610,82 +408,8 @@ const schema_aps_s = Zod.object({
 
 
 // #region Minimap
-const getPixelsFor = async (/** @type { Blob } */ blob) => {
-    const imageBitmap = await self.createImageBitmap(blob)
 
-    const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-    const context = offscreenCanvas.getContext('2d');
-    context.drawImage(imageBitmap, 0, 0);
-    const imageData = context.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
-
-    return imageData.data;
-}
-
-/** @param { Uint8ClampedArray } pixels */
-const getMostUsedColor = (pixels) => {
-  const colorCount = new Map();
-  let maxCount = 0;
-  let mostUsedColor = null;
-
-  for (let i = 0; i < pixels.length; i += 4) {
-    // Get the color as a string in the format "r,g,b,a"
-    const color = `${pixels[i]},${pixels[i + 1]},${pixels[i + 2]},${pixels[i + 3]}`;
-
-    // Update the count for this color
-    const count = (colorCount.get(color) || 0) + 1;
-    colorCount.set(color, count);
-
-    // Update the most used color if this color has a higher count
-    if (count > maxCount) {
-      maxCount = count;
-      mostUsedColor = color;
-    }
-  }
-
-  // Return the most used color as an array [r, g, b]
-  return mostUsedColor ? mostUsedColor.split(',').map(Number) : null;
-
-}
-
-const getMapPixelColorFor = async (creationId) => {
-    console.log("getMapPixelColorFor", creationId)
-    const fromDb = await idbKeyval.get(`pixelColor-c${creationId}`);
-    if (fromDb) return fromDb;
-
-
-    const creationRes = await cache_getCreationSprite(creationId)
-
-    if (!creationRes) {
-        console.error("getMapColorFor(): creation does not exist in cache!", creationId)
-        // Note: this means that it will generate *and cache* the minimap tile with this red pixel!
-        // This is probably alright, since the map is just there to get around
-        return [255, 0, 0, 1];
-    }
-
-    const blob = await creationRes.blob();
-    const pixels = await getPixelsFor(blob);
-    // TODO: this isn't exactly how ML picks it's colors, but we don't have access to creation palette here.
-    const mostUsedColor = getMostUsedColor(pixels)
-
-    await idbKeyval.set(`pixelColor-c${creationId}`, mostUsedColor);
-
-    return mostUsedColor;
-}
-
-/** @param {[number, number, [ number, number, number, number]][]} xyc */
-const generateMinimapTile = async (xyc) => {
-    const size = 32;
-    const canvas = new OffscreenCanvas(size, size);
-    const ctx = canvas.getContext('2d');
-
-    xyc.forEach(item => {
-        const [x, y, color] = item;
-        ctx.fillStyle = `rgba(${color.join(',')})`;
-        ctx.fillRect(x, y, 1, 1); // Fill in one pixel at the specified position
-    });
-
-    return await canvas.convertToBlob();
-}
+//  TODO move 
 
 // #endregion Minimap
 
@@ -1588,7 +1312,7 @@ class FakeAPI {
         router.get("/j/i/def/:creationId", async ({ params }) => {
             const { creationId } = params;
 
-            return await getCreationDefRes(creationId)
+            return await cache.getCreationDefRes(creationId)
         })
 
 
@@ -1898,7 +1622,7 @@ class FakeAPI {
         // Create
         router.post("/j/i/c/", async ({ request, json }) => {
             const { itemData } = await readRequestBody(request)
-            const { itemId } = await saveCreation(itemData)
+            const { itemId } = await saveCreation(defaultPlayer, itemData, cache, inventory_addCreated)
 
             return json( { itemId: itemId });
         });
@@ -2238,16 +1962,16 @@ const handleFetchEvent = async (event) => {
             }
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
-            if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
+            if (url.pathname.startsWith("/static/")) return cache.getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/image/")){
               const creationId = url.pathname.slice(1)
-              return await getCreationSpriteRes(creationId)
+              return await cache.getCreationSpriteRes(creationId)
             }
             // Why is the painter fetched at /media/painter/spritesheet.png instead of using window.staticroot...?
             // Oops, my fault, if the mlenv is set to test, it tries to load the painter from /media/painter instead of //static.manyland.com!
-            if (url.pathname === "/media/painter/spritesheet.png") return getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
-            if (url.pathname === "/media/painter/cursor_floodFill.png") return getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_floodFill.png"));
-            if (url.pathname === "/media/painter/cursor_pickColor.png") return getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_pickColor.png"));
+            if (url.pathname === "/media/painter/spritesheet.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
+            if (url.pathname === "/media/painter/cursor_floodFill.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_floodFill.png"));
+            if (url.pathname === "/media/painter/cursor_pickColor.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_pickColor.png"));
             if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
 
             if (url.pathname.startsWith("/sct/")) {
@@ -2295,13 +2019,13 @@ const handleFetchEvent = async (event) => {
         if (cloudfrontHosts.includes(url.hostname)) {
 
             const creationId = url.pathname.slice(1)
-            return await getCreationSpriteRes(creationId)
+            return await cache.getCreationSpriteRes(creationId)
         }
         // With the current settings, the game should query /def instead of the CDN
-        if (url.hostname === CLOUDFRONT_ROOT_ITEMDEFS) {
+        if (url.hostname === cache.CLOUDFRONT_ROOT_ITEMDEFS) {
             const creationId = url.pathname.slice(1);
 
-            return await getCreationDefRes(creationId)
+            return await cache.getCreationDefRes(creationId)
         }
 
         return new Response("No rules match this request!", { status: 404 })

@@ -1,4 +1,3 @@
-const makeWs = () => {
 const msgTypes = {
     "PLAYER_SPAWN": "qv",
     "SIM_PLAYER_SPAWN": "po", //only received, unhandled
@@ -147,15 +146,4 @@ function replaceAll(str, find, replace) {
 
 function escapeRegExp(str) {
     return str.toString().replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-}
-
-
-return {
-    toServer,
-    fromServer,
-    toClient,
-    fromClient,
-    msgTypes,
-    msgTypes_rev
-}
 }
