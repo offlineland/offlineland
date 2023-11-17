@@ -1842,7 +1842,7 @@ class FakeAPI {
             return json(sectors.filter(e => !!e))
         });
         router.post("/j/m/s/", async ({ request, json }) => {
-            const schema = z.object({ s: z.string(), a: z.string(), p: z.number() })
+            const schema = z.object({ s: z.string(), a: z.coerce.string(), p: z.coerce.number() })
             const body = schema.parse(await readRequestBody(request))
 
             const areaId = body.a;
