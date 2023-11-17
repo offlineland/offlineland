@@ -1924,6 +1924,14 @@ class FakeAPI {
                 isEditorHere: true,
             });
         })
+        // Get Icon (Writable Icon)
+        // Loaded from /image/541b03cf44aff03338610fce.png for some reason?
+        router.get("/j/u/gi/:userId", async ({ params, json }) => {
+          return json({
+            "iconId": "541b03cf44aff03338610fce"
+          });
+        })
+        // Player Status
         router.get("/j/u/ps/:userId", async ({ params, json }) => {
           return json({
             hideInFriendsList: false,
