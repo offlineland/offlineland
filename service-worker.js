@@ -2375,6 +2375,10 @@ const handleFetchEvent = async (event) => {
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return getOrSetFromCache(CACHE_NAME, event.request);
+            if (url.pathname.startsWith("/image/")){
+              const creationId = url.pathname.slice(1)
+              return await getCreationSpriteRes(creationId)
+            }
             // Why is the painter fetched at /media/painter/spritesheet.png instead of using window.staticroot...?
             // Oops, my fault, if the mlenv is set to test, it tries to load the painter from /media/painter instead of //static.manyland.com!
             if (url.pathname === "/media/painter/spritesheet.png") return getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
