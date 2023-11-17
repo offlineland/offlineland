@@ -2169,6 +2169,15 @@ class FakeAPI {
               "text": "TODO",
               "deliverySeenByRecipient": false,
               "ts": new Date().toISOString()
+            results: [{
+              _id: generateObjectId(),
+              fromId: generateObjectId(),
+              fromName: "TODO",
+              toId: defaultPlayer.rid,
+              itemId: "57286c91b19fff08136aa4a5",
+              text: "TODO",
+              deliverySeenByRecipient: false,
+              ts: new Date().toISOString()
             }]
           }
           if(body.priv == "true"){
