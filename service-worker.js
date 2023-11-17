@@ -2483,7 +2483,6 @@ const handleFetchEvent = async (event) => {
         const url = new URL(event.request.url);
         console.log("FETCH", event.clientId, event.request.url, { event })
 
-        if (url.host === originUrl.host) {
         if (url.host === originUrl.host || ["static.manyland.com"].includes(url.hostname)) {
             // TODO: properly handle cache, following best practices. Cache the .html pages, and set up a mechanism to properly update them when they change + reload the client
 
