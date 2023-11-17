@@ -1,0 +1,27 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: oven-sh/setup-bun@v1
+
+    - run: bun install
+    - run: bun tsc
+
+    - name: Commit and Push to Build Branch
+      run: |
+        git config --global user.email "you@example.com"
+        git config --global user.name "The little robot inside Github.com"
+        git checkout -b build
+        git add -f path/to/built/files
+        git commit -m "Build files"
+        git push origin build --force
+
