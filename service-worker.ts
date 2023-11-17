@@ -71,7 +71,10 @@ const bundledAreasFile = {
     },
     "oosjungle": {
         areaId: "5bc003b5051ec03628866ecb",
-        tags: [ "exploration" ]
+        tags: [ "exploration" ],
+        subareas: {
+            "jungle spawn": "5bc0067d64c04420c4d9a308",
+        }
     },
     "hell": {
         areaId: "5b76e3f46c3ef97b26871968",
