@@ -9,8 +9,7 @@
         "noEmit": true,
     },
     "include": [
-        "_code/**/*.js",
-        "service-worker.js"
+        "_code/*.js"
     ],
     "exclude": [
         "_code/libs/*.js"

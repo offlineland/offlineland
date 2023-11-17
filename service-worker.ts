@@ -1,6 +1,21 @@
 /// <reference lib="webworker" />
 
 
+import type { makeRouter } from "./_code/service-worker/boilerplate/basicrouter"; 
+import type { makeWs } from "./_code/service-worker/boilerplate/ws";
+import type { makeLocalCreations } from "./_code/service-worker/localCreations";
+
+importScripts("/_code/service-worker/boilerplate/basicrouter.js");
+importScripts("/_code/service-worker/boilerplate/ws.js");
+importScripts("/_code/service-worker/localCreations.js");
+importScripts("/_code/service-worker/localMinimap.js");
+
+declare global {
+    var makeWs: makeWs;
+    var makeRouter: makeRouter;
+    var makeLocalCreations: makeLocalCreations;
+}
+
 
 
 //  ██████   ██████  ██ ██      ███████ ██████  ██████  ██       █████  ████████ ███████ 
@@ -34,17 +49,15 @@ importScripts("/_code/libs/idb-keyval.umd.js");
 
 // Wrap the entire code in a function to get proper type inference on `self`
 const main = (
-    /** @type { ServiceWorkerGlobalScope } */ self,
-    /** @type { (path: string) => (path: string) => boolean } */ matchPath,
-    /** @type { import('qs' )} */ Qs,
-    /** @type { import('jszip' )} */ JSZip,
-    /** @type { import('zod' )} */ Zod,
-    /** @type { import('idb-keyval/dist/index.cjs' )} */ idbKeyval,
+    self: ServiceWorkerGlobalScope,
+    matchPath: (path: string) => (path: string) => boolean,
+    Qs: typeof import('qs'),
+    JSZip: typeof import('jszip/index.d.ts'),
+    Zod: typeof import('zod/lib/index.d.ts'),
+    idbKeyval: typeof import('idb-keyval/dist/index.d.ts'),
 ) => {
-
 try {
-
-
+const { toServer, fromServer, fromClient, toClient, msgTypes, msgTypes_rev } = makeWs()
 
 // #region misc
 const z = Zod;
@@ -164,86 +177,7 @@ const generateObjectId = () => generateObjectId_(Date.now(), 0, 0, objIdCounter+
 // #endregion misc
 
 // #region creation
-
-// thank you chatGPT
-const decompressAscii = (compressedString) => {
-    const indexToCharMap = {};
-    let currentIndex = 256, previousChar = "", currentChar, decompressedString = "";
-
-    // Initialize the map with ASCII characters
-    for (let i = 0; i < 256; i++) {
-        indexToCharMap[i] = String.fromCharCode(i);
-    }
-
-    // Convert the input JSON string to an array
-    const indexArray = JSON.parse(compressedString);
-
-    // Iterate through the array to build the decompressed string
-    for (let i = 0; i < indexArray.length; i++) {
-        const index = indexArray[i];
-
-        if (indexToCharMap[index]) {
-            // If the index exists in the map, retrieve the character sequence
-            currentChar = indexToCharMap[index];
-        } else {
-            // If the index does not exist, it must be the current sequence + its first character
-            currentChar = previousChar + previousChar.charAt(0);
-        }
-
-        decompressedString += currentChar;
-
-        // Add new sequences to the map
-        if (previousChar !== "") {
-            indexToCharMap[currentIndex++] = previousChar + currentChar.charAt(0);
-        }
-
-        previousChar = currentChar;
-    }
-
-    return decompressedString;
-}
-
-const tileWidthDefault = 19;
-const tileHeightDefault = 19;
-
-/**
- * @param {{r: number, g: number, b: number, alpha: number}[]} colors 
- * @param {number[][][]} cells - a 3D array for a x-y grid of palette indexes, wrapped into cells `cells[0][x][y]`
- */
-const generateCreationSpriteFromPixels = async (colors, cells) => {
-    // TODO: is this the right way to do it? (Taking the length of every cell)
-    const width = cells.reduce((width, currentCell) => width + currentCell.length, 0)
-    const height = cells[0][0].length
-
-    const canvas = new OffscreenCanvas(width, height);
-    const ctx = canvas.getContext('2d');
-
-    const fillStyles = colors.map(({r, g, b, alpha}) => `rgba(${[r, g, b, alpha].join(',')})`)
-
-    let currCellOffset = 0;
-    for (const cellIndex in cells) {
-        const cell = cells[cellIndex];
-
-        for (const x in cell) {
-            const row = cell[x];
-
-            for (const y in row) {
-                const paletteIndex = cell[x][y];
-                ctx.fillStyle = fillStyles[paletteIndex];
-
-                const spriteX = currCellOffset + Number(x);
-                const spriteY = Number(y);
-                ctx.fillRect(spriteX, spriteY, 1, 1); // Fill in one pixel at the specified position
-
-            }
-        }
-
-        currCellOffset += cell.length;
-    }
-
-    return await canvas.convertToBlob();
-}
-
+const { decompressAscii, generateCreationSpriteFromPixels } = makeLocalCreations()
 const saveCreation = async (itemData) => {
     console.log("client tried to create something!", itemData)
 
@@ -535,160 +469,6 @@ const makeAreaAvailableOffline = async (areaName) => {
 
 
 
-// #region WS
-const msgTypes = {
-    "PLAYER_SPAWN": "qv",
-    "SIM_PLAYER_SPAWN": "po", //only received, unhandled
-    "PLAYER_DATA": "uq",
-    "PLAYER_LIST": "qq",
-    "OWN_INFO": "on",
-    "STATE_UPDATE_NON_BINARY": "ej",
-    "PLAYER_DEATH": "ud",
-    "PLAYER_DESPAWN": "lm",
-    "MAP_EDIT": "bd",
-    "MAP_EDIT_REJECTED": "th",
-    "REQUEST_PLAYER_LIST": "eh", //sent 500ms after loading a new sector
-    "REQUEST_PLAYER_DATA": "zd",
-    "REQUEST_SYNCBLOCK_HOT": "sd", //sent on initialization complete, ws re-open, window focus and immediately after entering a new sector. Server replies with SYNC_BLOCKs
-    "SET_SPAWNPOINT": "jq",
-    "RESET_SPAWNPOINT": "xu",
-    "DONTKNOW_ATT": "ok", //add or remove attachment
-    "CHANGE_NAME": "pw",
-    "TELEPORT": "lr",
-    "PORTAL": "lc",
-    "PORTALRING": "fc",
-    "SYNC_BLOCK": "iy", //only received, used to update status for item throwers, gatherables, movers and crumblings (dunno if more) {loc: {}, pos, vel, sta, evt?, } || { loc: { x: 34, y: 13 }, sta: 0 } only received, no rid, broadcast
-    "TRIGGER": "zr", //only sent, received by others as SYNC_BLOCK
-    "SPEECH": "en",
-    "SPARKLE_LINE": "it",
-    "PLAYER_VOTE_UP": "mo", //only sent {id}
-    "PLAYER_VOTE_DOWN": "ss",
-    "PLAYER_ADD_FLAG": "zo",
-    "PLAYER_REMOVE_FLAG": "si",
-    "PEACEPARKER": "dy", //hmm
-    "UNUSED_MAINTENANCE": "ot", //only received, unhandled
-    "WSS_CHANGE": "ba", //only received, WSS Change CMD: {h, p}, client reopens a connection to h(ost):p(ort)
-    "RELOAD": "rl",
-    "RANKUPDATE": "rk",
-    "HEARTBEAT": "md",
-    "UNUSED1": "qj", //unhandled and unsent
-    "CHANGE_ATTACHMENT": "us",
-    "THROW_ATTACHMENT": "mw",
-    "PASTE": "zc",
-    "INSTRUMENT_NOTE": "xf",
-    "WELCOME_INVITATION": "cf",
-    "HOLDABLE_INTERACTION": "ef",
-    "MOTION": "ff",
-    "EQUIPMENT_ACTION": "ub",
-    "HOLDER_VIEWED": "qw",
-    "INTERACTING_ACTIVITY": "nv",
-    "MODIFY_POSSESSION_SET": "ep",
-    "LATENCY_CHECK": "fd",
-    "HELD_OFFSET": "wf", //they both share the same key?
-    //"ECHO": "wf", //unhandled and unsent
-    "PING_FRIEND": "lh",
-    "ADDED_LINES": "rj",
-    "CLEAR_LINES": "cl",
-    "MIFT_ALERT": "ua",
-    "AREA_BAN": "dm",
-    "EDITOR_RIGHTS_CHANGE": "ux",
-    "BOOST_STARTED": "zn",
-    "BOOST_RESPONSE": "ex",
-    "BOOST_REJECTED": "rt",
-    "SNAPSHOT_TAKEN": "bn",
-    "AREA_SETTINGS_EDITED": "gh",
-    "MOVER_BODY_HEALTH_CHANGE": "le",
-    "CLOCK_SYNC_PING": "pe",
-    "TRANSPORT_REJECTED": "oj",
-    "MULTITHING_ACTIVITY": "od",
-    "WSLIMIT": "ey",
-    "PAINTER_ACTIVITY": "pa",
-}
-
-const msgTypes_rev = reverseObject(msgTypes)
-function reverseObject(obj) {
-    let reversed = {};
-    for (let key in obj) {
-        reversed[obj[key]] = key;
-    }
-    return reversed;
-}
-
-
-const mappingClientToServer = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":false,"g":',"B" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},"ani":"idle","flp":true,"g":',"J" : '"m":"st","data":{"pos":{"x":',"C" : '"m":"sh","data":{"key":"_c',"D" : '","rotation":0,"flip":0},"',"&" : '"m":"rq","data":null}',"E" : '"m":"rm","data":null}',"F" : ',"def":null,"rId":"',"G" : '"vel":{"x":0,"y":0}',"H" : '"acl":{"x":0,"y":0}',"K" : '"m":"me","data":{',"~" : '"ani":"swimming',"L" : ',"def":{"tid":"',"M" : '"ani":"idle"',"N" : '"ani":"jump"',"O" : '"ani":"fall"',"P" : '"ani":"afk"',"Q" : '"ani":"run"',"R" : '"flp":false',"W" : '"pos":{"x":',"X" : '"acl":{"x":',"V" : '"vel":{"x":',"S" : '"flp":true',"T" : '"m":"hb"}',"U" : ',"data":{',"!" : '"act":',"@" : '"g":',"Y" : '"x":',"Z" : '"y":',"?" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3",">" : "4","(" : "0",")" : "5"};
-const mappingServerToClient = {"A" : '"vel":{"x":0,"y":0},"acl":{"x":0,"y":0},',"B" : '"m":"mu","data":{"loc":{"x":',"C" : '"m":"st","data":{"rid":"',"/" : '"m":"sh","data":{"rid":"',"D" : '"m":"np","data":{',"E" : '"flp":false,"g":',"F" : '"flp":true,"g":',"G" : '"ani":"idle"',"H" : '"ani":"jump"',"J" : '"ani":"fall"',"O" : '"flp":false,',"K" : '"ani":"afk"',"L" : '"pos":{"x":',"M" : '"vel":{"x":',"N" : '"acl":{"x":',"P" : '"ani":"run"',"Q" : '"flp":true,',"R" : '"map":{"p":',"@" : '","data":{',"T" : '},"sta":0',"U" : '},"sta":1',"?" : '"key":"_',"V" : '"ach":"',"W" : '"rid":"',"X" : '"aid":"',"Y" : '"snm":"',"S" : '"wid":',"Z" : '"r":',"!" : '"x":',"#" : '"y":',">" : '"}}',"%" : "}}","^" : "},","*" : '",',"=" : "1",";" : "2","<" : "3","(" : "0",")" : "5"};
-
-/**
- * 
- * @param {Record<string, string>} mapping 
- * @param {string} str 
- * @return {unknown}
- */
-const expand = (mapping, str) => {
-    if (str[0] === "{") {
-        return JSON.parse(str);
-    }
-    else {
-        let expanded = str;
-
-        for (const short in mapping) {
-            const long = mapping[short];
-            expanded = replaceAll(expanded, short, long);
-        }
-
-        console.log("expanded: {" + expanded)
-        return JSON.parse("{" + expanded);
-    }
-}
-
-/**
- * 
- * @param {Record<string, string>} mapping 
- * @param {any} data 
- * @returns { string }
- */
-const minify = (mapping, data) => {
-    const str = JSON.stringify(data);
-
-    const strHasCharFromMapping = Object.keys(mapping).some(short => str.includes(short))
-
-    if (strHasCharFromMapping) {
-        return str;
-    }
- 
-    if (str[0] === "{") {
-        let minified = str.slice(1);
-
-        for (const short in mapping) {
-            const long = mapping[short];
-            minified = replaceAll(minified, long, short);
-        }
-
-        return minified;
-    }
-    else {
-        console.log(`WARNING: JSON ws send string did not start with '{'! ${str}`)
-        return str;
-    }
-} 
-
-const toServer = (data) => minify(mappingClientToServer, data)
-const fromServer = (str) => expand(mappingServerToClient, str)
-
-const toClient = (data) => minify(mappingServerToClient, data)
-const fromClient = (str) => expand(mappingClientToServer, str)
-
-function replaceAll(str, find, replace) {
-    return str.toString().replace(new RegExp(escapeRegExp(find), 'g'), replace);
-}
-
-function escapeRegExp(str) {
-    return str.toString().replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
-}
-// #endregion WS
-
-
-
 // #region basicrouterboilerplate
 
 /**
@@ -726,8 +506,6 @@ const readRequestBody = async (request) => {
 const groundId = "50372a99f5d33dc56f000001"
 const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
 const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
-const GET = "GET";
-const POST = "POST";
 
 
 
@@ -735,68 +513,6 @@ const POST = "POST";
 
 
 // This is fairly naive but good enough
-const makeRouter = () => {
-    const routes = new Set();
-
-
-    /**
-     * @typedef {Object} RouteHandlersBagOfTricks
-     * @property {any} params - Parameters for the path. If you're adventurous, set to unknown here and define schemas for everything
-     * @property {FetchEvent} event
-     * @property {Request} request
-     * @property {string} clientId
-     * @property {(json: any) => Response} json
-     */
-
-    /**
-     * 
-     * @param {"GET" | "POST"} method 
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     * @returns 
-     */
-    const route = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
-    /**
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     */
-    const get = (matcher, handler) => route(GET, matcher, handler);
-    /**
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     */
-    const post = (matcher, handler) => route(POST, matcher, handler);
-
-    /**
-     * 
-     * @param {"GET" | "POST"} method 
-     * @param {string} pathname 
-     * @param {FetchEvent} event
-     * @returns 
-     */
-    const matchRoute = async (method, pathname, event) => {
-        for (const route of routes) {
-            if (route.method !== method) continue;
-
-            const matchRes = route.matcher(pathname);
-            if (matchRes === false) continue;
-
-
-            return await route.handler({
-                params: matchRes.params,
-                event: event,
-                request: event.request,
-                clientId: event.clientId,
-                json: (data) => Response.json( data ),
-            });
-        }
-
-        // If this happens, either it's because of an unhandled method (the client only sends GETs and POSTs though), or something is very wrong
-        throw new Error("matchRoute: No match found!")
-    }
-
-    return { route, get, post, matchRoute }
-}
 
 
 // #endregion basicrouterboilerplate
@@ -1105,6 +821,15 @@ const inventory_deleteCreated = async (playerId, itemId) => {
 
 //#region Player
 class Player {
+    rid: string;
+    name: string;
+    age: number;
+    isFullAccount: boolean;
+    leftMinfinityAmount: number;
+    isBacker: boolean;
+    boostsLeft: number;
+    hasMinfinity: boolean;
+
     constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
         this.name = name || "explorer 123";
         this.rid = rid || "000000000000000000000000";
@@ -1179,6 +904,9 @@ class Player {
 // TODO: Networking?
 class LocalAreaManager {
     clients = new Set();
+    wssUrl: any;
+    areaId: any;
+    isRingArea: boolean;
 
     constructor(wssUrl, areaId) {
         this.wssUrl = wssUrl;
@@ -1325,6 +1053,26 @@ class AreaPossessionsManager {
 
 class ArchivedAreaManager {
     clients = new Set();
+    zip: any;
+    wssUrl: any;
+    areaId: any;
+    possessionsMgr: any;
+    isRingArea: boolean;
+    isSubarea: any;
+    centerLocation: any;
+    areaGroupId: any;
+    areaRealName: any;
+    areaGroupName: any;
+    areaUrlName: any;
+    description: any;
+    globalInteractingId: any;
+    drift: any;
+    protection: any;
+    isLocked: any;
+    isUnlisted: any;
+    isSinglePlayerExperience: any;
+    explorerChatAllowed: any;
+    mpv: any;
 
     /**
      * 
@@ -1729,6 +1477,7 @@ class AreaManagerManager {
     wssCount = 0;
     areaManagerByWSSUrl = new Map();
     areaManagerByAreaId = new Map();
+    areaPossessionsMgr: any;
 
     /**
      * 
@@ -1818,12 +1567,13 @@ const getPlayerForClient = (clientId) => defaultPlayer;
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
 
 class FakeAPI {
+    router: ReturnType<makeRouter>;
+
     constructor(
         /** @type { AreaManagerManager } */ areaManagerMgr,
         /** @type { AreaPossessionsManager } */ areaPossessionsMgr,
     ) {
-        const router = this.router = makeRouter()
-
+        const router = this.router = makeRouter(matchPath)
 
         // Area init
         router.post("/j/i/", async ({ json, request, clientId, }) => {
@@ -1859,7 +1609,9 @@ class FakeAPI {
         router.post("/j/u/gfr/", ({ json }) => json( 10 ) );
         // Achievement
         router.post("/j/u/a/", async ({ json, request, clientId }) => {
-            const { id } = await readRequestBody(request)
+            const schema = z.object({ id: z.string() })
+            const { id } = schema.parse(await readRequestBody(request))
+
             return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
             const achievements = {
               MOVED: 0,
@@ -2215,7 +1967,8 @@ class FakeAPI {
             return json(sectors.filter(e => !!e))
         });
         router.post("/j/m/s/", async ({ request, json }) => {
-            const body = await readRequestBody(request)
+            const schema = z.object({ s: z.string(), a: z.string(), p: z.number() })
+            const body = schema.parse(await readRequestBody(request))
 
             const areaId = body.a;
             const areaPane = body.p;

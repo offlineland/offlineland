@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "strict": false,
+        "target": "ESNext",
+        "lib": [ "ESNext", "webworker", "DOM" ],
+        "checkJs": true,
+        "skipLibCheck": true,
+
+        "module": "None",
+        "moduleResolution": "Classic",
+        "baseUrl": ".",
+        "paths": {
+            "*": ["node_modules/*"]
+        }
+
+    },
+    "include": [
+        "_code/service-worker/**/*.ts",
+        "service-worker.ts"
+    ],
+    "exclude": [
+        "_code/libs/*.js"
+    ]
+}
