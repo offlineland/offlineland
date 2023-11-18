@@ -4,6 +4,8 @@
     eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js")).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/idb@7/build/umd.js")).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js")).text());
+    // https://csv.js.org/stringify/api/sync/
+    eval(await (await fetch("https://cdn.jsdelivr.net/npm/csv-stringify@6.4.4/dist/iife/sync.js")).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js")).text());
     const sleep = (ms = 1) => new Promise(res => setTimeout(res, ms));
     const dateFromObjectId = (objectId) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
@@ -235,12 +237,14 @@
 
         // #region zip_mifts
         log("adding public mifts")
+        const csvDataset_mifts = [[ "date", "from", "text", "isPrivate", "fromId", "toId", "_id" ]]
         const allPublicMifts = await store_getAllMifts(false);
         for (const mift of allPublicMifts) {
             const filename = makeNameSafeForFile(`${makeDateSafeForFile(mift.ts)} - from ${mift.fromName} - ${mift.text.slice(0, 60)}`);
 
             zip.file(`mifts/public/${filename}.json`, JSON.stringify(mift, null, 2));
             zip.file(`mifts/public/${filename}.png`, store_getCreationImage(mift.itemId));
+            csvDataset_mifts.push([ mift.ts, mift.fromName, mift.text, "false", mift.fromId, mift.toId, mift._id ]);
         }
         log("adding private mifts")
         const allPrivateMifts = await store_getAllMifts(true);
@@ -249,7 +253,10 @@
 
             zip.file(`mifts/private/${filename}.json`, JSON.stringify(mift, null, 2));
             zip.file(`mifts/private/${filename}.png`, store_getCreationImage(mift.itemId));
+            csvDataset_mifts.push([ mift.ts, mift.fromName, mift.text, "true", mift.fromId, mift.toId, mift._id ]);
         }
+
+        zip.file(`mifts/mifts.csv`, csv_stringify_sync.stringify(csvDataset_mifts));
         // #endregion zip_mifts
 
 
