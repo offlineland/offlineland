@@ -94,9 +94,7 @@ const bundledAreasFile = {
     "hell": {
         areaId: "5b76e3f46c3ef97b26871968",
         tags: [ "exploration" ],
-        subareas: {
-            //"jungle spawn": ,
-        }
+        subareas: { }
     },
     "blancnoir": {
         areaId: "540f4a6fbcd7bbcf2e509c8d",
@@ -110,12 +108,73 @@ const bundledAreasFile = {
         tags: [ "parkour" ],
         subareas: {},
     },
-    //"sandcastle": {
-    //    areaId: "5522c6f01c963d1308f12e0a",
+    // TODO: this area has you spawn at 0,0 and the subarea names don't match the interacting. What's going on in there?
+    //"chambersofzen": {
+    //    areaId: "53dfbf8db859b70b11826454",
+    //    tags: [ "puzzle", "parkour" ],
     //    subareas: {
-    //        "the castle": "5523f96cab0f5a3e0c353aab",
+    //        "chamber 1": "53e12f043e31890c131003b8",
     //    },
     //},
+    "newpolis": {
+        areaId: "53f21e4edbfc885003e92bb5",
+        tags: [ "puzzle", "adventure" ],
+        subareas: {
+            "muscles r us": "53f33c974b7f11943a9eb332",
+            "inside generic": "53f2260fbec33016514f8c78",
+            "good deals shop": "53f25d6601c59abb6001e115",
+            "sewer": "53f3509a4b7f11943a9eb345",
+            "appartment": "53f276e3f6eb8919776f173f",
+            "dream": "53f27f37cbc31529441204eb",
+            "mystery travel inc": "53f3173ec318666b4b4c775e",
+            "train": "53f3654b4b7f11943a9eb36a",
+            "sunny beach": "53f37d3c4b7f11943a9eb3a0",
+        }
+    },
+    "sandcastle": {
+        areaId: "5522c6f01c963d1308f12e0a",
+        tags: [ "exploration" ],
+        subareas: {
+            "the castle": "5523f96cab0f5a3e0c353aab",
+        },
+    },
+    "theweyard": {
+        areaId: "5453e94cc3a79273732709ca",
+        tags: [ "exploration" ],
+        subareas: {
+            "theweyardcellar": "5462171a1683e7e04e56fdc0",
+            "elemental": "556cea7385f2dfdc602564f4",
+            "theweyardhouse": "546157a3ffe6b224575046dc",
+            "theweyardart": "548a11aabd4eeab63d0cbdfa",
+            "tree": "562fb57ab259aad676b50740",
+        },
+    },
+    "electronics": {
+        areaId: "5472c985b92c0f3971866bc6",
+        tags: [ "exploration" ],
+        subareas: {
+            "boiler": "547c78dad3b95df927bf2364",
+        }
+    },
+    "kingbrownssanctum": {
+        areaId: "53ebd011d31b8354235a2d8f",
+        tags: [ "exploration" ],
+        subareas: {
+            "the allfather": "55f337baf6fda73e1218bc62",
+            "snow fort": "54614021a693cdae4bb019ba",
+            "temple entrance": "585f0af476766272139794b8",
+            "the abyss": "543dda9ea51913531b244ca8",
+            "verthaven": "550cd6597aa9b89b12ef2d4a",
+            "the corridor": "555e25c43e5ef31308b226fd",
+            "the keep": "54dc35fd8ebe97ae6398fb06",
+            "oac'ca": "5453142880d440615ef6e2f5",
+            "the oracle": "550062e9980316e02f0ceaf5",
+            "prison cell a": "54dd89fbbf826d4e47358bb8",
+            "prison cell b": "54ddf8d43827a1397656ac5f",
+            "prison cell c": "54dfb730e33832b16bba7427",
+            "brown cinema vault": "543a04f37e81f3007a1a3e29",
+        }
+    }
 }
 const getAreaList = async () => {
     // TODO get the file
