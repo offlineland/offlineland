@@ -45,6 +45,15 @@
 - Bundle as an Electron app? -> Steam store?
 - Add a manifest to go full PWA and allow Android/iOS to "install" the app (re: fix caching and sw registration)
 
+### Museum:
+- different "exhibits" that showcase one specific content, that you can deeplink (eg. offlineland.io/snaps/shortcode, offlineland.io/creations/id...)
+- ideas:
+    - mifts
+        - mift graph?
+    - snap
+    - snaps in an area
+- if we have a "central database node" in multiplayer mode, maybe the "museum" can display the new content too? (eg. people making new mifts, new creations...)
+
 ### For later: Monetization
 - If Philipp hosts it on the same domain or another he controls, adds back the yolla ads?
     - How to handle ads if used offline? Simply disable them? Only allow "offline install" if you've bought minfinity? (is this possible?)
