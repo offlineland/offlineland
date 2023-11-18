@@ -216,20 +216,24 @@
         // #region zip_snaps
         const allSnaps = await getAllSnapShortCodes();
         const snapFilenames = {}
+        const snapCsvDataset = [[ "shortCode", "date", "areaId", "areaPlane", "x", "y", "isPrivate", "_id" ]]
 
         for (const shortCode of allSnaps) {
             log("adding snap", shortCode)
             const data = await getSnapData(shortCode);
             const imageBlob = await getSnapImage(shortCode);
 
-            const filename = `${makeDateSafeForFile(dateFromObjectId(data._id).toISOString())}-${data.loc?.a}-${shortCode}-${data.isPrivate ? "private" : "public"}`;
+            const takenAtDate = dateFromObjectId(data._id).toISOString();
+            const filename = `${makeDateSafeForFile(takenAtDate)}-${data.loc?.a}-${shortCode}-${data.isPrivate ? "private" : "public"}`;
             snapFilenames[shortCode] = filename;
 
             zip.file(`snapshots/${filename}.json`, JSON.stringify(data, null, 2));
             zip.file(`snapshots/${filename}.png`, imageBlob);
+            snapCsvDataset.push([ data.shortCode, takenAtDate, data.loc?.a, data.loc?.p, data.loc?.x, data.loc?.y, data.isPrivate ? "true" : "false", data._id ]);
         }
 
         zip.file(`snapshots/filename_mapping.json`, JSON.stringify(snapFilenames, null, 2));
+        zip.file(`snapshots/snapshots.csv`, csv_stringify_sync.stringify(snapCsvDataset));
         // #endregion zip_snaps
 
 
