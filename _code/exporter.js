@@ -11,9 +11,13 @@
     const z = Zod;
     const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)").pop();
-
-    const ourPlayer = Object.values(ig.game).find(e => e instanceof EntityPlayer);
-    const ourId = Object.values(ourPlayer).find(e => typeof e === "string" && e.length === 24);
+    const ourId = (await (await fetch(`https://manyland.com/j/i/`, {
+            method: "POST",
+            credentials: "include",
+            mode: "cors",
+            headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+            body: `urlName=stockpile&buster=${Date.now()}`
+        })).json()).rid;
     
 
     log("creating db")
