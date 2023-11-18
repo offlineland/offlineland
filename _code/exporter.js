@@ -11,10 +11,13 @@
     const z = Zod;
     const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)").pop();
+
+    const ourPlayer = Object.values(ig.game).find(e => e instanceof EntityPlayer);
+    const ourId = Object.values(ourPlayer).find(e => typeof e === "string" && e.length === 24);
     
 
     log("creating db")
-    const db = await idb.openDB("mlexporter", 2, {
+    const db = await idb.openDB("mlexporter", 1, {
         upgrade(db) {
             db.createObjectStore('misc-data');
 
@@ -28,7 +31,9 @@
             db.createObjectStore('creations-data-painter');
             db.createObjectStore('creations-image');
 
-            db.createObjectStore('mifts');
+            db.createObjectStore('mifts-public');
+            db.createObjectStore('mifts-private');
+
             db.createObjectStore('holders-content');
             db.createObjectStore('multis-content');
         }
@@ -45,9 +50,80 @@
     // area list
 
 
+    // #region profile
+    const storeProfileData = async (data) => await db.put('misc-data', data, 'profile-data');
+    // #endregion profile
+
+    // #region creations
+    const store_addCreationDef = async (creationId, creationDef) => await db.put('creations-data-def', creationDef, creationId);
+    const store_getCreationDef = async (creationId) => await db.get('creations-data-def', creationId);
+    const store_addCreationImage = async (creationId, blob) => await db.put('creations-image', blob, creationId);
+    const store_getCreationImage = async (creationId) => await db.get('creations-image', creationId);
+    const saveCreation = async (creationId) => {
+        if ((await store_getCreationDef(creationId)) == undefined) {
+            const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).text();
+            await store_addCreationDef(creationId, def);
+        }
+
+        if ((await store_getCreationImage(creationId)) == undefined) {
+            // TODO: rotate through CDNs
+            const img = await (await fetch(`https://d3sru0o8c0d5ho.cloudfront.net/${creationId}`)).blob();
+            await store_addCreationImage(creationId, img);
+        }
+    }
+    // #endregion creations
+
+    // #region mifts
+    const store_addMift = async (mift, priv) => await db.put(priv ? 'mifts-private' : 'mifts-public', mift, mift._id);
+    const store_getAllMifts = async (priv) => await db.getAll(priv ? 'mifts-private' : 'mifts-public')
+    const schema_mift = z.object({
+        "_id": z.string(),
+        "fromId": z.string(),
+        "fromName": z.string(),
+        "toId": z.string(),
+        "itemId": z.string(),
+        "text": z.string(),
+        "deliverySeenByRecipient": z.boolean(),
+        "ts": z.string(),
+    })
+    const schema_mift_page = z.object({ results: z.array(schema_mift) });
+
+    const api_getMiftPage = async (id, olderThan, priv) => {
+        const res = await fetch(`https://manyland.com/j/mf/grm/`, {
+            method: "POST",
+            credentials: "include",
+            mode: "cors",
+            headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+            body: `olderThan=${olderThan}&newerThan=&setSize=5&id=${id}&priv=${priv}`
+        })
+        const data = await res.json();
+        const miftPage = schema_mift_page.parse(data);
+
+        return miftPage;
+    }
+    const api_scanAllMifts = async (id, priv) => {
+        let lastDate = "";
+
+        while (true) {
+            log("Getting page of olderThan", lastDate)
+            const page = await api_getMiftPage(id, lastDate, priv);
+
+            for (mift of page.results) {
+                log("mift", mift)
+                await store_addMift(mift, priv);
+                await saveCreation(mift.itemId);
+            }
+
+            if (page.results.length < 5) break;
+            lastDate = page.results.at(-1).ts;
+            await sleep(500);
+        }
+    }
+    // #endregion mifts
+
 
     // SNAPSHOTS
-
+    // #region snaps
     const storeSnapsProgress = async (latestSnapIndex, isDone) => await db.put('misc-data', { latestSnapIndex, isDone }, "state-snapshots");
     const storeSnapData = async (snap) => await db.put('snapshots-data', snap, snap.shortCode);
     const getSnapData = async (shortCode) => await db.get('snapshots-data', shortCode);
@@ -83,7 +159,7 @@
         const snap = result.data;
         
         log("storing state...")
-        await storeSnapsProgress(index, snap.moreResults === true)
+        await storeSnapsProgress(index, snap.moreResults === false)
         if (snap.moreResults !== true) break;
     
         log("storing snap data...")
@@ -114,6 +190,7 @@
             await sleep(500)
         }
     }
+    // #endregion snaps
 
 
 
@@ -121,11 +198,16 @@
 
 
 
+
+    const makeNameSafeForFile = (str) => str.replace(/[^a-z0-9. -]+/gi, '_');
+    const makeDateSafeForFile = (str) => str.replace(/:/g, '.').slice(0, 19) + 'Z';
+
+    // #region zip
     const createZip = async () => {
         log("creating zip...")
         const zip = new JSZip();
 
-        // Snaps
+        // #region zip_snaps
         const allSnaps = await getAllSnapShortCodes();
         const snapFilenames = {}
 
@@ -134,14 +216,38 @@
             const data = await getSnapData(shortCode);
             const imageBlob = await getSnapImage(shortCode);
 
-            const filename = `${dateFromObjectId(data._id).toISOString()}-${data.loc?.a}-${shortCode}-${data.isPrivate ? "private" : "public"}`;
+            const filename = `${makeDateSafeForFile(dateFromObjectId(data._id).toISOString())}-${data.loc?.a}-${shortCode}-${data.isPrivate ? "private" : "public"}`;
             snapFilenames[shortCode] = filename;
 
-            zip.file(`snapshots/${filename}.json`, JSON.stringify(data))
-            zip.file(`snapshots/${filename}.png`, imageBlob)
+            zip.file(`snapshots/${filename}.json`, JSON.stringify(data, null, 2));
+            zip.file(`snapshots/${filename}.png`, imageBlob);
         }
 
-        zip.file(`snapshots/filename_mapping.json`, JSON.stringify(snapFilenames));
+        zip.file(`snapshots/filename_mapping.json`, JSON.stringify(snapFilenames, null, 2));
+        // #endregion zip_snaps
+
+
+
+
+        // #region zip_mifts
+        log("adding public mifts")
+        const allPublicMifts = await store_getAllMifts(false);
+        for (const mift of allPublicMifts) {
+            const filename = makeNameSafeForFile(`${makeDateSafeForFile(mift.ts)} - from ${mift.fromName} - ${mift.text.slice(0, 60)}`);
+
+            zip.file(`mifts/public/${filename}.json`, JSON.stringify(mift, null, 2));
+            zip.file(`mifts/public/${filename}.png`, store_getCreationImage(mift.itemId));
+        }
+        log("adding private mifts")
+        const allPrivateMifts = await store_getAllMifts(true);
+        for (const mift of allPrivateMifts) {
+            const filename = makeNameSafeForFile(`${makeDateSafeForFile(mift.ts)} - from ${mift.fromName} - ${mift.text.slice(0, 60)}`);
+
+            zip.file(`mifts/private/${filename}.json`, JSON.stringify(mift, null, 2));
+            zip.file(`mifts/private/${filename}.png`, store_getCreationImage(mift.itemId));
+        }
+        // #endregion zip_mifts
+
 
 
 
@@ -151,6 +257,7 @@
         saveAs(zipBlob, "manyland-account-archive.zip");
         log("done!")
     }
+    // #endregion zip
 
 
 
@@ -159,12 +266,21 @@
 
 
     log("scanning snaps")
-    await scanSnaps()
+    //await scanSnaps()
     log("scanning snaps OK")
 
     log("getting all snaps")
-    await downloadAllStoredSnaps();
+    //await downloadAllStoredSnaps();
+
+
+    await api_scanAllMifts(ourId, false);
+    await api_scanAllMifts(ourId, true);
+
+
+
+
     await createZip();
 
 
+    db.close();
 })()
