@@ -116,11 +116,13 @@
     const store_setBodyMotions = async (bodyId, data) => await db.put('body-motions', data, bodyId);
     const store_setCreationStats = async (creationId, stats) => await db.put('creations-stats', stats, creationId);
     const store_getCreationStats = async (creationId) => await db.get('creations-stats', creationId);
+    const [store_setCreationPainterData, store_getCreationPainterData] = db_makeSetGet('creation-data-painter');
 
     const api_getHolderContent = async (id) => await api_getJSON(`https://manyland.com/j/h/gc/${id}`)
     const api_getBodyMotions = async (id) => await api_getJSON(`https://manyland.com/j/m/mo/${id}`)
     const api_getWritableSettings = async (id) => await api_postJSON(`https://manyland.com/j/f/gs/`, `id=${id}`)
     const api_getCreationStats = async (id) => await api_getJSON(`https://manyland.com/j/i/st/${id}`)
+    const api_getCreationPainterData = async (id) => await api_getJSON(`https://manyland.com/j/i/datp/${id}`)
 
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
@@ -177,9 +179,18 @@
             await store_addCreationImage(creationId, img);
         }
 
-        if ((await store_getCreationStats(creationId)) == undefined) {
-            const stats = await api_getCreationStats(creationId);
-            await store_setCreationStats(creationId, stats);
+
+        const creatorId = (await store_getCreationDef(creationId)).creator;
+        if (creatorId === ourId) {
+            if ((await store_getCreationStats(creationId)) == undefined) {
+                const stats = await api_getCreationStats(creationId);
+                await store_setCreationStats(creationId, stats);
+            }
+
+            if ((await store_getCreationPainterData(creationId)) == undefined) {
+                const data = await api_getCreationPainterData(creationId);
+                await store_setCreationPainterData(creationId, data);
+            }
         }
     }
     // #endregion creations
@@ -312,6 +323,8 @@
 
     const makeNameSafeForFile = (str) => str.replace(/[^a-z0-9. -]+/gi, '_');
     const makeDateSafeForFile = (str) => str.replace(/:/g, '.').slice(0, 19) + 'Z';
+    const MAX_CREATION_NAME_LENGTH = 37;
+    const MAX_MIFT_TEXT_LENGTH = 60;
 
     // #region zip
     const createZip = async () => {
@@ -379,6 +392,42 @@
         // #endregion zip_mifts
 
 
+        // #region creations
+        {
+            const csvDataset = [[ "id", "createdAt", "type", "name", "timesPlaced", "timesCollected" ]];
+
+            // NOTE: If a creation somehow had it's image and stats downloaded, but no def, it won't appear.
+            //       This shouldn't happen, though, and I'm not sure how we'd recover from that anyway.
+            const allKeys = await db.getAllKeys('creations-data-def');
+            for await (const id of allKeys) {
+                const def = await store_getCreationDef(id);
+                const img = await store_getCreationImage(id);
+
+                const date = dateFromObjectId(id).toISOString();
+                const filename = `${makeDateSafeForFile(date)}_${id}_${def.base || ""}_${makeNameSafeForFile(def.name || "").slice(0, MAX_CREATION_NAME_LENGTH)}`
+
+                if (def.creator === ourId) {
+                    zip.file(`my-creations/${filename}.png`, img);
+                    zip.file(`my-creations/${filename}.json`, JSON.stringify(def, null, 2));
+
+                    const stats = await store_getCreationStats(id);
+                    zip.file(`my-creations/stats/${id}.json`, JSON.stringify(stats));
+
+                    const painterData = await store_getCreationPainterData(id);
+                    zip.file(`my-creations/painterdata/${id}.json`, JSON.stringify(painterData));
+
+                    csvDataset.push([ id, date, def.base, def.type, stats.timesPd, stats.timesCd ]);
+                }
+                else {
+                    zip.file(`other-creations/${filename}.png`, img);
+                    zip.file(`other-creations/${filename}.json`, JSON.stringify(def, null, 2));
+                }
+            }
+
+            // NOTE: we only store CSV data for our own creations
+            zip.file(`creations.csv`, csv_stringify_sync.stringify(csvDataset));
+        }
+        // #endregion creations
 
 
         log("generating file...")
