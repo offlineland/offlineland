@@ -115,6 +115,7 @@
     const store_addCreationImage = async (creationId, blob) => await db.put('creations-image', blob, creationId);
     const store_getCreationImage = async (creationId) => await db.get('creations-image', creationId);
     const [ store_setHolderContent, store_getHolderContent ] = db_makeSetGet('holders-content');
+    const [ store_setMultiData, store_getMultiData ] = db_makeSetGet('multis-content');
     const [ store_setBodyMotions, store_getBodyMotions ] = db_makeSetGet('body-motions');
     const store_setCreationStats = async (creationId, stats) => await db.put('creations-stats', stats, creationId);
     const store_getCreationStats = async (creationId) => await db.get('creations-stats', creationId);
@@ -122,6 +123,7 @@
 
     const api_getHolderContent = async (id) => await api_getJSON(`https://manyland.com/j/h/gc/${id}`)
     const api_getBodyMotions = async (id) => await api_getJSON(`https://manyland.com/j/i/mo/${id}`)
+    const api_getMultiData = async (id) => await api_getJSON(`https://manyland.com/j/t/gt/${id}`)
     const api_getWritableSettings = async (id) => await api_postJSON(`https://manyland.com/j/f/gs/`, `id=${id}`)
     const api_getCreationStats = async (id) => await api_getJSON(`https://manyland.com/j/i/st/${id}`)
     const api_getCreationPainterData = async (id) => await api_getJSON(`https://manyland.com/j/i/datp/${id}`)
@@ -141,8 +143,17 @@
 
                 await store_setHolderContent(def.id, data);
             }
-            else if (def.base === "MULTITHING") {
-                // TODO get content
+            if (def.base === "MULTITHING" && (await store_getMultiData(creationId)) == undefined) {
+                const data = await api_getMultiData(def.id);
+
+                if (Array.isArray(data?.itemProps)) {
+                    log("Queueing items of multi", def.name);
+                    for (const { id } of data.itemProps) {
+                        await store_addToQueue(id);
+                    }
+                }
+
+                await store_setMultiData(def.id, data);
             }
             else if (def.base === "STACKWEARB" && (await store_getBodyMotions(creationId)) == undefined) {
                 const data = await api_getBodyMotions(def.id);
