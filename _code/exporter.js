@@ -20,6 +20,14 @@
             headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
             body: `urlName=stockpile&buster=${Date.now()}`
         })).json()).rid;
+    const api_getJSON = async (url) => await (await fetch(url, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
+    const api_postJSON = async (url, bodyStr) => await (await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        mode: "cors",
+        headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
+        body: bodyStr
+    })).json();
     
 
     log("creating db")
@@ -36,12 +44,14 @@
             db.createObjectStore('creations-data-def');
             db.createObjectStore('creations-data-painter');
             db.createObjectStore('creations-image');
+            db.createObjectStore('creations-stats');
 
             db.createObjectStore('mifts-public');
             db.createObjectStore('mifts-private');
 
             db.createObjectStore('holders-content');
             db.createObjectStore('multis-content');
+            db.createObjectStore('body-motions');
         }
     });
     log("creating db OK")
@@ -51,7 +61,7 @@
     // creations
     // collections (with collection stats)
     // holder / multi content
-    // mifts
+    // OK mifts
     // OK snapshots
     // area list
 
@@ -65,9 +75,62 @@
     const store_getCreationDef = async (creationId) => await db.get('creations-data-def', creationId);
     const store_addCreationImage = async (creationId, blob) => await db.put('creations-image', blob, creationId);
     const store_getCreationImage = async (creationId) => await db.get('creations-image', creationId);
+    const store_setHolderContent = async (holderId, data) => await db.put('holders-content', data, holderId);
+    const store_setBodyMotions = async (bodyId, data) => await db.put('body-motions', data, bodyId);
+    const store_setCreationStats = async (creationId, stats) => await db.put('creations-stats', stats, creationId);
+    const store_getCreationStats = async (creationId) => await db.get('creations-stats', creationId);
+
+    const api_getHolderContent = async (id) => await api_getJSON(`https://manyland.com/j/h/gc/${id}`)
+    const api_getBodyMotions = async (id) => await api_getJSON(`https://manyland.com/j/m/mo/${id}`)
+    const api_getWritableSettings = async (id) => await api_postJSON(`https://manyland.com/j/f/gs/`, `id=${id}`)
+    const api_getCreationStats = async (id) => await api_getJSON(`https://manyland.com/j/i/st/${id}`)
+
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
-            const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).text();
+            const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).json();
+
+            if (def.base === "HOLDER") {
+                const data = await api_getHolderContent(def.id);
+
+                for (const content of data.contents) {
+                    await saveCreation(content.itemId)
+                }
+
+                await store_setHolderContent(def.id, data);
+            }
+            else if (def.base === "MULTITHING") {
+                // TODO get content
+            }
+            else if (def.base === "STACKWEARB") {
+                const data = await api_getBodyMotions(def.id);
+
+                if (Array.isArray(data.ids)) {
+                    for (const id of data.ids) {
+                        await saveCreation(id);
+                    }
+                }
+
+                await store_setBodyMotions(def.id, data);
+            }
+            // TODO: not all boards have settings. Is it really even useful to store this?
+            //else if (def.base === "WRITABLE") {
+            //    const data = api_getWritableSettings(def.id)
+            //}
+
+            // get from props
+            if (def.props?.emitsId) await saveCreation(def.props.emitsId)
+            if (def.props?.motionId) await saveCreation(def.props.motionId)
+            if (def.props?.environmentId) await saveCreation(def.props.environmentId)
+            if (def.props?.getId) await saveCreation(def.props.getId)
+            if (def.props?.hasId) await saveCreation(def.props.hasId)
+            if (def.props?.holdableId) await saveCreation(def.props.holdableId)
+            if (def.props?.wearableId) await saveCreation(def.props.wearableId)
+            if (def.props?.thingsRef) {
+                for (thingRef in def.props.thingsRef) {
+                    await saveCreation(def.props.wearableId);
+                }
+            }
+
             await store_addCreationDef(creationId, def);
         }
 
@@ -75,6 +138,11 @@
             // TODO: rotate through CDNs
             const img = await (await fetch(`https://d3sru0o8c0d5ho.cloudfront.net/${creationId}`)).blob();
             await store_addCreationImage(creationId, img);
+        }
+
+        if ((await store_getCreationStats(creationId)) == undefined) {
+            const stats = await api_getCreationStats(creationId);
+            await store_setCreationStats(creationId, stats);
         }
     }
     // #endregion creations
