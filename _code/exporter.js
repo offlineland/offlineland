@@ -20,6 +20,8 @@
             headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
             body: `urlName=stockpile&buster=${Date.now()}`
         })).json()).rid;
+
+    // TODO migrate everything to these helpers
     const api_getJSON = async (url) => await (await fetch(url, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const api_postJSON = async (url, bodyStr) => await (await fetch(url, {
         method: "POST",
@@ -28,6 +30,18 @@
         headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
         body: bodyStr
     })).json();
+    const db_makeSetGet = (storeId) => {
+        const set = async (key, data) => await db.put(storeId, data, key);
+        const get = async (key) => await db.get(storeId, key);
+
+        return [ set, get ];
+    }
+    const db_makeSetGetWithStaticKey = (storeId, key) => {
+        const set = async (data) => await db.put(storeId, data, key);
+        const get = async () => await db.get(storeId, key);
+
+        return [ set, get ];
+    }
     
 
     log("creating db")
@@ -67,7 +81,30 @@
 
 
     // #region profile
-    const storeProfileData = async (data) => await db.put('misc-data', data, 'profile-data');
+    const [store_setProfileData, store_getProfileData]  = db_makeSetGetWithStaticKey('misc-data', 'profile-data');
+    const [store_setProfileTopCreations, store_getProfileTopCreations ] = db_makeSetGetWithStaticKey('misc-data', 'profile-top-creations');
+    const api_getPlayerProfile = async (id) => await api_postJSON(`https://manyland.com/j/u/pi/`, `id=${id}&planeId=1&areaId=3`)
+    const api_getPlayerTopCreations = async (id) => await api_getJSON(`https://manyland.com/j/i/tcr/${id}/`)
+
+    const scanProfile = async () => {
+        const profile = await api_getPlayerProfile(ourId);
+        if (Array.isArray(profile.profileItemIds)) {
+            for (const creationId of profile.profileItemIds) {
+                if (creationId == null) continue;
+                await saveCreation(creationId);
+            }
+        }
+        if (profile.profileBackId) await saveCreation(profile.profileBackId);
+        if (profile.profileDynaId) await saveCreation(profile.profileDynaId);
+
+        await store_setProfileData(profile);
+
+        const topCreations = await api_getPlayerTopCreations(ourId);
+        for (const creationId of topCreations) {
+            await saveCreation(creationId)
+        }
+        await store_setProfileTopCreations(topCreations);
+    }
     // #endregion profile
 
     // #region creations
@@ -280,6 +317,16 @@
     const createZip = async () => {
         log("creating zip...")
         const zip = new JSZip();
+
+        // #region zip_profile
+        {
+            const profile = await store_getProfileData();
+            zip.file(`profile.json`, JSON.stringify(profile, null, 2));
+
+            const topCreations = await store_getProfileTopCreations();
+            zip.file(`profile_topCreations.json`, JSON.stringify(topCreations, null, 2));
+        }
+        // #endregion zip_profile
 
         // #region zip_snaps
         const allSnaps = await getAllSnapShortCodes();
