@@ -486,7 +486,7 @@
         }
 
         zip.file(`snapshots/filename_mapping.json`, JSON.stringify(snapFilenames, null, 2));
-        zip.file(`snapshots/snapshots.csv`, csv_stringify_sync.stringify(snapCsvDataset));
+        zip.file(`snapshots.csv`, csv_stringify_sync.stringify(snapCsvDataset));
         // #endregion zip_snaps
 
 
@@ -513,7 +513,7 @@
             csvDataset_mifts.push([ mift.ts, mift.fromName, mift.text, "true", mift.fromId, mift.toId, mift._id ]);
         }
 
-        zip.file(`mifts/mifts.csv`, csv_stringify_sync.stringify(csvDataset_mifts));
+        zip.file(`mifts.csv`, csv_stringify_sync.stringify(csvDataset_mifts));
         // #endregion zip_mifts
 
 
