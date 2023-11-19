@@ -72,14 +72,8 @@
     });
     log("creating db OK")
 
-    // TODO:
-    // OK profile
-    // OK creations
-    // OK collections (with collection stats)
-    // holder / multi content
-    // OK mifts
-    // OK snapshots
-    // area list
+
+    const api_getMyAreaList = async () => await api_getJSON(`https://manyland.com/j/a/mal/`);
 
 
     // #region profile
@@ -523,7 +517,7 @@
         // #endregion zip_mifts
 
 
-        // #region creations
+        // #region zip_creations
         {
             const csvDataset = [[ "id", "createdAt", "type", "name", "timesPlaced", "timesCollected" ]];
 
@@ -536,6 +530,7 @@
 
                 const date = dateFromObjectId(id).toISOString();
                 const filename = `${makeDateSafeForFile(date)}_${id}_${def.base || ""}_${makeNameSafeForFile(def.name || "").slice(0, MAX_CREATION_NAME_LENGTH)}`
+
 
                 if (def.creator === ourId) {
                     zip.file(`my-creations/${filename}.png`, img);
@@ -553,12 +548,55 @@
                     zip.file(`other-creations/${filename}.png`, img);
                     zip.file(`other-creations/${filename}.json`, JSON.stringify(def, null, 2));
                 }
+
+
+                if (def.base === "MULTITHING") {
+                    const data = await store_getMultiData(id);
+                    zip.file(`creations-data/multis/${id}.json`, JSON.stringify(data));
+                }
+                else if (def.base === "HOLDER") {
+                    const data = await store_getHolderContent(id);
+                    zip.file(`creations-data/holders/${id}.json`, JSON.stringify(data));
+                }
+                else if (def.base === "STACKWEARB") {
+                    const data = await store_getBodyMotions(id);
+                    zip.file(`creations-data/body-motions/${id}.json`, JSON.stringify(data));
+                }
             }
 
             // NOTE: we only store CSV data for our own creations
             zip.file(`my-creations.csv`, csv_stringify_sync.stringify(csvDataset));
         }
-        // #endregion creations
+        // #endregion zip_creations
+
+        // #region zip_arealist
+        {
+            log("storing area list...");
+
+            const areaList = await api_getMyAreaList();
+            const csvDataset = [[ "groupId", "id", "areaName", "name", "isSubarea", "isCreator", "isEditor", "totalVisitors", "lastVisit" ]]
+            let backupLinks = "";
+
+            for (const area of areaList) {
+                if (area.isCreator || area.isEditor) {
+                    zip.file(`areas/${area.urlName}.json`, JSON.stringify(area));
+
+                    csvDataset.push([ area.groupId, area.id, area.name, area.name, "false", String(area.isCreator), String(area.isEditor), area.totalVisitors, area.lastVisit ])
+                    backupLinks += `https://areabackup.com/${area.urlName}\n`;
+
+                    if (Array.isArray(area.subAreas)) {
+                        for (const subarea of area.subAreas) {
+                            csvDataset.push([ subarea.groupId, subarea.id, area.name, subarea.name, "true", String(subarea.isCreator), String(subarea.isEditor), subarea.totalVisitors, subarea.lastVisit ])
+                            backupLinks += `https://areabackup.com/${area.urlName}/${encodeURIComponent(subarea.name)}`;
+                        }
+                    }
+                }
+            }
+
+            zip.file(`areas-backup-links.txt`, backupLinks);
+            zip.file(`areas.csv`, csv_stringify_sync.stringify(csvDataset));
+        }
+        // #endregion zip_arealist
 
 
         log("generating file...")
