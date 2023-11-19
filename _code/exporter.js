@@ -1,12 +1,13 @@
 
 (async () => {
-    eval(await (await fetch("https://redom.js.org/redom.min.js")).text());
-    eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js")).text());
-    eval(await (await fetch("https://cdn.jsdelivr.net/npm/idb@7/build/umd.js")).text());
-    eval(await (await fetch("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js")).text());
+    // #region boilerplate
+    eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
+    eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js", { cache: "force-cache" })).text());
+    eval(await (await fetch("https://cdn.jsdelivr.net/npm/idb@7/build/umd.js", { cache: "force-cache" })).text());
+    eval(await (await fetch("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js", { cache: "force-cache" })).text());
     // https://csv.js.org/stringify/api/sync/
-    eval(await (await fetch("https://cdn.jsdelivr.net/npm/csv-stringify@6.4.4/dist/iife/sync.js")).text());
-    eval(await (await fetch("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js")).text());
+    eval(await (await fetch("https://cdn.jsdelivr.net/npm/csv-stringify@6.4.4/dist/iife/sync.js", { cache: "force-cache" })).text());
+    eval(await (await fetch("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js", { cache: "force-cache" })).text());
     const sleep = (ms = 1) => new Promise(res => setTimeout(res, ms));
     const dateFromObjectId = (objectId) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
     
@@ -73,7 +74,112 @@
     log("creating db OK")
 
 
+    const SLEEP_CREATIONDL_CDN = 50;
+    const SLEEP_CREATIONDL_API = 500;
+    const SLEEP_INVENTORYPAGE_COLLECTIONS = 500;
+    const SLEEP_INVENTORYPAGE_CREATIONS = 800;
+    const SLEEP_INVENTORYPAGE_SEARCH = 500;
+    const SLEEP_MIFT_PAGE = 500;
+    const SLEEP_SNAP_PAGE = 300;
+    const SLEEP_SNAP_DL = 50;
+
     const api_getMyAreaList = async () => await api_getJSON(`https://manyland.com/j/a/mal/`);
+
+
+    // #endregion boilerplate
+
+
+    // #region UI
+    const { el, text, mount } = redom;
+
+    const status = text("waiting");
+
+    // TODO: restore from DB
+    const status_totalSnapsFound = text(await db.count("snapshots-data"));
+
+    const status_currentMiftsPublicSaved = text(await db.count("mifts-public"));
+    const status_currentMiftsPrivateSaved = text(await db.count("mifts-private"));
+
+    const status_totalSavedCreations = text(await db.count("creations-data-def"));
+    const status_creationsInQueue = text(await db.count("creations-queue"));
+
+    const status_totalCollectionsFound = text(await db.count("inventory-collections"));
+    const status_currentPageCollections = text(0);
+    const status_totalPageCollections = text(0);
+
+    const status_totalCreationsFound = text(await db.count("inventory-creations"));
+    const status_currentPageCreations = text(0);
+    const status_totalPagesCreations = text(0);
+
+
+
+    const btn_snapsEnabled = el("input", { type: "checkbox", checked: false })
+    const btn_miftsEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_collectionsEnabled = el("input", { type: "checkbox", checked: false })
+    const btn_creationsEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_binEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_start = el("button.okButton", ["Start exporter"])
+
+
+    const root = el("div.contentPart", [
+        el("h1", "manyland exporter"),
+        el("div", [
+            el("ul", [
+                el("li", [ btn_snapsEnabled, "Snaps" ]),
+                el("li", [ btn_miftsEnabled, "Mifts" ]),
+                el("li", [ btn_collectionsEnabled, "Collections" ]),
+                el("li", [ btn_creationsEnabled, "Creations" ]),
+                el("li", [ btn_binEnabled, "Creations in bin" ]),
+            ])
+        ]),
+
+        el("div", { style: "padding: 1em; text-align: center;" }, [ btn_start ]),
+
+        el("div", { style: "padding-top: 1em;"}, [
+            el("h3", ["status:", status ]),
+            el("ul", [
+                el("li", [ "Snaps: ", status_totalSnapsFound ]),
+                el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved ]),
+                el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved ]),
+                el("li", [ "Saved creations: ", status_totalSavedCreations ]),
+                el("li", [ "Creations in queue: ", status_creationsInQueue ]),
+                el("li", [ "Inventory (collects): ", status_totalCollectionsFound ]),
+                el("li", [ "Inventory (creations): ", status_totalCreationsFound ]),
+            ]),
+        ])
+    ]);
+
+ 
+    const isInfoRiftPage = document.querySelector('.intermission') != undefined;
+    if (isInfoRiftPage) {
+        const _root = el("div#exporter-root.content", root, { style: { width: "unset", top: "0px", "text-align": "initial", display: "flex", "justify-content": "space-around" }});
+        document.querySelector('.intermission .content').remove();
+
+        mount(document.querySelector('.intermission'), _root, null, true);
+    }
+    else {
+        const _root = el("div#alertDialog", root, {
+            style: {
+                "display": "flex",
+                "justify-content": "space-around",
+                "position": "unset",
+                "width": "50vw",
+                "height": "100vh",
+                "margin-top": "2em",
+                "margin-bottom": "2em",
+                "margin-left": "auto",
+                "margin-right": "auto",
+                "padding": "1em",
+                "font-size": "12px",
+            }
+        });
+
+        mount(document.body, _root);
+
+    }
+    // #endregion UI
+
+
 
 
     // #region profile
@@ -136,6 +242,7 @@
                 }
 
                 await store_setHolderContent(def.id, data);
+                await sleep(SLEEP_CREATIONDL_API);
             }
             if (def.base === "MULTITHING" && (await store_getMultiData(creationId)) == undefined) {
                 const data = await api_getMultiData(def.id);
@@ -148,6 +255,7 @@
                 }
 
                 await store_setMultiData(def.id, data);
+                await sleep(SLEEP_CREATIONDL_API);
             }
             else if (def.base === "STACKWEARB" && (await store_getBodyMotions(creationId)) == undefined) {
                 const data = await api_getBodyMotions(def.id);
@@ -160,6 +268,7 @@
                 }
 
                 await store_setBodyMotions(def.id, data);
+                await sleep(SLEEP_CREATIONDL_API);
             }
             // TODO: not all boards have settings. Is it really even useful to store this?
             //else if (def.base === "WRITABLE") {
@@ -181,6 +290,7 @@
             }
 
             await store_addCreationDef(creationId, def);
+            await sleep(SLEEP_CREATIONDL_CDN);
         }
 
         if ((await store_getCreationImage(creationId)) == undefined) {
@@ -200,6 +310,8 @@
             if ((await store_getCreationPainterData(creationId)) == undefined) {
                 const data = await api_getCreationPainterData(creationId);
                 await store_setCreationPainterData(creationId, data);
+
+                await sleep(SLEEP_CREATIONDL_API);
             }
         }
     }
@@ -239,14 +351,20 @@
     const api_getInventoryCreationsPage = async (start, end) => await api_getJSON(`https://manyland.com/j/i/gcr/${start}/${end}?${api_getCacheKey("createdItems")}`)
     const api_searchInBin = async (start, end) => await api_postJSON(`https://manyland.com/j/s/i/`, `qs=in%3Abin&start=${start}&end=${end}`)
 
+    const MAX_COLLECTIONS_PAGE_SIZE = 20;
+    const MAX_CREATIONS_PAGE_SIZE = 20;
+    const MAX_SEARCH_PAGE_SIZE = 10;
     const scanInventoryCollections = async () => {
         let page = 0;
         while (true) {
             log("scanInventoryCollections page", page)
+            status_currentPageCollections.textContent = page;
 
-            const start = page * 20;
-            const end = start + 20;
-            const { items, itemCount} = await api_getInventoryCollectionsPage(start, end);
+            const start = page * MAX_COLLECTIONS_PAGE_SIZE;
+            const end = start + MAX_COLLECTIONS_PAGE_SIZE;
+            const { items, itemCount } = await api_getInventoryCollectionsPage(start, end);
+
+            status_totalPageCollections.textContent = Math.floor(itemCount / MAX_COLLECTIONS_PAGE_SIZE);
 
             for (const item of items) {
                 await store_addCollectedId(item);
@@ -254,7 +372,7 @@
 
             if (end >= itemCount) break;
             page++;
-            await sleep(500);
+            await sleep(SLEEP_INVENTORYPAGE_COLLECTIONS);
         }
 
         log("scanInventoryCollections done")
@@ -262,20 +380,24 @@
     const downloadAllCollectedCreations = async () => {
         const allIds = await db.getAllKeys("inventory-collections");
 
-        // TODO notify progress
-        for (const id of allIds) {
+        for (let i = 0; i < allIds.length; i++) {
+            status.textContent = `Downloading collected creations... (${i} / ${allIds.length})`
+            const id = allIds[i];
             await saveCreation(id);
-            await sleep(5);
         }
     }
     const scanInventoryCreations = async () => {
         let page = 0;
+
         while (true) {
             log("scanInventoryCreations page", page)
+            status_currentPageCreations.textContent = page;
 
-            const start = page * 100;
-            const end = start + 100;
+            const start = page * MAX_CREATIONS_PAGE_SIZE;
+            const end = start + MAX_CREATIONS_PAGE_SIZE;
             const { items, itemCount} = await api_getInventoryCreationsPage(start, end);
+
+            status_totalPagesCreations.textContent = Math.floor(itemCount / MAX_CREATIONS_PAGE_SIZE);
 
             for (const item of items) {
                 await store_addCreatedId(item);
@@ -283,18 +405,21 @@
 
             if (end >= itemCount) break;
             page++;
-            await sleep(500);
+            await sleep(SLEEP_INVENTORYPAGE_CREATIONS);
         }
 
         log("scanInventoryCreations done")
     }
     const scanInBin = async () => {
         let page = 0;
+
         while (true) {
             log("scanInBin page", page)
+            status.textContent = `Finding creations in bin... (page ${ page + 1 })`;
 
-            const start = page * 10;
-            const end = start + 10;
+
+            const start = page * MAX_SEARCH_PAGE_SIZE;
+            const end = start + MAX_SEARCH_PAGE_SIZE;
             const { items, more } = await api_searchInBin(start, end);
 
             for (const item of items) {
@@ -303,7 +428,7 @@
 
             if (more == false) break;
             page++;
-            await sleep(500);
+            await sleep(SLEEP_INVENTORYPAGE_SEARCH);
         }
 
         log("scanInBin done")
@@ -311,16 +436,17 @@
     const downloadAllCreatedCreations = async () => {
         const allIds = await db.getAllKeys("inventory-creations");
 
-        // TODO notify progress
-        for (const id of allIds) {
+        for (let i = 0; i < allIds.length; i++) {
+            status.textContent = `Downloading created creations... (${i} / ${allIds.length})`
+            const id = allIds[i];
             await saveCreation(id);
-            await sleep(100);
         }
     }
     // #endregion inventory
 
     // #region mifts
     const store_addMift = async (mift, priv) => await db.put(priv ? 'mifts-private' : 'mifts-public', mift, mift._id);
+    const store_getMift  = async (miftId, priv) => await db.get(priv ? 'mifts-private' : 'mifts-public', miftId);
     const store_getAllMifts = async (priv) => await db.getAll(priv ? 'mifts-private' : 'mifts-public')
     const schema_mift = z.object({
         "_id": z.string(),
@@ -350,20 +476,26 @@
     const api_scanAllMifts = async (id, priv) => {
         let lastDate = "";
 
-        while (true) {
+        mainloop: while (true) {
             log("Getting page of olderThan", lastDate)
             const page = await api_getMiftPage(id, lastDate, priv);
 
             for (mift of page.results) {
-                log("mift", mift)
-                // TODO: if we know this mift, break out of the top while loop
+                if (await (store_getMift(mift._id)) != undefined) {
+                    log("Reached known mift, stopping here.")
+                    break mainloop;
+                }
                 await store_addMift(mift, priv);
                 await saveCreation(mift.itemId);
+
+
+                if (priv) status_currentMiftsPrivateSaved.textContent = Number(status_currentMiftsPrivateSaved.textContent) + 1;
+                else status_currentMiftsPublicSaved.textContent = Number(status_currentMiftsPublicSaved.textContent) + 1;
             }
 
             if (page.results.length < 5) break;
             lastDate = page.results.at(-1).ts;
-            await sleep(500);
+            await sleep(SLEEP_MIFT_PAGE);
         }
     }
     // #endregion mifts
@@ -395,7 +527,11 @@
     const getSnap = async (index) => await (await fetch(`https://manyland.com/j/v/loc/${index}`, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const scanSnaps = async (startIndex = 0) => {
       let index = startIndex;
+
       while (true) {
+        status.textContent = `Archiving snaps... (page ${ index })`;
+
+
         const rawData = await getSnap(index++);
         const result = schema_snap.safeParse(rawData);
 
@@ -412,7 +548,7 @@
         log("storing snap data...")
         await storeSnapData(snap.visitedLocation);
 
-        await sleep(500)
+        await sleep(SLEEP_SNAP_PAGE)
       }
     }
 
@@ -434,7 +570,7 @@
 
         for (const shortCode of allSnaps) {
             await downloadAndStoreSnap(shortCode)
-            await sleep(500)
+            await sleep(SLEEP_SNAP_DL)
         }
     }
     // #endregion snaps
@@ -610,34 +746,62 @@
 
 
 
+    const runExporter = async () => {
+
+        log("runExporter", btn_snapsEnabled, btn_collectionsEnabled)
+
+        status.textContent = "Archiving profile..."
+        await scanProfile()
+
+        if (btn_snapsEnabled.checked) {
+            status.textContent = "Finding snaps..."
+            await scanSnaps();
+            status.textContent = "Downloading snaps..."
+            await downloadAllStoredSnaps();
+        }
+
+        if (btn_miftsEnabled.checked) {
+            status.textContent = "Archiving public mifts..."
+            await api_scanAllMifts(ourId, false);
+
+            status.textContent = "Archiving private mifts..."
+            await api_scanAllMifts(ourId, true);
+
+        }
+
+        if (btn_collectionsEnabled) {
+            status.textContent = "Finding collected creations..."
+            await scanInventoryCollections();
+        }
+
+        if (btn_creationsEnabled) {
+            status.textContent = "Finding created creations..."
+            await scanInventoryCreations();
+        }
+
+        if (btn_binEnabled) {
+            status.textContent = "Finding creations in bin..."
+            await scanInBin();
+        }
+
+
+        status.textContent = "Downloading collected creations..."
+        await downloadAllCollectedCreations();
+        status.textContent = "Downloading created creations..."
+        await downloadAllCreatedCreations();
+        status.textContent = "Downloading remaining queued creations..."
+        await processCreationsInQueue();
 
 
 
-    await scanProfile()
-    //await scanSnaps()
-    await downloadAllStoredSnaps();
-    await api_scanAllMifts(ourId, false);
-    await api_scanAllMifts(ourId, true);
 
-    await scanInventoryCollections();
-    await scanInventoryCreations();
-    await scanInBin();
-
-    log("downloading collected creations")
-    await downloadAllCollectedCreations();
-    log("downloading created creations")
-    await downloadAllCreatedCreations();
-
-    log("downloading creations in queue")
-    await processCreationsInQueue();
+        status.textContent = "Creating zip..."
+        await createZip();
+        status.textContent = "Done!"
 
 
+        //db.close();
+    }
 
-
-    log("creating zip")
-    await createZip();
-    log("done!")
-
-
-    db.close();
+    btn_start.onclick = runExporter;
 })()
