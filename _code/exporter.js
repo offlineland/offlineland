@@ -49,8 +49,8 @@
         upgrade(db) {
             db.createObjectStore('misc-data');
 
-            db.createObjectStore('inventory-creations', { autoIncrement: true });
-            db.createObjectStore('inventory-collections', { autoIncrement: true });
+            db.createObjectStore('inventory-creations');
+            db.createObjectStore('inventory-collections');
 
             db.createObjectStore('snapshots-data');
             db.createObjectStore('snapshots-image');
@@ -59,6 +59,7 @@
             db.createObjectStore('creations-data-painter');
             db.createObjectStore('creations-image');
             db.createObjectStore('creations-stats');
+            db.createObjectStore('creations-queue');
 
             db.createObjectStore('mifts-public');
             db.createObjectStore('mifts-private');
@@ -66,14 +67,15 @@
             db.createObjectStore('holders-content');
             db.createObjectStore('multis-content');
             db.createObjectStore('body-motions');
+
         }
     });
     log("creating db OK")
 
     // TODO:
-    // profile
-    // creations
-    // collections (with collection stats)
+    // OK profile
+    // OK creations
+    // OK collections (with collection stats)
     // holder / multi content
     // OK mifts
     // OK snapshots
@@ -112,27 +114,29 @@
     const store_getCreationDef = async (creationId) => await db.get('creations-data-def', creationId);
     const store_addCreationImage = async (creationId, blob) => await db.put('creations-image', blob, creationId);
     const store_getCreationImage = async (creationId) => await db.get('creations-image', creationId);
-    const store_setHolderContent = async (holderId, data) => await db.put('holders-content', data, holderId);
-    const store_setBodyMotions = async (bodyId, data) => await db.put('body-motions', data, bodyId);
+    const [ store_setHolderContent, store_getHolderContent ] = db_makeSetGet('holders-content');
+    const [ store_setBodyMotions, store_getBodyMotions ] = db_makeSetGet('body-motions');
     const store_setCreationStats = async (creationId, stats) => await db.put('creations-stats', stats, creationId);
     const store_getCreationStats = async (creationId) => await db.get('creations-stats', creationId);
-    const [store_setCreationPainterData, store_getCreationPainterData] = db_makeSetGet('creation-data-painter');
+    const [store_setCreationPainterData, store_getCreationPainterData] = db_makeSetGet('creations-data-painter');
 
     const api_getHolderContent = async (id) => await api_getJSON(`https://manyland.com/j/h/gc/${id}`)
-    const api_getBodyMotions = async (id) => await api_getJSON(`https://manyland.com/j/m/mo/${id}`)
+    const api_getBodyMotions = async (id) => await api_getJSON(`https://manyland.com/j/i/mo/${id}`)
     const api_getWritableSettings = async (id) => await api_postJSON(`https://manyland.com/j/f/gs/`, `id=${id}`)
     const api_getCreationStats = async (id) => await api_getJSON(`https://manyland.com/j/i/st/${id}`)
     const api_getCreationPainterData = async (id) => await api_getJSON(`https://manyland.com/j/i/datp/${id}`)
 
+    const store_addToQueue = async (creationId) => await db.put("creations-queue", null, creationId);
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
             const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).json();
 
-            if (def.base === "HOLDER") {
+            if (def.base === "HOLDER" && (await store_getHolderContent(creationId)) == undefined) {
+                log("Queueing content of holder", def.name);
                 const data = await api_getHolderContent(def.id);
 
                 for (const content of data.contents) {
-                    await saveCreation(content.itemId)
+                    await store_addToQueue(content.itemId)
                 }
 
                 await store_setHolderContent(def.id, data);
@@ -140,12 +144,13 @@
             else if (def.base === "MULTITHING") {
                 // TODO get content
             }
-            else if (def.base === "STACKWEARB") {
+            else if (def.base === "STACKWEARB" && (await store_getBodyMotions(creationId)) == undefined) {
                 const data = await api_getBodyMotions(def.id);
 
                 if (Array.isArray(data.ids)) {
+                    log("Queueing motions of body", def.name);
                     for (const id of data.ids) {
-                        await saveCreation(id);
+                        await store_addToQueue(id);
                     }
                 }
 
@@ -157,16 +162,16 @@
             //}
 
             // get from props
-            if (def.props?.emitsId) await saveCreation(def.props.emitsId)
-            if (def.props?.motionId) await saveCreation(def.props.motionId)
-            if (def.props?.environmentId) await saveCreation(def.props.environmentId)
-            if (def.props?.getId) await saveCreation(def.props.getId)
-            if (def.props?.hasId) await saveCreation(def.props.hasId)
-            if (def.props?.holdableId) await saveCreation(def.props.holdableId)
-            if (def.props?.wearableId) await saveCreation(def.props.wearableId)
+            if (def.props?.emitsId) await store_addToQueue(def.props.emitsId)
+            if (def.props?.motionId) await store_addToQueue(def.props.motionId)
+            if (def.props?.environmentId) await store_addToQueue(def.props.environmentId)
+            if (def.props?.getId) await store_addToQueue(def.props.getId)
+            if (def.props?.hasId) await store_addToQueue(def.props.hasId)
+            if (def.props?.holdableId) await store_addToQueue(def.props.holdableId)
+            if (def.props?.wearableId) await store_addToQueue(def.props.wearableId)
             if (def.props?.thingsRef) {
                 for (thingRef in def.props.thingsRef) {
-                    await saveCreation(def.props.wearableId);
+                    await store_addToQueue(def.props.wearableId);
                 }
             }
 
@@ -193,7 +198,121 @@
             }
         }
     }
+    const processCreationsInQueue = async () => {
+        log("processing queue")
+        while (true) {
+            const queue = await db.getAllKeys("creations-queue");
+            if (queue.length === 0) break;
+
+            for (const id of queue) {
+                await saveCreation(id);
+                await db.delete("creations-queue", id);
+            }
+
+        }
+        log("processing queue done")
+    }
     // #endregion creations
+
+    // #region inventory
+    const store_addCollectedId = async (creationId) => await db.put("inventory-collections", null, creationId);
+    const store_addCreatedId = async (creationId) => await db.put("inventory-creations", null, creationId);
+
+    const getRandomInt = (a, b) => parseInt(Math.floor((b + 1 - a) * Math.random() + a), 10);
+    const genId = (length) => {
+        var b = "";
+        if (undefined === length) length = 16;
+        for (var c = 0; c < length; c++) b += "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(getRandomInt(0, 61));
+        return b
+    }
+    const api_getCacheKey = (context) => {
+        const key = "urlCacheAppend_" + context;
+        sessionStorage[key] || (sessionStorage[key] = genId());
+        return sessionStorage[key]
+    }
+    const api_getInventoryCollectionsPage = async (start, end) => await api_getJSON(`https://manyland.com/j/c/r/${start}/${end}?${api_getCacheKey("collectedItems")}`)
+    const api_getInventoryCreationsPage = async (start, end) => await api_getJSON(`https://manyland.com/j/i/gcr/${start}/${end}?${api_getCacheKey("createdItems")}`)
+    const api_searchInBin = async (start, end) => await api_postJSON(`https://manyland.com/j/s/i/`, `qs=in%3Abin&start=${start}&end=${end}`)
+
+    const scanInventoryCollections = async () => {
+        let page = 0;
+        while (true) {
+            log("scanInventoryCollections page", page)
+
+            const start = page * 20;
+            const end = start + 20;
+            const { items, itemCount} = await api_getInventoryCollectionsPage(start, end);
+
+            for (const item of items) {
+                await store_addCollectedId(item);
+            }
+
+            if (end >= itemCount) break;
+            page++;
+            await sleep(500);
+        }
+
+        log("scanInventoryCollections done")
+    }
+    const downloadAllCollectedCreations = async () => {
+        const allIds = await db.getAllKeys("inventory-collections");
+
+        // TODO notify progress
+        for (const id of allIds) {
+            await saveCreation(id);
+            await sleep(5);
+        }
+    }
+    const scanInventoryCreations = async () => {
+        let page = 0;
+        while (true) {
+            log("scanInventoryCreations page", page)
+
+            const start = page * 100;
+            const end = start + 100;
+            const { items, itemCount} = await api_getInventoryCreationsPage(start, end);
+
+            for (const item of items) {
+                await store_addCreatedId(item);
+            }
+
+            if (end >= itemCount) break;
+            page++;
+            await sleep(500);
+        }
+
+        log("scanInventoryCreations done")
+    }
+    const scanInBin = async () => {
+        let page = 0;
+        while (true) {
+            log("scanInBin page", page)
+
+            const start = page * 10;
+            const end = start + 10;
+            const { items, more } = await api_searchInBin(start, end);
+
+            for (const item of items) {
+                await store_addCreatedId(item);
+            }
+
+            if (more == false) break;
+            page++;
+            await sleep(500);
+        }
+
+        log("scanInBin done")
+    }
+    const downloadAllCreatedCreations = async () => {
+        const allIds = await db.getAllKeys("inventory-creations");
+
+        // TODO notify progress
+        for (const id of allIds) {
+            await saveCreation(id);
+            await sleep(100);
+        }
+    }
+    // #endregion inventory
 
     // #region mifts
     const store_addMift = async (mift, priv) => await db.put(priv ? 'mifts-private' : 'mifts-public', mift, mift._id);
@@ -232,6 +351,7 @@
 
             for (mift of page.results) {
                 log("mift", mift)
+                // TODO: if we know this mift, break out of the top while loop
                 await store_addMift(mift, priv);
                 await saveCreation(mift.itemId);
             }
@@ -416,7 +536,7 @@
                     const painterData = await store_getCreationPainterData(id);
                     zip.file(`my-creations/painterdata/${id}.json`, JSON.stringify(painterData));
 
-                    csvDataset.push([ id, date, def.base, def.type, stats.timesPd, stats.timesCd ]);
+                    csvDataset.push([ id, date, def.base, def.name, stats.timesPd, stats.timesCd ]);
                 }
                 else {
                     zip.file(`other-creations/${filename}.png`, img);
@@ -425,7 +545,7 @@
             }
 
             // NOTE: we only store CSV data for our own creations
-            zip.file(`creations.csv`, csv_stringify_sync.stringify(csvDataset));
+            zip.file(`my-creations.csv`, csv_stringify_sync.stringify(csvDataset));
         }
         // #endregion creations
 
@@ -444,21 +564,30 @@
 
 
 
-    log("scanning snaps")
+    await scanProfile()
     //await scanSnaps()
-    log("scanning snaps OK")
-
-    log("getting all snaps")
-    //await downloadAllStoredSnaps();
-
-
+    await downloadAllStoredSnaps();
     await api_scanAllMifts(ourId, false);
     await api_scanAllMifts(ourId, true);
 
+    await scanInventoryCollections();
+    await scanInventoryCreations();
+    await scanInBin();
+
+    log("downloading collected creations")
+    await downloadAllCollectedCreations();
+    log("downloading created creations")
+    await downloadAllCreatedCreations();
+
+    log("downloading creations in queue")
+    await processCreationsInQueue();
 
 
 
+
+    log("creating zip")
     await createZip();
+    log("done!")
 
 
     db.close();
