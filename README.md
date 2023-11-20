@@ -54,6 +54,14 @@
     - snaps in an area
 - if we have a "central database node" in multiplayer mode, maybe the "museum" can display the new content too? (eg. people making new mifts, new creations...)
 
+### Data Reification (Tanako's worlds):
+- a world with all of your creations
+- a world with all of your collections
+
+### online.offlineland.io:
+- Do like manyunity: allow people to register with username+password, ask them to post a token on a board, link account to poster account
+- figure out what to do with it later (offlineland forums? Meh?)
+
 ### For later: Monetization
 - If Philipp hosts it on the same domain or another he controls, adds back the yolla ads?
     - How to handle ads if used offline? Simply disable them? Only allow "offline install" if you've bought minfinity? (is this possible?)
