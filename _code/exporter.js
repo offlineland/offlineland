@@ -594,11 +594,13 @@
 
         // #region zip_profile
         {
+            zip.file(`profile_own-id.json`, JSON.stringify(ourId, null, 2));
+
             const profile = await store_getProfileData();
             zip.file(`profile.json`, JSON.stringify(profile, null, 2));
 
             const topCreations = await store_getProfileTopCreations();
-            zip.file(`profile_topCreations.json`, JSON.stringify(topCreations, null, 2));
+            zip.file(`profile_top-creations.json`, JSON.stringify(topCreations, null, 2));
         }
         // #endregion zip_profile
 
@@ -704,6 +706,10 @@
             zip.file(`my-creations.csv`, csv_stringify_sync.stringify(csvDataset));
         }
         // #endregion zip_creations
+
+        zip.file(`inventory-collected.json`, JSON.stringify(await db.getAllKeys(`inventory-collections`), null, 2));
+        zip.file(`inventory-created.json`, JSON.stringify(await db.getAllKeys(`inventory-creations`), null, 2));
+
 
         // #region zip_arealist
         {
