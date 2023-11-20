@@ -1,14 +1,33 @@
 /// <reference lib="webworker" />
-try {
 
+
+type Snap = {};
+type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
+
+
+/*
+Firefox does not handle ES import/export syntax in service workers (see https://bugzilla.mozilla.org/show_bug.cgi?id=1360870).
+The only thing available is `importScripts`, which syncronously runs a separate script.
+I could make classes in separate files and use them here, but then my editor would lose track of them and their types.
+*/
+
+importScripts("/_code/libs/path-to-regexp.js");
+importScripts("/_code/libs/qs.js");
+importScripts("/_code/libs/jszip.js");
+importScripts("/_code/libs/zod.umd.js");
+const z = Zod;
+importScripts("/_code/libs/idb-keyval.umd.js");
+
+
+
+try {
 importScripts("/_code/service-worker/boilerplate/basicrouter.js");
 importScripts("/_code/service-worker/boilerplate/cache.js");
 importScripts("/_code/service-worker/boilerplate/mongoId.js");
 importScripts("/_code/service-worker/boilerplate/ws.js");
 importScripts("/_code/service-worker/localCreations.js");
 importScripts("/_code/service-worker/localMinimap.js");
-
-
+importScripts("/_code/service-worker/PlayerDataManager.js");
 } catch(e) {
     console.log("error while trying to import a module. Are you sure the paths are correct?", e)
 }
@@ -22,34 +41,12 @@ importScripts("/_code/service-worker/localMinimap.js");
 
 
 
-// #region libs
-/*
-Firefox does not handle ES import/export syntax in service workers (see https://bugzilla.mozilla.org/show_bug.cgi?id=1360870).
-The only thing available is `importScripts`, which syncronously runs a separate script.
-I could make classes in separate files and use them here, but then my editor would lose track of them and their types.
-*/
-
-importScripts("/_code/libs/path-to-regexp.js");
-importScripts("/_code/libs/qs.js");
-importScripts("/_code/libs/jszip.js");
-importScripts("/_code/libs/zod.umd.js");
-importScripts("/_code/libs/idb-keyval.umd.js");
-
-
-
-// #endregion libs
-
 
 
 
 // Wrap the entire code in a function to get proper type inference on `self`
 const main = (
     self: ServiceWorkerGlobalScope,
-    matchPath: (path: string) => (path: string) => boolean,
-    Qs: typeof import('qs'),
-    JSZip: typeof import('jszip/index.d.ts'),
-    Zod: typeof import('zod/lib/index.d.ts'),
-    idbKeyval: typeof import('idb-keyval/dist/index.d.ts'),
 ) => {
 try {
 const originUrl = new URL(self.origin)
@@ -59,10 +56,10 @@ const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
 
 
 // #region misc
-const z = Zod;
 
 const cache = makeCache(originUrl, SpriteGroundBlob);
 const { generateMinimapTile, getMapPixelColorFor } = makeMinimapGenerator(idbKeyval, cache.getCreationSprite)
+const { saveCreation } = makeLocalCreations(idbKeyval)
 
 
 const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
@@ -189,49 +186,9 @@ const getAreaIdForAreaName = (areaUrlName) => {
     else return generateObjectId();
 }
 
-
-/** * @param {string} clientId * @param {any} msg */
-const sendWsMessageToClient = async (clientId, msg) => {
-    const client = await self.clients.get(clientId)
-
-    if (client) {
-        client.postMessage(msg);
-    }
-}
-
-/**
- * 
- * @template K, V
- * @param {Map<K, V>} map 
- * @param {(key: K) => V} ctor 
- * @returns {(key: K) => V}
- */
-const makeGetOrCreate = (map, ctor) => {
-    return (key) => {
-        const value = map.get(key);
-        if (value) return value;
-
-        const newValue = ctor(key)
-        map.set(key, newValue)
-        return newValue;
-    }
-}
-
-
-
-
-
-
 // #endregion misc
 
-// #region creation
-const { saveCreation } = makeLocalCreations()
-
-// #endregion creation
-
 // #region cache
-
-// #endregion creations_cache
 
 // #region areazips_cache
 
@@ -339,37 +296,6 @@ const makeAreaAvailableOffline = async (areaName) => {
 // #endregion areazips_cache
 
 
-
-
-// #region basicrouterboilerplate
-
-
-/**
- * @param {Request} request 
- * @returns {Promise<any>}
- */
-const readRequestBody = async (request) => {
-    const text = await request.text();
-    const data = Qs.parse(text);
-
-    return data;
-}
-
-
-
-
-
-
-
-
-
-
-// This is fairly naive but good enough
-
-
-// #endregion basicrouterboilerplate
-
-
 // #region zodschemas
 // #region ws
 // TODO: put this in an object?
@@ -466,214 +392,6 @@ type PositionPixels = {
 // S:::::::::::::::SS    tt:::::::::::tta::::::::::aa:::a      tt:::::::::::tt ee:::::::::::::e  
 //  SSSSSSSSSSSSSSS        ttttttttttt   aaaaaaaaaa  aaaa        ttttttttttt     eeeeeeeeeeeeee  
 // #region State
-
-
-// #region Minimap
-
-//  TODO move 
-
-// #endregion Minimap
-
-// #region inventory_collect
-// Note: Loading one big array to/from indexedDB will probably trash a lot if people start collecting everything they see. Not really a design goal though
-
-/**
- * @param {string} playerId
- * @param {string} itemId
- * @param {number} atIndex
- */
-const inventory_collect = async (playerId, itemId, atIndex) => {
-    let alreadyExisted = false;
-    await idbKeyval.update(`playerinventory-collected-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
-        const inventory = (val || []);
-
-        const indexIfAlreadyCollected = inventory.indexOf(itemId)
-        if (indexIfAlreadyCollected > -1) {
-            alreadyExisted = true;
-            inventory.splice(indexIfAlreadyCollected, 1)
-        }
-
-        inventory.splice(atIndex, 0, itemId)
-
-        return inventory;
-    })
-
-    return { alreadyExisted }
-}
-
-/**
- * @param {string} playerId
- * @returns { Promise<string[]> }
- */
-const inventory_getCollected = async (playerId) => {
-    return await idbKeyval.get(`playerinventory-collected-p${playerId}`) || [];
-}
-
-/**
- * @param {string} playerId
- * @param {number} start
- * @param {number} end
- */
-const inventory_getCollectedPage = async (playerId, start, end) => {
-    const fullInventory = await inventory_getCollected(playerId);
-    return {
-        items: fullInventory.slice(start, end),
-        itemCount: fullInventory.length
-    };
-}
-
-/**
- * @param {string} playerId
- * @param {string} itemId
- */
-const inventory_deleteCollected = async (playerId, itemId) => {
-    await idbKeyval.update(`playerinventory-collected-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
-        const inventory = (val || []);
-
-        const indexIfAlreadyCollected = inventory.indexOf(itemId)
-        if (indexIfAlreadyCollected > -1) {
-            inventory.splice(indexIfAlreadyCollected, 1)
-        }
-
-        return inventory;
-    })
-}
-// #endregion inventory_collect
-
-// #region inventory_creations
-/**
- * @param {string} playerId
- * @param {string} itemId
- */
-const inventory_addCreated = async (playerId, itemId) => {
-    await idbKeyval.update(`playerinventory-created-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
-        const inventory = (val || []);
-        inventory.unshift(itemId)
-        return inventory;
-    })
-}
-
-/**
- * @param {string} playerId
- * @returns { Promise<string[]> }
- */
-const inventory_getCreatedAll = async (playerId) => {
-    return await idbKeyval.get(`playerinventory-created-p${playerId}`) || [];
-}
-
-/**
- * @param {string} playerId
- * @param {number} start
- * @param {number} end
- */
-const inventory_getCreatedPage = async (playerId, start, end) => {
-    const fullInventory = await inventory_getCreatedAll(playerId);
-    return {
-        items: fullInventory.slice(start, end),
-        itemCount: fullInventory.length
-    };
-}
-
-/**
- * @param {string} playerId
- * @param {string} itemId
- */
-const inventory_deleteCreated = async (playerId, itemId) => {
-    await idbKeyval.update(`playerinventory-created-p${playerId}`, (/** @type { string[] | undefined } */ val) => {
-        const inventory = (val || []);
-
-        const indexIfAlreadyCollected = inventory.indexOf(itemId)
-        if (indexIfAlreadyCollected > -1) {
-            inventory.splice(indexIfAlreadyCollected, 1)
-        }
-
-        return inventory;
-    })
-}
-// #endregion inventory_creations
-
-
-
-
-
-//#region Player
-class Player {
-    rid: string;
-    name: string;
-    age: number;
-    isFullAccount: boolean;
-    leftMinfinityAmount: number;
-    isBacker: boolean;
-    boostsLeft: number;
-    hasMinfinity: boolean;
-
-    constructor({ name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
-        this.name = name || "explorer 123";
-        this.rid = rid || "000000000000000000000000";
-        this.age = age || 19191919;
-        this.isFullAccount = isFullAccount || true;
-        this.leftMinfinityAmount = leftMinfinityAmount || 19191919;
-        this.isBacker = isBacker || true;
-        this.boostsLeft = boostsLeft || 19191919;
-        this.hasMinfinity = hasMinfinity || true;
-
-        idbKeyval.update(`attachments-p${this.rid}`, (/** @type {Attachments | undefined} */ value) => {
-            if (value) return value
-            else return {
-                // TODO: pick a random base body
-                "b":"00000000000000000000074f",
-                "w":null,
-                "m":null,
-                "h":null,
-                "br":null
-            }
-        })
-    }
-
-    getInitData_http() {
-        return {
-            "rid": this.rid,
-            "age": this.age,
-            "ifa": this.isFullAccount,
-            "lma": this.leftMinfinityAmount,
-            "isb": this.isBacker,
-            "bbl": this.boostsLeft,
-            "hmf": this.hasMinfinity,
-        }
-    }
-
-    async setAttachment(slot, id) {
-        await idbKeyval.update(`attachments-p${this.rid}`, (value) => {
-            const atts = (value || {});
-            atts[slot] = id;
-            return atts;
-        })
-    }
-
-    async getAttachments() {
-        return await idbKeyval.get(`attachments-p${this.rid}`)
-    }
-
-    async getInitData_ws() {
-        return {
-            "rid": this.rid,
-            "snm": this.name,
-            "aid":"80-1-1-f",
-            "att": await this.getAttachments(),
-            "r":10,
-            "ani":"idle",
-            "flp":false,
-            "wof":{
-                "w":{"x":0,"y":0},"h":{"x":0,"y":0},"wp":{"x":0,"y":0}
-            },
-            "shs":{}
-        }
-    }
-}
-//#endregion Player
-
-
-
 
 
 //#region AreaManager
@@ -775,9 +493,8 @@ class LocalAreaManager {
         }
     }
 
-    async onWsConnection(client) {
+    async onWsConnection(player: PlayerDataManager, client) {
         console.log("received WS connection!", { client })
-        const player = getPlayerForClient(client.id);
 
         console.log("sending WS_OPEN message...")
         client.postMessage({ m: "WS_OPEN", data: { areaId: this.areaId } });
@@ -800,7 +517,7 @@ class LocalAreaManager {
         client.postMessage({ m: "WS_MSG", data: initDataMsg });
     }
 
-    onWsMessage(client, msg) {
+    onWsMessage(player: PlayerDataManager, client, msg) {
         if (typeof msg === "string")
             // TODO actually handle messages
             console.log("onWsMessage()", fromClient(msg))
@@ -829,7 +546,7 @@ class AreaPossessionsManager {
 }
 
 
-const getAreaOrSubareaIdFor = async (player: Player, areaGroupId: string): Promise<string> => {
+const getAreaOrSubareaIdFor = async (player: PlayerDataManager, areaGroupId: string): Promise<string> => {
     return (await idbKeyval.get(`area-current-subarea-${areaGroupId}`)) || areaGroupId
 }
 
@@ -910,7 +627,7 @@ class ArchivedAreaManager {
         return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
     }
 
-    async getInitData(player: Player) {
+    async getInitData(player: PlayerDataManager) {
         const playerData = player.getInitData_http();
 
         const defaultData = {
@@ -1068,9 +785,8 @@ class ArchivedAreaManager {
         return tiles;
     }
 
-    async onWsConnection(client) {
+    async onWsConnection(player: PlayerDataManager, client) {
         console.log("received WS connection!", { client })
-        const player = getPlayerForClient(client.id);
 
         console.log("sending WS_OPEN message...")
         client.postMessage({ m: "WS_OPEN", data: { areaId: this.areaId } });
@@ -1102,12 +818,7 @@ class ArchivedAreaManager {
         await idbKeyval.set(`area-current-subarea-${this.areaGroupId}`, subareaName)
     }
 
-    /**
-     * 
-     * @param {Client} client
-     * @param {string | ArrayBuffer} msg 
-     */
-    onWsMessage(client, msg) {
+    onWsMessage(player: PlayerDataManager, client: Client, msg: String | ArrayBuffer) {
         if (typeof msg === "string") {
             // TODO: validate
             const parsedMsg = /** @type { { data: any, m: string } } */ (fromClient(msg))
@@ -1154,7 +865,7 @@ class ArchivedAreaManager {
                                 data: toClient({
                                     m: msgTypes.TELEPORT,
                                     data: {
-                                        rid: defaultPlayer.rid,
+                                        rid: player.rid,
                                         gun: null,
                                     }
                                 })
@@ -1168,7 +879,7 @@ class ArchivedAreaManager {
                                 data: toClient({
                                     m: msgTypes.TELEPORT,
                                     data: {
-                                        rid: defaultPlayer.rid,
+                                        rid: player.rid,
                                         gun: null,
                                     }
                                 })
@@ -1189,7 +900,7 @@ class ArchivedAreaManager {
                                 data: toClient({
                                     m: msgTypes.TELEPORT,
                                     data: {
-                                        rid: defaultPlayer.rid,
+                                        rid: player.rid,
                                         gun: null,
                                     }
                                 })
@@ -1214,7 +925,7 @@ class ArchivedAreaManager {
                 case msgTypes.CHANGE_ATTACHMENT: {
                     const {ats, ati} = ws_change_attachment.parse(parsedMsg.data);
                     // TODO do we keep this defaultPlayer thing?
-                    defaultPlayer.setAttachment(ats, ati)
+                    player.setAttachment(ats, ati)
                     break;
                 }
 
@@ -1227,7 +938,7 @@ class ArchivedAreaManager {
                             loc: data.loc,
                             sta: {
                                 sta: 1, //TODO: figure out proper state based on the triggered block's attributes
-                                uid: defaultPlayer.rid, // TODO
+                                uid: player.rid, // TODO
                                 tid: 555 // TODO: actually keep track of ids
                             }
                         }})
@@ -1314,7 +1025,7 @@ class AreaManagerManager {
         else return await this.makeAreaManager(areaId);
     }
 
-    async getByAreaName(player: Player, areaUrlName: string) {
+    async getByAreaName(player: PlayerDataManager, areaUrlName: string) {
         console.log("AreaManagerManager: getByAreaName()", areaUrlName)
 
         // TODO: handle cases where client is in a subarea
@@ -1332,12 +1043,6 @@ class AreaManagerManager {
 
 
 
-
-// TODO
-// @ts-ignore
-const defaultPlayer = new Player({ name: "explorer 123" });
-/** @param {string} clientId  @returns {Player} */
-const getPlayerForClient = (clientId) => defaultPlayer;
 
 // #endregion State
 
@@ -1375,18 +1080,18 @@ class FakeAPI {
     router: ReturnType<typeof makeRouter>;
 
     constructor(
-        /** @type { AreaManagerManager } */ areaManagerMgr,
-        /** @type { AreaPossessionsManager } */ areaPossessionsMgr,
+        areaManagerMgr: AreaManagerManager,
+        areaPossessionsMgr: AreaPossessionsManager,
     ) {
         const router = this.router = makeRouter(matchPath)
 
         // Area init
-        router.post("/j/i/", async ({ json, request, clientId, }) => {
-            const data = await readRequestBody(request)
+        router.post("/j/i/", async ({ player, json, request, }) => {
+            const data: any = await readRequestBody(request)
             
             console.log("getting area manager for area", data)
 
-            const player = getPlayerForClient(clientId);
+            // TODO fix player handling
             const areaManager = await areaManagerMgr.getByAreaName(player, data.urlName);
             const areaData = await areaManager.getInitData(player, data.urlName);
 
@@ -1624,7 +1329,7 @@ class FakeAPI {
               },
               {
                 _id: generateObjectId(),
-                userId: defaultPlayer.rid,
+                userId: "000000000000000000000000",
                 userName: "ToDo",
                 title: "ToDo",
                 firstCommentId: generateObjectId(),
@@ -1634,7 +1339,7 @@ class FakeAPI {
                 lastComment: {
                   content: null,
                   userName: "Todo",
-                  userId: defaultPlayer.rid,
+                  userId: "000000000000000000000000",
                   ts: new Date().toISOString(),
                   id: generateObjectId()
                 },
@@ -1658,7 +1363,7 @@ class FakeAPI {
                 newestLikes: [
                   {
                     n: "todo",
-                    id: defaultPlayer.rid
+                    id: "000000000000000000000000",
                   }
                 ],
                 oldestLikes: [
@@ -1675,7 +1380,7 @@ class FakeAPI {
               },
               {
                 _id: generateObjectId(),
-                userId: defaultPlayer.rid,
+                userId: "000000000000000000000000",
                 userName: "todo",
                 content: "hello, world!",
                 newestLikes: [],
@@ -1709,18 +1414,18 @@ class FakeAPI {
         });
 
         // Create
-        router.post("/j/i/c/", async ({ request, json }) => {
+        router.post("/j/i/c/", async ({ player, request, json }) => {
             const { itemData } = await readRequestBody(request)
-            const { itemId } = await saveCreation(defaultPlayer, itemData, cache, inventory_addCreated)
+            const { itemId } = await saveCreation(player, itemData, cache)
 
             return json( { itemId: itemId });
         });
 
         // Delete
-        router.post("/j/i/d/", async ({ request, json }) => {
+        router.post("/j/i/d/", async ({ player, request, json }) => {
             const { itemId } = await readRequestBody(request)
 
-            await inventory_deleteCreated(defaultPlayer.rid, itemId);
+            await player.inv_delCreated(itemId);
 
             return json( { ok: true } );
         });
@@ -1771,16 +1476,16 @@ class FakeAPI {
 
         // #region Collections
         // Get collected
-        router.get("/j/c/r/:start/:end", async ({ params, json }) => {
-            const data = await inventory_getCollectedPage(defaultPlayer.rid, Number(params.start), Number(params.end))
+        router.get("/j/c/r/:start/:end", async ({ player, params, json }) => {
+            const data = await player.inv_getCollectedPage(Number(params.start), Number(params.end))
             return json(data)
         });
 
         // Collect
-        router.post("/j/c/c", async ({ request, json }) => {
+        router.post("/j/c/c", async ({ player, request, json }) => {
             const data = await readRequestBody(request)
 
-            const { alreadyExisted } = await inventory_collect(defaultPlayer.rid, data.itemId, data.index)
+            const { alreadyExisted } = await player.inv_collect(data.itemId, data.index)
 
             return json({
                 alreadyExisted: alreadyExisted,
@@ -1789,18 +1494,18 @@ class FakeAPI {
         });
 
         // Delete
-        router.post("/j/c/d", async ({ request, json }) => {
+        router.post("/j/c/d", async ({ player, request, json }) => {
             const { itemId } = await readRequestBody(request)
 
-            await inventory_deleteCollected(defaultPlayer.rid, itemId)
+            await player.inv_delCollect(itemId)
 
             // TODO: what does the server actually returns?
             return json( true );
         });
 
         // Check if Collected
-        router.get("/j/c/check/:itemId/", async ({ params, json }) => {
-            return json( (await inventory_getCollected(defaultPlayer.rid)).includes(params.itemId) )
+        router.get("/j/c/check/:itemId/", async ({ player, params, json }) => {
+            return json( (await player.inv_getAllCollects()).includes(params.itemId) )
         });
 
         // Check if I Flagged Item (always returns false for now)
@@ -1808,8 +1513,8 @@ class FakeAPI {
 
 
         // Get Created
-        router.get("/j/i/gcr/:start/:end", async ({ params, json }) => {
-            const data = await inventory_getCreatedPage(defaultPlayer.rid, Number(params.start), Number(params.end))
+        router.get("/j/i/gcr/:start/:end", async ({ player, params, json }) => {
+            const data = await player.inv_getCreatedPage(Number(params.start), Number(params.end))
             return json(data)
         });
         // #endregion Collections
@@ -1842,7 +1547,7 @@ class FakeAPI {
         // GetUnseenMifts
         router.get("/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
         
-        router.post("/j/mf/grm/", async ({ request, json }) => {
+        router.post("/j/mf/grm/", async ({ player, request, json }) => {
           const body = await readRequestBody(request)
           
           var miftData = {
@@ -1850,7 +1555,7 @@ class FakeAPI {
               _id: generateObjectId(),
               fromId: generateObjectId(),
               fromName: "TODO",
-              toId: defaultPlayer.rid,
+              toId: player.rid,
               itemId: "57286c91b19fff08136aa4a5",
               text: "TODO",
               deliverySeenByRecipient: false,
@@ -1990,16 +1695,9 @@ class FakeAPI {
 
     }
 
-    /**
-     * 
-     * @param {"GET" | "POST"} method 
-     * @param {string} pathname 
-     * @param {FetchEvent} event
-     * @returns 
-     */
-    async handle(method, pathname, event) {
+    async handle(method: "GET" | "POST", pathname: string, event: FetchEvent, player: PlayerDataManager) {
         console.log("FakeAPI.handle()", method, pathname, event);
-        return await this.router.matchRoute(method, pathname, event);
+        return await this.router.matchRoute(method, pathname, event, player);
     }
 }
 
@@ -2019,6 +1717,7 @@ class FakeAPI {
 //#region main
 
 console.log("Hi from service worker global context")
+
 const areaPossessionsMgr = new AreaPossessionsManager();
 const areaManagerMgr = new AreaManagerManager(areaPossessionsMgr);
 const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr);
@@ -2061,7 +1760,13 @@ const handleFetchEvent = async (event) => {
             if (url.pathname === "/media/painter/spritesheet.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
             if (url.pathname === "/media/painter/cursor_floodFill.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_floodFill.png"));
             if (url.pathname === "/media/painter/cursor_pickColor.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_pickColor.png"));
-            if (url.pathname.startsWith("/j/")) return await fakeAPI.handle(/** @type { "GET" | "POST" } */ (event.request.method), url.pathname, event)
+
+            if (url.pathname.startsWith("/j/")) {
+                // TODO: do we want to handle different player ids for different clients? Let's just keep things simple for now
+                const player = await PlayerDataManager.make(idbKeyval);
+
+                return await fakeAPI.handle(event.request.method, url.pathname, event, player)
+            }
 
             if (url.pathname.startsWith("/sct/")) {
                 const maptilesCache = await caches.open("MAP_TILES_V1");
@@ -2126,10 +1831,34 @@ const handleFetchEvent = async (event) => {
 
 //#endregion main_routing
 
-/**
- * @param {ExtendableMessageEvent} event
- */
-const handleClientMessage = async (event) => {
+
+
+const handleDataImport = async (file: File) => {
+    if (file.type !== "application/zip") {
+        console.warn("file is not a zip")
+        // TODO notify front
+        return;
+    }
+
+    try {
+        console.log("loading zip");
+        const zip = await JSZip.loadAsync(await file.arrayBuffer());
+        console.log("loading zip ok", zip);
+
+        if (zip.file("profile.json")) {
+            console.log("zip is data export")
+        }
+        else if (zip.file("area_settings.json")) {
+            console.log("zip is area backup")
+        }
+    } catch(e) {
+        console.error("error processing data!", e);
+    }
+}
+
+
+
+const handleClientMessage = async (event: ExtendableMessageEvent) => {
     try {
         const message = event.data;
         const client = /** @type { Client } */ (event.source);
@@ -2138,16 +1867,26 @@ const handleClientMessage = async (event) => {
         if (message.m === "WSMSG") {
             const { areaId } = message.data;
             const amgr = await areaManagerMgr.getByAreaId(areaId)
+            const player = await PlayerDataManager.make(idbKeyval);
 
-            amgr.onWsMessage(client, message.data.msg)
+            amgr.onWsMessage(player, client, message.data.msg)
         }
         else if (message.m === "PLS_OPEN_WS") {
             console.log("client sent PLS_OPEN_WS!", message)
 
             const wsUrl = new URL(message.data.wsUrl);
             const amgr = await areaManagerMgr.getByWSSUrl(wsUrl.host)
+            const player = await PlayerDataManager.make(idbKeyval);
 
-            amgr.onWsConnection(client)
+            amgr.onWsConnection(player, client)
+        }
+        else if (message.m === "DATA_IMPORT") {
+            console.log("client sent DATA_IMPORT!", message);
+
+            event.waitUntil(handleDataImport(message.data.file));
+        }
+        else {
+            console.warn("Unhandled event", message)
         }
     } catch(e) {
         console.error("MSG: error processing message!", { message: event.data, error: e })
@@ -2210,16 +1949,6 @@ self.addEventListener("unhandledrejection", (event) => console.error("unhandledr
 main(
     // @ts-ignore
     self,
-    // @ts-ignore
-    matchPath,
-    // @ts-ignore
-    Qs,
-    // @ts-ignore
-    JSZip,
-    // @ts-ignore
-    Zod,
-    // @ts-ignore
-    idbKeyval
 )
 
 // #endregion boilerplate

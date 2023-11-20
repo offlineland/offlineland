@@ -1,4 +1,4 @@
-const makeLocalCreations = () => {
+const makeLocalCreations = (idbKeyval: idbKeyval) => {
 
 // thank you chatGPT
 const decompressAscii = (compressedString) => {
@@ -81,7 +81,7 @@ const generateCreationSpriteFromPixels = async (colors, cells) => {
 }
 
 
-const saveCreation = async (player, itemData, cache, inventory_addCreated) => {
+const saveCreation = async (player: PlayerDataManager, itemData, cache) => {
     console.log("client tried to create something!", itemData)
 
     const pixels = JSON.parse(decompressAscii(itemData.pixels));
@@ -101,7 +101,8 @@ const saveCreation = async (player, itemData, cache, inventory_addCreated) => {
 
     await cache.setCreationSprite(itemId, spriteBlob);
     await cache.setCreationDef(itemId, JSON.stringify(itemDef));
-    await inventory_addCreated(player.rid, itemId);
+
+    await player.addLocalCreation(itemId);
 
     return {
         itemId: itemId,

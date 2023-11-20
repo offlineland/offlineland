@@ -16,6 +16,7 @@
     },
     "include": [
         "_code/service-worker/**/*.ts",
+        "globals.d.ts",
         "service-worker.ts"
     ],
     "exclude": [

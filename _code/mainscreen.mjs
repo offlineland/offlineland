@@ -1,6 +1,6 @@
 import { registerServiceWorker } from "./register-service-worker.js"
 const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
-const { el, mount, setChildren } = /**@type { import('redom' )} */ (globalThis.redom);
+const { el, mount, setChildren, setAttr, } = /**@type { import('redom' )} */ (globalThis.redom);
 
 
 await registerServiceWorker()
@@ -57,11 +57,62 @@ const updateAreaList = () => {
     ])
 }
 
+const importData = () => {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file to upload');
+        return;
+    }
+
+    if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ m: "DATA_IMPORT", data: { file } });
+    } else {
+        alert('Service worker controller not available');
+    }
+}
+
+const importBtn = el("button", { disabled: true, onclick: importData, }, "import");
+const onFileInputChange = () => setAttr(importBtn, { disabled: false });
+
+
 const main = el("main", [
-    el("h1", "Hello world!"),
     el("div", [
-        el("h2", "available areas"),
+        el("h1", "Offlineland"),
+        el("p", "An interactive monument to Manyland."),
+    ]),
+    el("div", [
+        el("h2", "Available areas"),
         areaListEl,
+    ]),
+    el("div", [
+        el("h2", "Data import"),
+        el("p", "You can import areas from areabackup.com or the exporter here. Everything stays on your device."),
+        el("input#fileInput", { type: "file", accept: ".zip", onchange: onFileInputChange } ),
+        importBtn,
+    ]),
+    el("div", [
+        el("h2", "Data viewer"),
+        el("p", "Once you've imported your data from the exporter, you can view it's content here."),
+        el("div", [
+            el("h3", "Snaps"),
+            el("div", [
+
+            ]),
+        ]),
+        el("div", [
+            el("h3", "Creations"),
+            el("div", [
+
+            ]),
+        ]),
+        el("div", [
+            el("h3", "Mifts"),
+            el("div", [
+
+            ]),
+        ]),
     ]),
 ])
 

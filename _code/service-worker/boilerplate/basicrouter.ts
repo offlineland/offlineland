@@ -1,8 +1,4 @@
-/**
- * @param {string} dataUrl
- * @returns {Blob}
- */
-const dataURLtoBlob = (dataUrl) => {
+const dataURLtoBlob = (dataUrl: string): Blob => {
     const arr = dataUrl.split(',');
     const mime = arr[0].match(/:(.*?);/)[1];
     const bstr = atob(arr[1]);
@@ -16,48 +12,46 @@ const dataURLtoBlob = (dataUrl) => {
     return new Blob([u8arr], { type: mime });
 }
 
+const readRequestBody = async (request: Request): Promise<any> => {
+    const text = await request.text();
+    const data = Qs.parse(text);
+
+    return data;
+}
+
+
+
+type RouteHandlersBagOfTricks = {
+    params: any;
+    event: FetchEvent;
+    request: Request;
+    clientId: string;
+    player: PlayerDataManager;
+    json: (json: any) => Response;
+}
+
+type RouteHandler = (ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>;
+
+type Method = "GET" | "POST";
+
+type route = {
+    method: Method,
+    matcher: (path: string) => Record<string, string> | false,
+    handler: RouteHandler
+}
 
 const makeRouter = (matchPath) => {
     const GET = "GET";
     const POST = "POST";
 
-    type RouteHandlersBagOfTricks = {
-        params: any;
-        event: FetchEvent;
-        request: Request;
-        clientId: string;
-        json: (json: any) => Response;
-    }
-
-
-    type route = {
-        method: "GET" | "POST",
-        matcher: (path: string) => Record<string, string> | false,
-        handler: (ctx: RouteHandlersBagOfTricks) => Promise<Response>
-    }
 
     const routes = new Set<route>();
 
 
 
-    /**
-     * 
-     * @param {"GET" | "POST"} method 
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     * @returns 
-     */
-    const route = (method, matcher, handler) => routes.add({ method, matcher: matchPath(matcher), handler });
-    /**
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     */
-    const get = (matcher, handler) => route(GET, matcher, handler);
-    /**
-     * @param {string} matcher 
-     * @param {(ctx: RouteHandlersBagOfTricks) => Response | Promise<Response>} handler 
-     */
-    const post = (matcher, handler) => route(POST, matcher, handler);
+    const route = (method: Method, matcher: string, handler: RouteHandler) => routes.add({ method, matcher: matchPath(matcher), handler });
+    const get = (matcher: string, handler: RouteHandler) => route(GET, matcher, handler);
+    const post = (matcher: string, handler: RouteHandler) => route(POST, matcher, handler);
 
     /**
      * 
@@ -66,7 +60,7 @@ const makeRouter = (matchPath) => {
      * @param {FetchEvent} event
      * @returns 
      */
-    const matchRoute = async (method, pathname, event) => {
+    const matchRoute = async (method, pathname, event, player: PlayerDataManager) => {
         for (const route of routes) {
             if (route.method !== method) continue;
 
@@ -79,6 +73,7 @@ const makeRouter = (matchPath) => {
                 event: event,
                 request: event.request,
                 clientId: event.clientId,
+                player,
                 json: (data) => Response.json( data ),
             });
         }
