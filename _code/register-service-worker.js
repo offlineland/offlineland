@@ -3,6 +3,11 @@ export const registerServiceWorker = async () => {
         throw new Error("Your browser does not seem to support Service Workers. Please update your browser. (If you're a dev, maybe you are not accessing this page from a secure context (https or localhost)?)")
     }
 
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('A new service worker is controlling the page');
+    });
+
+
     const currRegistration = await navigator.serviceWorker.getRegistration()
     console.log("currRegistration", currRegistration)
     //if (currRegistration) {

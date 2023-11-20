@@ -2037,28 +2037,39 @@ const importPlayerData = async (zip: Zip) => {
 
     // TODO snaps
     // TODO mifts
+    return profile;
 }
 
 
 
-const handleDataImport = async (file: File) => {
+const handleDataImport = async (file: File, key, client: Client) => {
     if (file.type !== "application/zip") {
         console.warn("file is not a zip")
-        // TODO notify front
+        client.postMessage({ m: "IMPORT_ERROR", data: { key, error: "This file is not a zip! How did you get this thing in here!" } })
         return;
     }
 
     try {
         console.log("loading zip");
+        client.postMessage({ m: "IMPORT_STARTED", data: { key } })
         const zip = await JSZip.loadAsync(await file.arrayBuffer());
         console.log("loading zip ok", zip);
 
         if (zip.file("profile.json")) {
-            console.log("zip is data export")
-            await importPlayerData(zip);
+            try {
+                const profile = await importPlayerData(zip);
+                client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Sucessfully imported player data. Welcome to Offlineland, ${profile.screenName}!` } })
+            }
+            catch(e) {
+                client.postMessage({ m: "IMPORT_ERROR", data: { key, error: "Error importing player data: " + e.message } })
+
+            }
         }
         else if (zip.file("area_settings.json")) {
-            console.log("zip is area backup")
+            client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Psyke I haven't implemented area import yet` } })
+        }
+        else {
+            client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This "${file.name}" file does not look like a manyland export.` } })
         }
     } catch(e) {
         console.error("error processing data!", e);
@@ -2070,7 +2081,7 @@ const handleDataImport = async (file: File) => {
 const handleClientMessage = async (event: ExtendableMessageEvent) => {
     try {
         const message = event.data;
-        const client = /** @type { Client } */ (event.source);
+        const client = event.source as Client;
 
         //console.log("MSG", client.id, message, { event })
         if (message.m === "WSMSG") {
@@ -2092,7 +2103,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
         else if (message.m === "DATA_IMPORT") {
             console.log("client sent DATA_IMPORT!", message);
 
-            event.waitUntil(handleDataImport(message.data.file));
+            event.waitUntil(handleDataImport(message.data.file, message.data.key, client));
         }
         else {
             console.warn("Unhandled event", message)
