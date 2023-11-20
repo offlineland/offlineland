@@ -509,6 +509,7 @@ class LocalAreaManager {
             "m": msgTypes.OWN_INFO,
             "data":{
                 ...await player.getInitData_ws(),
+                pos: { x: 15 * 19, y: 15 * 19 },
 
                 "neo":true, // ?
                 "map":{ "p":0,"a": this.areaId },
