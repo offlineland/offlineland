@@ -1,15 +1,49 @@
 // Note: Loading one big array to/from indexedDB will probably trash a lot if people start collecting everything they see. Not really a design goal though
 
-const DEFAULT_PLAYER_DATA = {
-    name: "explorer 123",
-    rid: "000000000000000000000000",
-    age: 19191919,
-    isFullAccount: true,
-    leftMinfinityAmount: 19191919,
-    isBacker: true,
-    boostsLeft: 19191919,
-    hasMinfinity: true,
+const dateFromObjectId = (objectId: string) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
+const daysSinceDate = (date: Date) => Math.floor((Date.now() - date.valueOf()) / (1000 * 60 * 60 * 24));
+
+
+
+type ProfileData = {
+    isFullAccount: boolean,
+    hasMinfinity: boolean,
+    isBacker: boolean,
+    screenName: string,
+    rank: number,
+    stat_ItemsPlaced: number,
+    unfindable: boolean,
+    ageDays: number,
+
+    profileItemIds?: Array<string | null>,
+    profileColor?: number | null,
+    profileBackId?: string | null,
+    profileDynaId?: string | null,
 }
+
+
+type PlayerExtraData = {
+    leftMinfinityAmount: number,
+    boostsLeft: number,
+}
+
+
+const DEFAULT_PROFILE: ProfileData = {
+    isFullAccount: true,
+    hasMinfinity: true,
+    isBacker: true,
+    screenName: "explorer 123",
+    rank: 10,
+    stat_ItemsPlaced: 19,
+    unfindable: true,
+    ageDays: 191919,
+}
+
+const DEFAULT_PLAYER_DATA: PlayerExtraData = {
+    leftMinfinityAmount: 19191919,
+    boostsLeft: 19191919,
+}
+
 
 class PlayerDataManager {
     idbKeyval: idbKeyval;
@@ -21,18 +55,36 @@ class PlayerDataManager {
     isBacker: boolean;
     boostsLeft: number;
     hasMinfinity: boolean;
+    rank: number;
+    stat_ItemsPlaced: number;
+    unfindable: boolean;
+    profileItemIds: any;
+    profileColor: any;
+    profileBackId: any;
+    profileDynaId: any;
 
-    constructor(idbKeyval: idbKeyval, { name, rid, age, isFullAccount, leftMinfinityAmount, isBacker, boostsLeft, hasMinfinity }) {
+    constructor( idbKeyval: idbKeyval, rid: string, profile: ProfileData, data: PlayerExtraData) {
         this.idbKeyval = idbKeyval;
 
-        this.name = name || "explorer 123";
-        this.rid = rid || "000000000000000000000000";
-        this.age = age || 19191919;
-        this.isFullAccount = isFullAccount || true;
-        this.leftMinfinityAmount = leftMinfinityAmount || 19191919;
-        this.isBacker = isBacker || true;
-        this.boostsLeft = boostsLeft || 19191919;
-        this.hasMinfinity = hasMinfinity || true;
+        const { isFullAccount, isBacker, screenName, rank, stat_ItemsPlaced, unfindable, hasMinfinity, ageDays } = profile;
+        const { leftMinfinityAmount, boostsLeft } = data;
+
+        this.name = screenName;
+        this.rid = rid;
+        this.rank = rank;
+        this.stat_ItemsPlaced = stat_ItemsPlaced;
+        this.unfindable = unfindable;
+        this.age = rid === "000000000000000000000000" ? 191919 : daysSinceDate(dateFromObjectId(rid));
+        this.isFullAccount = isFullAccount;
+        this.leftMinfinityAmount = leftMinfinityAmount;
+        this.isBacker = isBacker;
+        this.boostsLeft = boostsLeft;
+        this.hasMinfinity = hasMinfinity;
+
+        this.profileItemIds = profile.profileItemIds;
+        this.profileColor = profile.profileColor;
+        this.profileBackId = profile.profileBackId;
+        this.profileDynaId = profile.profileDynaId;
 
         idbKeyval.update(`attachments-p${this.rid}`, (/** @type {Attachments | undefined} */ value) => {
             if (value) return value
@@ -48,14 +100,16 @@ class PlayerDataManager {
     }
     static async make(idbKeyval: idbKeyval) {
         const playerId = (await idbKeyval.get(`our-player-id`)) || "000000000000000000000000";
-        const playerData = await idbKeyval.get(`playerData-p${playerId}`) || DEFAULT_PLAYER_DATA;
 
-        return new PlayerDataManager(idbKeyval, playerData)
+        const playerProfile: ProfileData  = await idbKeyval.get(`playerData-p${playerId}`) || DEFAULT_PROFILE;
+        const playerData: PlayerExtraData = DEFAULT_PLAYER_DATA; // TODO: load these from settings somehow?
+
+        return new PlayerDataManager(idbKeyval, playerId, playerProfile, playerData)
     }
 
-    static async storePlayerData(idbKeyval: idbKeyval, playerData) {
-        await idbKeyval.set(`our-player-id`, playerData.rid);
-        await idbKeyval.set(`playerData-p${playerData.rid}`, playerData);
+    static async import_setProfile(idbKeyval: idbKeyval, rid: string, playerData: ProfileData) {
+        await idbKeyval.set(`our-player-id`, rid);
+        await idbKeyval.set(`playerData-p${rid}`, playerData);
     }
 
     getInitData_http() {
@@ -67,6 +121,23 @@ class PlayerDataManager {
             "isb": this.isBacker,
             "bbl": this.boostsLeft,
             "hmf": this.hasMinfinity,
+        }
+    }
+
+    getProfileData(): ProfileData {
+        return {
+            isFullAccount: this.isFullAccount,
+            hasMinfinity: this.hasMinfinity,
+            isBacker: this.isBacker,
+            screenName: this.name,
+            rank: this.rank,
+            stat_ItemsPlaced: this.stat_ItemsPlaced,
+            unfindable: this.unfindable,
+            ageDays: this.age,
+            profileItemIds: this.profileItemIds,
+            profileColor: this.profileColor,
+            profileBackId: this.profileBackId,
+            profileDynaId: this.profileDynaId,
         }
     }
 
@@ -190,6 +261,10 @@ class PlayerDataManager {
     }
 
 
+
+    async import_setProfile(itemIds: string[]) {
+        await this.idbKeyval.set(`playerinventory-collected-p${this.rid}`, itemIds);
+    }
 
     async import_setCollected(itemIds: string[]) {
         await this.idbKeyval.set(`playerinventory-collected-p${this.rid}`, itemIds);

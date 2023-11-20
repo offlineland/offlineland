@@ -36,6 +36,8 @@ const makeCache = (originUrl, SpriteGroundBlob) => {
 
 
 
+// TODO: move this to a class. Move it to the same place as MLLocalDatabase?
+
 // #region creations_cache
 /** @param {string} creationId @param {Blob} blob */
 const setCreationSprite = async (creationId, blob) => {

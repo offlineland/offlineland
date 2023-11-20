@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 
-
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
+type Zip = typeof JSZip;
 
 
 /*
@@ -219,6 +219,7 @@ const isAreaInCache = async (areaId) => {
 
 const getAreaFromCache = (areaId) => cache.getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
 
+// TODO: going to need to refactor this to allow imports from areabackup
 const downloadAndHandleAreaArchive = async (areaId) => {
     const cacheAreas = await caches.open(CACHE_AREAS_V2);
 
@@ -1166,25 +1167,31 @@ class FakeAPI {
           return json(true);
         })
         // PlayerInfo
-        router.post("/j/u/pi/", async ({ json, request, clientId }) => {
+        router.post("/j/u/pi/", async ({ json, request, player }) => {
             const { id, planeId, areaId } = await readRequestBody(request)
-            return json({
-                isFullAccount: true,
-                hasMinfinity: true,
-                isBacker: true,
-                screenName: "todo",
-                rank: 10,
-                stat_ItemsPlaced: 191919,
-                unfindable: true,
-                ageDays: 191919,
-                profileItemIds: [],
-                profileColor: null,
-                profileBackId: null,
-                profileDynaId: null,
-                online: false,
-                flagged: false,
-                isEditorHere: true,
-            });
+
+            console.log("aaa", id, await player.getProfileData())
+            if (player.rid === id) {
+                return json( await player.getProfileData() );
+            } else {
+                return json({
+                    isFullAccount: true,
+                    hasMinfinity: true,
+                    isBacker: true,
+                    screenName: "todo",
+                    rank: 10,
+                    stat_ItemsPlaced: 191919,
+                    unfindable: true,
+                    ageDays: 191919,
+                    profileItemIds: [],
+                    profileColor: null,
+                    profileBackId: null,
+                    profileDynaId: null,
+                    online: false,
+                    flagged: false,
+                    isEditorHere: true,
+                });
+            }
         })
         // Get Icon (Writable Icon)
         // Loaded from /image/541b03cf44aff03338610fce.png for some reason?
@@ -1831,6 +1838,179 @@ const handleFetchEvent = async (event) => {
 
 //#endregion main_routing
 
+class LocalMLDatabase {
+    async player_setTopCreations(playerId, topCreations) {
+        await idbKeyval.set(`playertopcreations-p${playerId}`, topCreations);
+    }
+    async player_getTopCreations(playerId) {
+        return await idbKeyval.get(`playertopcreations-p${playerId}`);
+    }
+
+    async creation_setMotionData(bodyId, data) {
+        await idbKeyval.set(`creationdata-bodymotions-c${bodyId}`, data);
+    }
+    async creation_getMotionData(bodyId) {
+        await idbKeyval.get(`creationdata-bodymotions-c${bodyId}`);
+    }
+
+    async creation_setHolderContent(holderId, data) {
+        await idbKeyval.set(`creationdata-holdercontent-c${holderId}`, data);
+    }
+    async creation_getHolderContent(holderId) {
+        await idbKeyval.get(`creationdata-holdercontent-c${holderId}`);
+    }
+
+    async creation_setMultiData(multiId, data) {
+        await idbKeyval.set(`creationdata-multidata-c${multiId}`, data);
+    }
+    async creation_getMultiData(multiId) {
+        await idbKeyval.get(`creationdata-multidata-c${multiId}`);
+    }
+
+    async creation_setPainterData(creationId, data) {
+        await idbKeyval.set(`creationdata-painterdata-c${creationId}`, data);
+    }
+    async creation_getPainterData(creationId) {
+        await idbKeyval.get(`creationdata-painterdata-c${creationId}`);
+    }
+
+    async creation_setStats(creationId, data) {
+        await idbKeyval.set(`creationdata-stats-c${creationId}`, data);
+    }
+    async creation_getStats(creationId) {
+        await idbKeyval.get(`creationdata-stats-c${creationId}`);
+    }
+}
+
+const db = new LocalMLDatabase();
+
+
+const importPlayerData = async (zip: Zip) => {
+    const promises = [];
+    const readJson = (path: string) => zip.file(path).async("text").then(JSON.parse);
+    const readJsonf = (file) => file.async("text").then(JSON.parse);
+
+    const ourId = await readJson("profile_own-id.json");
+    const profile = await readJson("profile.json");
+    console.log("saving profile", profile)
+    await PlayerDataManager.import_setProfile(idbKeyval, ourId, profile)
+
+    const player = await PlayerDataManager.make(idbKeyval);
+    promises.push(
+        readJson("profile_top-creations.json").then(data => db.player_setTopCreations(player.rid, data))
+    );
+
+
+
+    zip.folder("creations-data/body-motions/").forEach((path, file) => {
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        promises.push( readJsonf(file).then(data => db.creation_setMotionData(id, data)) );
+    })
+
+    zip.folder("creations-data/holders/").forEach((path, file) => {
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        promises.push( readJsonf(file).then(data => db.creation_setHolderContent(id, data)) );
+    })
+
+    zip.folder("creations-data/multis/").forEach((path, file) => {
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        promises.push( readJsonf(file).then(data => db.creation_setMultiData(id, data)) );
+    })
+
+
+
+    // TODO: deduplicate this with area import
+    zip.folder("other-creations/").forEach((path, file) => {
+        console.log("loading other-creation/", path)
+        const id = path.split('_')[1];
+        if (!id || id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        if (path.endsWith(".png")) {
+            console.log("adding", id, "to cache (sprite)")
+            promises.push(
+                file.async("blob").then(blob => cache.setCreationSprite(id, blob))
+            )
+        }
+        else if (path.endsWith(".json")) {
+            console.log("adding", id, "to cache (def)")
+            promises.push(
+                file.async("text").then(text => cache.setCreationDef(id, text))
+            )
+        }
+    })
+
+
+    zip.folder("my-creations/").forEach((path, file) => {
+        console.log("loading my-creations", path)
+        const id = path.split('_')[1];
+        if (!id || id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        if (path.endsWith(".png")) {
+            console.log("adding", id, "to cache (sprite)")
+            promises.push(
+                file.async("blob").then(blob => cache.setCreationSprite(id, blob))
+            )
+        }
+        else if (path.endsWith(".json")) {
+            console.log("adding", id, "to cache (def)")
+            promises.push(
+                file.async("text").then(text => cache.setCreationDef(id, text))
+            )
+        }
+    })
+
+    zip.folder("my-creations_painterdata/").forEach((path, file) => {
+        console.log("loading my-creation_painterdata/", path)
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (!id || id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        promises.push( readJsonf(file).then(data => db.creation_setPainterData(id, data)) );
+    })
+
+    zip.folder("my-creations_stats/").forEach((path, file) => {
+        console.log("loading my-creation_stats/", path)
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (!id || id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        promises.push( readJsonf(file).then(data => db.creation_setStats(id, data)) );
+    })
+
+    await Promise.all(promises);
+
+    await player.import_setCreated(await readJson("inventory-created.json"))
+    await player.import_setCollected(await readJson("inventory-collected.json"))
+
+    // TODO snaps
+    // TODO mifts
+}
+
 
 
 const handleDataImport = async (file: File) => {
@@ -1847,6 +2027,7 @@ const handleDataImport = async (file: File) => {
 
         if (zip.file("profile.json")) {
             console.log("zip is data export")
+            await importPlayerData(zip);
         }
         else if (zip.file("area_settings.json")) {
             console.log("zip is area backup")
