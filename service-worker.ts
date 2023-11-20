@@ -1,5 +1,8 @@
 /// <reference lib="webworker" />
 
+// This is mainly to debug cache issues
+const SW_VERSION = 2;
+
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
 type Zip = typeof JSZip;
@@ -1851,6 +1854,10 @@ const handleFetchEvent = async (event) => {
             // TODO get this from a file (and update it)
             if (url.pathname === "/_mlspinternal_/getdata") {
                 return Response.json(await getAvailableAreas());
+            }
+
+            if (url.pathname === "/_mlspinternal_/getversion") {
+                return Response.json(SW_VERSION);
             }
 
             // Note: we use an http call instead of a message because message events don't have a .respondWith

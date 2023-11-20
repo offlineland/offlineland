@@ -1,6 +1,6 @@
 import { registerServiceWorker } from "./register-service-worker.js"
 const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
-const { el, mount, setChildren, setAttr, } = /**@type { import('redom' )} */ (globalThis.redom);
+const { el, text, mount, setChildren, setAttr, } = /**@type { import('redom' )} */ (globalThis.redom);
 
 
 await registerServiceWorker()
@@ -73,6 +73,8 @@ const importData = () => {
     }
 }
 
+const versionText = text("loading...")
+fetch("/_mlspinternal_/getversion").then(r => r.json()).then(v => versionText.textContent = v);
 const importBtn = el("button", { disabled: true, onclick: importData, }, "import");
 const onFileInputChange = () => setAttr(importBtn, { disabled: false });
 
@@ -81,6 +83,7 @@ const main = el("main", [
     el("div", [
         el("h1", "Offlineland"),
         el("p", "An interactive monument to Manyland."),
+        el("p", ["SW version: ", versionText, " | page version: ", 1]),
     ]),
     el("div", [
         el("h2", "Available areas"),
