@@ -613,7 +613,7 @@
             const imageBlob = await getSnapImage(shortCode);
 
             const takenAtDate = dateFromObjectId(data._id).toISOString();
-            const filename = `${makeDateSafeForFile(takenAtDate)}-${data.loc?.a}-${shortCode}-${data.isPrivate ? "private" : "public"}`;
+            const filename = `${makeDateSafeForFile(takenAtDate)}_${shortCode}_${data.loc?.a}_${data.isPrivate ? "private" : "public"}`;
             snapFilenames[shortCode] = filename;
 
             zip.file(`snapshots/${filename}.json`, JSON.stringify(data, null, 2));
@@ -673,10 +673,10 @@
                     zip.file(`my-creations/${filename}.json`, JSON.stringify(def, null, 2));
 
                     const stats = await store_getCreationStats(id);
-                    zip.file(`my-creations/stats/${id}.json`, JSON.stringify(stats));
+                    zip.file(`my-creations_stats/${id}.json`, JSON.stringify(stats));
 
                     const painterData = await store_getCreationPainterData(id);
-                    zip.file(`my-creations/painterdata/${id}.json`, JSON.stringify(painterData));
+                    zip.file(`my-creations_painterdata/${id}.json`, JSON.stringify(painterData));
 
                     csvDataset.push([ id, date, def.base, def.name, stats.timesPd, stats.timesCd ]);
                 }
