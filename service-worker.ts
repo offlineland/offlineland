@@ -28,6 +28,7 @@ importScripts("/_code/service-worker/boilerplate/ws.js");
 importScripts("/_code/service-worker/localCreations.js");
 importScripts("/_code/service-worker/localMinimap.js");
 importScripts("/_code/service-worker/PlayerDataManager.js");
+importScripts("/_code/service-worker/Storage.js");
 } catch(e) {
     console.log("error while trying to import a module. Are you sure the paths are correct?", e)
 }
@@ -1083,6 +1084,7 @@ class FakeAPI {
     constructor(
         areaManagerMgr: AreaManagerManager,
         areaPossessionsMgr: AreaPossessionsManager,
+        db: LocalMLDatabase,
     ) {
         const router = this.router = makeRouter(matchPath)
 
@@ -1438,13 +1440,21 @@ class FakeAPI {
         });
 
         // Motions
-        // TODO
-        router.get("/j/i/mo/:creationId", ({ params, json }) => json({ ids: [], midpoint: 0 }) );
+        router.get("/j/i/mo/:creationId", async ({ params, json }) => {
+            const { creationId } = params;
+            const inDb = await db.creation_getMotionData(creationId)
+
+            if (inDb) { return json(inDb); }
+            else { return json({ ids: [], midpoint: 0 }); }
+        });
 
         // Statistics
         router.get("/j/i/st/:creationId", async ({ params, json }) => {
-            // TODO?
-            return json({ timesCd: 19, timesPd: 19 });
+            const { creationId } = params;
+            const inDb = await db.creation_getStats(creationId)
+
+            if (inDb) { return json(inDb); }
+            else { return json({ timesCd: 19, timesPd: 19 }); }
         });
 
         // Report Missing Item
@@ -1477,7 +1487,60 @@ class FakeAPI {
             const { id } = await readRequestBody(request)
             return json({ unlisted: false });
         });
+
+        // Painter data
+        router.get("/j/i/datp/", async ({ params, json }) => {
+            const { creationId } = params;
+            const inDb = await db.creation_getPainterData(creationId)
+
+            if (inDb) { return json(inDb); }
+            else { return Response.error(); }
+        });
         // #endregion Items
+
+        // #region holders
+        // Get Content
+        router.get("/j/h/gc/:creationId", async ({ params, json }) => {
+            const { creationId } = params;
+            const inDb = await db.creation_getHolderContent(creationId)
+
+            if (inDb) { return json(inDb); }
+            else { return Response.error(); }
+        });
+
+        // Set Content
+        // calls to this endpoint are batched per-page, and the entire page is sent at once for both add and delete
+        router.get("/j/h/sc/", async ({ request, player, json }) => {
+            const schema = z.object({
+                holderId: z.string(),
+                pageNo: z.coerce.number(),
+                contents: z.object({
+                    itemId: z.string(),
+                    x: z.coerce.number(),
+                    y: z.coerce.number(),
+                    z: z.coerce.number(),
+                    pageNo: z.coerce.number(),
+                }).array()
+            }).required();
+
+            const data = schema.parse(await readRequestBody(request))
+
+            const content = await db.creation_getHolderContent(data.holderId);
+
+            // TODO
+            return Response.error();
+        });
+        // #endregion holders
+
+        // #region multis
+        router.get("/j/t/gt/:creationId", async ({ params, json }) => {
+            const { creationId } = params;
+            const inDb = await db.creation_getMultiData(creationId)
+
+            if (inDb) { return json(inDb); }
+            else { return Response.error(); }
+        });
+        // #endregion holders
 
 
 
@@ -1727,7 +1790,8 @@ console.log("Hi from service worker global context")
 
 const areaPossessionsMgr = new AreaPossessionsManager();
 const areaManagerMgr = new AreaManagerManager(areaPossessionsMgr);
-const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr);
+const db = new LocalMLDatabase();
+const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr, db);
 
 /***
  *     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
@@ -1838,51 +1902,7 @@ const handleFetchEvent = async (event) => {
 
 //#endregion main_routing
 
-class LocalMLDatabase {
-    async player_setTopCreations(playerId, topCreations) {
-        await idbKeyval.set(`playertopcreations-p${playerId}`, topCreations);
-    }
-    async player_getTopCreations(playerId) {
-        return await idbKeyval.get(`playertopcreations-p${playerId}`);
-    }
 
-    async creation_setMotionData(bodyId, data) {
-        await idbKeyval.set(`creationdata-bodymotions-c${bodyId}`, data);
-    }
-    async creation_getMotionData(bodyId) {
-        await idbKeyval.get(`creationdata-bodymotions-c${bodyId}`);
-    }
-
-    async creation_setHolderContent(holderId, data) {
-        await idbKeyval.set(`creationdata-holdercontent-c${holderId}`, data);
-    }
-    async creation_getHolderContent(holderId) {
-        await idbKeyval.get(`creationdata-holdercontent-c${holderId}`);
-    }
-
-    async creation_setMultiData(multiId, data) {
-        await idbKeyval.set(`creationdata-multidata-c${multiId}`, data);
-    }
-    async creation_getMultiData(multiId) {
-        await idbKeyval.get(`creationdata-multidata-c${multiId}`);
-    }
-
-    async creation_setPainterData(creationId, data) {
-        await idbKeyval.set(`creationdata-painterdata-c${creationId}`, data);
-    }
-    async creation_getPainterData(creationId) {
-        await idbKeyval.get(`creationdata-painterdata-c${creationId}`);
-    }
-
-    async creation_setStats(creationId, data) {
-        await idbKeyval.set(`creationdata-stats-c${creationId}`, data);
-    }
-    async creation_getStats(creationId) {
-        await idbKeyval.get(`creationdata-stats-c${creationId}`);
-    }
-}
-
-const db = new LocalMLDatabase();
 
 
 const importPlayerData = async (zip: Zip) => {
