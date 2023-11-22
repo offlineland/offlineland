@@ -1,5 +1,7 @@
 node_modules/
 .DS_Store
 
+service-worker.js
 _code/service-worker/**/*.js
+_code/output.css
 

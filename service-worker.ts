@@ -77,16 +77,19 @@ const bundledAreasFile = {
     //},
     "chronology": {
         areaId: "56ed2214c94d7b0e132538b9",
+        areaRealName: "Chronology",
         tags: [],
         subareas: {},
     },
     "oosforest": {
         areaId: "5963e0d370c6b17b13c75b26",
+        areaRealName: "Oo's forest",
         tags: [ "exploration" ],
         subareas: {},
     },
     "oosjungle": {
         areaId: "5bc003b5051ec03628866ecb",
+        areaRealName: "Oo's jungle",
         tags: [ "exploration" ],
         subareas: {
             "jungle spawn": "5bc0067d64c04420c4d9a308",
@@ -94,11 +97,13 @@ const bundledAreasFile = {
     },
     "hell": {
         areaId: "5b76e3f46c3ef97b26871968",
+        areaRealName: "Hell",
         tags: [ "exploration" ],
         subareas: { }
     },
     "blancnoir": {
         areaId: "540f4a6fbcd7bbcf2e509c8d",
+        areaRealName: "Blancnoir",
         tags: [ "puzzle" ],
         subareas: {
             "level one": "544c7e89f06c47f141f4bc96",
@@ -106,6 +111,7 @@ const bundledAreasFile = {
     },
     "gemcastle": {
         areaId: "541b035c44aff03338610fca",
+        areaRealName: "Gemcastle",
         tags: [ "parkour" ],
         subareas: {},
     },
@@ -119,6 +125,7 @@ const bundledAreasFile = {
     //},
     "newpolis": {
         areaId: "53f21e4edbfc885003e92bb5",
+        areaRealName: "Newpolis",
         tags: [ "puzzle", "adventure" ],
         subareas: {
             "muscles r us": "53f33c974b7f11943a9eb332",
@@ -134,6 +141,7 @@ const bundledAreasFile = {
     },
     "sandcastle": {
         areaId: "5522c6f01c963d1308f12e0a",
+        areaRealName: "Sandcastle",
         tags: [ "exploration" ],
         subareas: {
             "the castle": "5523f96cab0f5a3e0c353aab",
@@ -141,6 +149,7 @@ const bundledAreasFile = {
     },
     "theweyard": {
         areaId: "5453e94cc3a79273732709ca",
+        areaRealName: "Theweyard",
         tags: [ "exploration" ],
         subareas: {
             "theweyardcellar": "5462171a1683e7e04e56fdc0",
@@ -152,6 +161,7 @@ const bundledAreasFile = {
     },
     "electronics": {
         areaId: "5472c985b92c0f3971866bc6",
+        areaRealName: "Electronics",
         tags: [ "exploration" ],
         subareas: {
             "boiler": "547c78dad3b95df927bf2364",
@@ -159,6 +169,7 @@ const bundledAreasFile = {
     },
     "kingbrownssanctum": {
         areaId: "53ebd011d31b8354235a2d8f",
+        areaRealName: "King Brown's Sanctum",
         tags: [ "exploration" ],
         subareas: {
             "the allfather": "55f337baf6fda73e1218bc62",
@@ -198,18 +209,24 @@ const getAreaIdForAreaName = (areaUrlName) => {
 
 
 const getAvailableAreas = async () => {
-    const areasStoredLocally = [];
+    const data = [
+        // TODO local areas
+        { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
+    ];
     const availableAreas = await getAreaList()
 
     const areasv2cache = await caches.open(CACHE_AREAS_V2);
     for (const areaUrlName of availableAreas) {
         const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))
-        if (cachematch) {
-            areasStoredLocally.push(areaUrlName)
-        }
+
+        data.push({
+            areaUrlName: areaUrlName,
+            areaRealName: bundledAreasFile[areaUrlName].areaRealName || areaUrlName,
+            status: cachematch ? "DOWNLOADED" : "AVAILABLE"
+        })
     }
 
-    return { areasStoredLocally, availableAreas }
+    return data;
 }
 
 const isAreaInCache = async (areaId) => {

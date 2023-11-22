@@ -1,7 +1,7 @@
 ## Dev setup:
 - Run a webserver that serves this folder (eg., `python -m http.server`)
 - `bun install`
-- `bun run tsc:w`
+- `bun run tsc:w` and `bun run tailwind:w` in two terminals
 - The game needs to run in a "Safe origin", make sure that either:
     - your devserver does https (Caddy!),
     - you use `127.0.0.1` or `localhost`,

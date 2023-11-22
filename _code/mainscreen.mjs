@@ -2,97 +2,135 @@ import { registerServiceWorker } from "./register-service-worker.js"
 import * as FilePond from "./libs/filepond.esm.min.js"
 import Toastify from "./libs/toastify-es.js"
 const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
-const { el, text, mount, setChildren, setAttr, } = /**@type { import('redom' )} */ (globalThis.redom);
+const { el, text, mount, setChildren, setAttr, list } = /**@type { import('redom' )} */ (globalThis.redom);
 
 
 const swRegP = registerServiceWorker()
-const areaListEl = el("ul", [
-    el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
-    el("li", "loading..."),
-])
-
-let availableAreas = [];
-let areasStoredLocally = [];
+let areaData = [
+    { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
+];
 
 
 const dlAreaResSchema = z.object({ ok: z.boolean() })
-const triggerAreaDownload = async (areaUrlName) => {
-    // TODO: trigger fancy animations here
 
-    const res = await fetch(`/_mlspinternal_/dlArea?area=${areaUrlName}`)
-    const json = await res.json()
-    const { ok } = dlAreaResSchema.parse(json)
+class AreaCard {
+    constructor() {
+        this.el = el("div.w-56.m-1.my-3.rounded.overflow-hidden.shadow-lg", [
+            this.cardThumb = el("img.w-full.rounded", { src: "/static/data/area-thumbnails/kingbrownssanctum.png", alt: "Image Description" }),
+            el("div.p-2.text-center.break-words", [
+                el("div.font-bold.text-xl.mb-2.h-12", this.cardTitle = text())
 
-    if (ok) {
-        areasStoredLocally.push(areaUrlName)
-        updateAreaList()
-    }
-    else {
-        // TODO: fancy UI
-        console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?")
-    }
-}
-
-const areaEl = (areaUrlName, isAvailableLocally) => {
-    if (isAvailableLocally) {
-        return el("li", [
-            el("a", { href: "/" + areaUrlName}, areaUrlName),
+            ]),
+            this.btnSpot = el("div.flex.justify-center.pb-4")
         ])
     }
-    else {
-        return el("li", [
-            el("span", areaUrlName),
-            el("button", "download area", { onclick: () => triggerAreaDownload(areaUrlName) })
-        ])
+
+    async triggerAreaDownload() {
+        const res = await fetch(`/_mlspinternal_/dlArea?area=${this.areaUrlName}`)
+        const json = await res.json()
+        const { ok } = dlAreaResSchema.parse(json)
+
+        if (ok) {
+            setAreaStatus(this.areaUrlName, "DOWNLOADED")
+        }
+        else {
+            // TODO: fancy UI
+            console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?")
+            setAreaStatus(this.areaUrlName, "DOWNLOAD_ERROR")
+        }
+
+    }
+
+    onBtnClick() {
+        this.triggerAreaDownload() 
+        setAreaStatus(this.areaUrlName, "DOWNLOADING")
+    }
+    
+    update({ areaUrlName, areaRealName, status }) {
+        console.log("update", areaUrlName, areaRealName)
+        this.areaUrlName = areaUrlName
+        this.areaRealName = areaRealName
+        this.status = status
+
+
+        if (status === "DOWNLOADED") {
+            const btn = el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { href: "/" + areaUrlName }, "Play")
+            setChildren(this.btnSpot, [ btn ])
+        }
+        else if (status === "DOWNLOADING") {
+            const btn = el(
+                "button.w-36.h-10.bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center.justify-items-center",
+                { disabled: true },
+                [
+                    "Downloading",
+                    el("div.flex.justify-center.items-center.p-2", [
+                        el("div.animate-spin.rounded-full.h-4.w-4.border-b-2.border-white")
+                    ])
+
+                ],
+            )
+
+            setChildren(this.btnSpot, [ btn ])
+        }
+        else if (status === "DOWNLOAD_ERROR") {
+            const btn = el(
+                "button.w-36.h-10.bg-red-500.hover:bg-red-700.active:bg-red-600.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center",
+                { onclick: () => this.onBtnClick() },
+                "Retry",
+            )
+            setChildren(this.btnSpot, [ btn ])
+        }
+        else {
+            const btn = el(
+                "button.w-36.h-10.bg-blue-500.hover:bg-blue-700.active:bg-blue-600.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center",
+                { onclick: () => this.onBtnClick() },
+                "Download",
+            )
+            setChildren(this.btnSpot, [ btn ])
+        }
+
+        this.cardTitle.textContent = this.areaRealName
+        //setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/${aun}.png` })
+        setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/kingbrownssanctum.png` })
     }
 }
 
-const updateAreaList = () => {
-    setChildren(areaListEl, [
-        el("li", [ el("a", { href: "/offlineland"}, "offlineland") ]),
-        availableAreas.map((areaUrlName) => (
-            el("li", [ areaEl(areaUrlName, areasStoredLocally.includes(areaUrlName) ) ])
-        ))
-    ])
+const areaListEl = list("div.flex.flex-row.flex-wrap.justify-around.justify-items-center", AreaCard)
+areaListEl.update(areaData)
+const setAreaStatus = (areaUrlName, status) => {
+    areaData = areaData.map(a => a.areaUrlName === areaUrlName ? { ...a, status: status } : a)
+    areaListEl.update(areaData)
 }
 
-const importData = () => {
-    const fileInput = document.getElementById('fileInput');
-    const file = fileInput.files[0];
 
-    if (!file) {
-        alert('Please select a file to upload');
-        return;
-    }
 
-    if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ m: "DATA_IMPORT", data: { file } });
-    } else {
-        alert('Service worker controller not available');
-    }
-}
+
 
 const versionText = text("loading...")
 const importInput = el("input#fileInput", { type: "file", accept: ".zip" } );
 
 
+
 const main = el("main", [
-    el("div", [
-        el("h1", "Offlineland"),
-        el("p", "An interactive monument to Manyland."),
-        el("p", ["SW version: ", versionText, " | page version: ", 1]),
+    el("div.text-center.p-3.pb-6", [
+        el("h1.text-4xl.font-bold.p-3", "Offlineland"),
+        el("p.text-lg", [ "An interactive monument to ", el("a", { href: "https://manyland.com" }, "Manyland") ]),
+    ]),
+
+    el("div.grid.grid-cols-5", [
+        el("div.col-span-4", [
+            el("h2.text-2xl.text-center", "Available areas"),
+            areaListEl,
+        ]),
+
+        el("div.p-4", [
+            el("h2.text-2xl.text-center", "Data import"),
+            el("p", "You can import areas from areabackup.com or the exporter here. Everything stays on your device."),
+            el("div.p-4", [ importInput ])
+        ]),
     ]),
     el("div", [
-        el("h2", "Available areas"),
-        areaListEl,
-    ]),
-    el("div", [
-        el("h2", "Data import"),
-        el("p", "You can import areas from areabackup.com or the exporter here. Everything stays on your device."),
-        importInput,
-    ]),
-    el("div", [
-        el("h2", "Data viewer"),
+        el("h2.text-2xl", "Data viewer"),
         el("p", "Once you've imported your data from the exporter, you can view it's content here."),
         el("div", [
             el("h3", "Snaps"),
@@ -113,6 +151,8 @@ const main = el("main", [
             ]),
         ]),
     ]),
+    el("div.text-xs.opacity-50", [ el("p", ["SW version: ", versionText, " | page version: ", 1]), ]),
+
 ])
 
 
@@ -181,7 +221,6 @@ await swRegP;
 await new Promise(r => setTimeout(r, 50))
 fetch("/_mlspinternal_/getversion").then(r => r.json()).then(v => versionText.textContent = v);
 fetch("/_mlspinternal_/getdata").then(r => r.json()).then(data => {
-    availableAreas = data.availableAreas;
-    areasStoredLocally = data.areasStoredLocally;
-    updateAreaList(data);
+    areaData = data;
+    areaListEl.update(areaData)
 })
