@@ -1,5 +1,13 @@
 
 (async () => {
+	if(window.location.protocol === "http:"){
+		if(confirm("Redirecting to secure context...")){
+			window.location.href = `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`;
+		}else{
+			return;
+		}
+	}
+	
     // #region boilerplate
     eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js", { cache: "force-cache" })).text());
