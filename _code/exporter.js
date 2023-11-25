@@ -22,13 +22,14 @@
     const z = Zod;
     const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)").pop();
-    const ourId = (await (await fetch(`https://manyland.com/j/i/`, {
+    const initData = (await (await fetch(`https://manyland.com/j/i/`, {
             method: "POST",
             credentials: "include",
             mode: "cors",
             headers: { "X-CSRF": csrfToken, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" },
             body: `urlName=stockpile&buster=${Date.now()}`
-        })).json()).rid;
+        })).json());
+    const ourId = initData.rid;
 
     // TODO migrate everything to these helpers
     const api_getJSON = async (url) => await (await fetch(url, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
@@ -603,12 +604,14 @@
         // #region zip_profile
         {
             zip.file(`profile_own-id.json`, JSON.stringify(ourId, null, 2));
+            zip.file(`profile_settings.json`, JSON.stringify(initData.stn, null, 2));
 
             const profile = await store_getProfileData();
             zip.file(`profile.json`, JSON.stringify(profile, null, 2));
 
             const topCreations = await store_getProfileTopCreations();
             zip.file(`profile_top-creations.json`, JSON.stringify(topCreations, null, 2));
+
         }
         // #endregion zip_profile
 
