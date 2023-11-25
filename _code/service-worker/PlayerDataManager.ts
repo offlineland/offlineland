@@ -47,6 +47,7 @@ const DEFAULT_PLAYER_DATA: PlayerExtraData = {
 
 class PlayerDataManager {
     idbKeyval: idbKeyval;
+    db: LocalMLDatabase;
     rid: string;
     name: string;
     age: number;
@@ -63,8 +64,9 @@ class PlayerDataManager {
     profileBackId: any;
     profileDynaId: any;
 
-    constructor( idbKeyval: idbKeyval, rid: string, profile: ProfileData, data: PlayerExtraData) {
+    constructor( idbKeyval: idbKeyval, db: LocalMLDatabase, rid: string, profile: ProfileData, data: PlayerExtraData) {
         this.idbKeyval = idbKeyval;
+        this.db = db;
 
         const { isFullAccount, isBacker, screenName, rank, stat_ItemsPlaced, unfindable, hasMinfinity, ageDays } = profile;
         const { leftMinfinityAmount, boostsLeft } = data;
@@ -98,13 +100,13 @@ class PlayerDataManager {
             }
         })
     }
-    static async make(idbKeyval: idbKeyval) {
+    static async make(idbKeyval: idbKeyval, db: LocalMLDatabase) {
         const playerId = (await idbKeyval.get(`our-player-id`)) || "000000000000000000000000";
 
         const playerProfile: ProfileData  = await idbKeyval.get(`playerData-p${playerId}`) || DEFAULT_PROFILE;
         const playerData: PlayerExtraData = DEFAULT_PLAYER_DATA; // TODO: load these from settings somehow?
 
-        return new PlayerDataManager(idbKeyval, playerId, playerProfile, playerData)
+        return new PlayerDataManager(idbKeyval, db, playerId, playerProfile, playerData)
     }
 
     static async import_setProfile(idbKeyval: idbKeyval, rid: string, playerData: ProfileData) {
@@ -112,7 +114,7 @@ class PlayerDataManager {
         await idbKeyval.set(`playerData-p${rid}`, playerData);
     }
 
-    getInitData_http() {
+    async getInitData_http() {
         return {
             "rid": this.rid,
             "age": this.age,
@@ -121,6 +123,7 @@ class PlayerDataManager {
             "isb": this.isBacker,
             "bbl": this.boostsLeft,
             "hmf": this.hasMinfinity,
+            "stn": await this.db.player_getSettings(this.rid),
         }
     }
 
@@ -165,7 +168,8 @@ class PlayerDataManager {
             "wof":{
                 "w":{"x":0,"y":0},"h":{"x":0,"y":0},"wp":{"x":0,"y":0}
             },
-            "shs":{}
+            "shs":{},
+            "vce": await this.db.player_getVoice(this.rid),
         }
     }
 

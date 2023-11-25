@@ -11,6 +11,29 @@ class LocalMLDatabase {
         return await idbKeyval.get(`playertopcreations-p${playerId}`);
     }
 
+    async player_getSettings(playerId) {
+        return (await idbKeyval.get(`playersettings-p${playerId}`)) || {};
+    }
+    async player_setSetting(playerId, settingName, settingValue) {
+        await idbKeyval.update(`playersettings-p${playerId}`, (v) => {
+            const settings = v || {};
+
+            settings[settingName] = settingValue;
+
+            return settings;
+        })
+    }
+    async player_setSettings(playerId, settings) {
+        await idbKeyval.set(`playersettings-p${playerId}`, settings)
+    }
+    async player_getVoice(playerId) {
+        return (await idbKeyval.get(`playervoice-p${playerId}`)) || null;
+    }
+    async player_setVoice(playerId, voiceName) {
+        await idbKeyval.set(`playervoice-p${playerId}`, voiceName);
+    }
+
+
     async creation_setMotionData(bodyId, data) {
         await idbKeyval.set(`creationdata-bodymotions-c${bodyId}`, data);
     }

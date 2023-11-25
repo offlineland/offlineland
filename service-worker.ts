@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 2;
+const SW_VERSION = 3;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -437,8 +437,8 @@ class LocalAreaManager {
         return new LocalAreaManager(wssUrl, areaId)
     }
 
-    async getInitData(player, urlName) {
-        const playerData = player.getInitData_http();
+    async getInitData(player: PlayerDataManager, urlName) {
+        const playerData = await player.getInitData_http();
         const defaultData = {
             "wsh": this.wssUrl,
             "wsp": 80,
@@ -651,7 +651,7 @@ class ArchivedAreaManager {
     }
 
     async getInitData(player: PlayerDataManager) {
-        const playerData = player.getInitData_http();
+        const playerData = await player.getInitData_http();
 
         const defaultData = {
             "wsh": this.wssUrl,
@@ -1303,10 +1303,51 @@ class FakeAPI {
           
           return json(randomAvatars);
         })
+
         // TopCreatedR
         router.get("/j/i/tcr/:playerId", async ({ params, json }) => {
             return json([]);
         });
+
+        // SetUserSetting this is a amogus refernece
+        router.post("/j/u/sus/", async ({ json, request, player }) => {
+            const settingNamesEnum = z.enum([
+                "doPlaySound",
+                "showMainUI",
+                "fullscreen",
+                "alwaysOnTop",
+                "travelHolderId",
+                "shortcutWritableId",
+                "shortcutWearableId",
+                "panelColor",
+                "collectedTabItemId",
+                "createdTabItemId",
+                "searchTabItemId",
+                "hideInFriendsList",
+                "onlyFriendsCanPingUs",
+                "blockImagePastes",
+                "blockVideoPastes",
+                "keyboardCountry",
+                "disallowSandboxItemsByOthers",
+                "hidePainterBack",
+                "usePanelColorForOtherDialogs",
+                "showBlockedPeopleSpeech",
+                "photosensitiveGuard",
+                "guardToTeleports",
+                "glueWearable",
+                "glueHoldable",
+                "glueMountable",
+                "wearablePlusFollows",
+            ]);
+            const schema = z.object({ name: settingNamesEnum, value: z.string(), }).required();
+            const data = schema.parse(await readRequestBody(request));
+
+
+            await db.player_setSetting(player.rid, data.name, data.value)
+
+            return json({ ok: true });
+        })
+
         // #endregion User
 
 
@@ -1773,6 +1814,22 @@ class FakeAPI {
         });
         // #endregion Minimap
 
+        // #region boosts
+        // Get Association
+        router.post("/j/bo/ga/", async ({ json }) => {
+            // TODO
+            return json({ associations: {} })
+        });
+        // Set Association
+        router.post("/j/bo/sa/", async ({ request, json }) => {
+            const schema = z.object({ name: z.string(), id: z.string(), }).required();
+            const data = schema.parse(await readRequestBody(request));
+            // TODO
+
+            return json({ ok: true })
+        });
+        // #endregion boosts
+
 
         // Catch-all
         router.get("/j/:splat+", ({ event }) => {
@@ -1855,7 +1912,7 @@ const handleFetchEvent = async (event) => {
 
             if (url.pathname.startsWith("/j/")) {
                 // TODO: do we want to handle different player ids for different clients? Let's just keep things simple for now
-                const player = await PlayerDataManager.make(idbKeyval);
+                const player = await PlayerDataManager.make(idbKeyval, db);
 
                 return await fakeAPI.handle(event.request.method, url.pathname, event, player)
             }
@@ -1940,9 +1997,12 @@ const importPlayerData = async (zip: Zip) => {
     console.log("saving profile", profile)
     await PlayerDataManager.import_setProfile(idbKeyval, ourId, profile)
 
-    const player = await PlayerDataManager.make(idbKeyval);
+    const player = await PlayerDataManager.make(idbKeyval, db);
     promises.push(
         readJson("profile_top-creations.json").then(data => db.player_setTopCreations(player.rid, data))
+    );
+    promises.push(
+        readJson("profile_settings.json").then(data => db.player_setSettings(player.rid, data))
     );
 
 
@@ -2104,7 +2164,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
         if (message.m === "WSMSG") {
             const { areaId } = message.data;
             const amgr = await areaManagerMgr.getByAreaId(areaId)
-            const player = await PlayerDataManager.make(idbKeyval);
+            const player = await PlayerDataManager.make(idbKeyval, db);
 
             amgr.onWsMessage(player, client, message.data.msg)
         }
@@ -2113,7 +2173,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
 
             const wsUrl = new URL(message.data.wsUrl);
             const amgr = await areaManagerMgr.getByWSSUrl(wsUrl.host)
-            const player = await PlayerDataManager.make(idbKeyval);
+            const player = await PlayerDataManager.make(idbKeyval, db);
 
             amgr.onWsConnection(player, client)
         }
