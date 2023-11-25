@@ -32,6 +32,19 @@ class LocalMLDatabase {
     async player_setVoice(playerId, voiceName) {
         await idbKeyval.set(`playervoice-p${playerId}`, voiceName);
     }
+    async player_getBoostAssociations(playerId) {
+        return (await idbKeyval.get(`playerboostassociations-p${playerId}`)) || {};
+    }
+    async player_setBoostAssociation(playerId, boostName, value) {
+        await idbKeyval.update(`playerboostassociations-p${playerId}`, (v) => {
+            const data = v || {};
+            data[boostName] = value;
+            return data;
+        })
+    }
+    async player_setBoostAssociations(playerId, associations) {
+        await idbKeyval.set(`playerboostassociations-p${playerId}`, associations);
+    }
 
 
     async creation_setMotionData(bodyId, data) {

@@ -1816,15 +1816,15 @@ class FakeAPI {
 
         // #region boosts
         // Get Association
-        router.post("/j/bo/ga/", async ({ json }) => {
-            // TODO
-            return json({ associations: {} })
+        router.post("/j/bo/ga/", async ({ json, player }) => {
+            return json({ associations: await db.player_getBoostAssociations(player.rid) })
         });
         // Set Association
-        router.post("/j/bo/sa/", async ({ request, json }) => {
+        router.post("/j/bo/sa/", async ({ json, player, request }) => {
             const schema = z.object({ name: z.string(), id: z.string(), }).required();
             const data = schema.parse(await readRequestBody(request));
-            // TODO
+
+            await db.player_setBoostAssociation(player.rid, data.name, data.id);
 
             return json({ ok: true })
         });
@@ -2003,6 +2003,9 @@ const importPlayerData = async (zip: Zip) => {
     );
     promises.push(
         readJson("profile_settings.json").then(data => db.player_setSettings(player.rid, data))
+    );
+    promises.push(
+        readJson("profile_boost-assocs.json").then(data => db.player_setBoostAssociations(player.rid, data))
     );
 
 

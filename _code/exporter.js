@@ -196,6 +196,7 @@
     const [store_setProfileTopCreations, store_getProfileTopCreations ] = db_makeSetGetWithStaticKey('misc-data', 'profile-top-creations');
     const api_getPlayerProfile = async (id) => await api_postJSON(`https://manyland.com/j/u/pi/`, `id=${id}&planeId=1&areaId=3`)
     const api_getPlayerTopCreations = async (id) => await api_getJSON(`https://manyland.com/j/i/tcr/${id}/`)
+    const api_getPlayerBoostAssociations = async () => await api_postJSON(`https://manyland.com/j/bo/ga/`, "")
 
     const scanProfile = async () => {
         const profile = await api_getPlayerProfile(ourId);
@@ -215,6 +216,12 @@
             await saveCreation(creationId)
         }
         await store_setProfileTopCreations(topCreations);
+
+        const boostAssociations = await api_getPlayerBoostAssociations();
+        const itemsInBoosts = Object.values(boostAssociations.associations).filter(v => typeof v === "string" && v.length == 24);
+        for (const creationId of itemsInBoosts) {
+            await saveCreation(creationId)
+        }
     }
     // #endregion profile
 
@@ -612,6 +619,8 @@
             const topCreations = await store_getProfileTopCreations();
             zip.file(`profile_top-creations.json`, JSON.stringify(topCreations, null, 2));
 
+            const boostAssociations = await api_getPlayerBoostAssociations();
+            zip.file(`profile_boost-assocs.json`, JSON.stringify(boostAssociations.associations, null, 2));
         }
         // #endregion zip_profile
 
