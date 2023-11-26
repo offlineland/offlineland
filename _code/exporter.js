@@ -1,4 +1,3 @@
-
 (async () => {
 	if(window.location.protocol === "http:"){
 		if(confirm("Redirecting to secure context...")){

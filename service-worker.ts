@@ -1897,6 +1897,10 @@ const handleFetchEvent = async (event) => {
                 console.log("asked for mainscreen, sending", await res.clone().text())
                 return res;
             }
+            if (url.pathname === "/exporter" || url.pathname === "/exporter.html") {
+                const res = await fetch("/exporter.html?cachebust=" + Date.now());
+                return res;
+            }
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/")) return cache.getOrSetFromCache(CACHE_NAME, event.request);
