@@ -13,7 +13,7 @@ const dlAreaResSchema = z.object({ ok: z.boolean() })
 class AreaCard {
     constructor() {
         this.el = el("div.w-56.m-1.my-3.rounded.overflow-hidden.shadow-lg", [
-            this.cardThumb = el("img.w-full.rounded", { src: "/static/data/area-thumbnails/kingbrownssanctum.png", alt: "Image Description" }),
+            this.cardThumb = el("img.w-full.rounded", { src: "/static/data/area-thumbnails/3.png", alt: "Image Description" }),
             el("div.p-2.text-center.break-words", [
                 el("div.font-bold.text-xl.mb-2.h-12", this.cardTitle = text())
 
@@ -49,9 +49,12 @@ class AreaCard {
         this.areaRealName = areaRealName
         this.status = status
 
+        this.cardThumb.src = `/static/data/area-thumbnails/3.png`;
 
         if (status === "DOWNLOADED") {
             const btn = el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { href: "/" + areaUrlName }, "Play")
+            this.cardThumb.src = "";
+            this.cardThumb.src = `/static/data/area-thumbnails/${this.areaUrlName}.png`;
             setChildren(this.btnSpot, [ btn ])
         }
         else if (status === "DOWNLOADING") {
@@ -84,10 +87,10 @@ class AreaCard {
                 "Download",
             )
             setChildren(this.btnSpot, [ btn ])
+            this.cardThumb.src = `/static/data/area-thumbnails/${this.areaUrlName}.png`;
         }
 
         this.cardTitle.textContent = this.areaRealName
-        setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/${this.areaUrlName}.png` })
     }
 }
 
