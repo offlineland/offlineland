@@ -45,7 +45,7 @@ const importAreaData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType<t
         }
     })
 
-    zip.folder("creations-data/holders/").forEach((path, file) => {
+    zip.folder("holders/").forEach((path, file) => {
         const id = path.slice(0, path.lastIndexOf("."))
         if (id.length !== 24) {
             console.warn("got a file that does not seem to be a creationId!", path, file)
@@ -54,7 +54,7 @@ const importAreaData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType<t
 
         loadingPromises.push( readJsonf(file).then(data => db.creation_setHolderContent(id, data)) );
     })
-    zip.folder("creations-data/multis/").forEach((path, file) => {
+    zip.folder("multis/").forEach((path, file) => {
         const id = path.slice(0, path.lastIndexOf("."))
         if (id.length !== 24) {
             console.warn("got a file that does not seem to be a creationId!", path, file)
