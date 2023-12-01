@@ -84,6 +84,7 @@ interface OfflinelandIDBSchema extends DBSchema {
     "creation-stats": { key: string; value: CreationStats };
     "creation-painter-data": { key: string; value: PainterData };
     "minimap-colors": { key: string; value: string; };
+    "minimap-area-tile-ids": { key: string; value: string; };
 }
 
 type OfflinelandDB = Awaited<ReturnType<typeof idb.openDB<OfflinelandIDBSchema>>>;
@@ -97,7 +98,7 @@ class LocalMLDatabase {
 
     static async make() {
         console.log("making db")
-        const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 4, {
+        const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 5, {
             upgrade(db, oldVersion, newVersion) {
                 console.log("upgrading db from", oldVersion, "to", newVersion)
 
@@ -118,10 +119,7 @@ class LocalMLDatabase {
                 }
                 if (oldVersion < 4) { // 3
                     console.log("running migration 3")
-                    // Nothing here
-                }
-                if (oldVersion < 5) { // 3
-                    console.log("running migration 4")
+
                     const multisStore = db.createObjectStore("multis");
                     multisStore.createIndex("by-_id", "data._id");
                     multisStore.createIndex("by-multithingId", "data.multithingId");
@@ -132,6 +130,12 @@ class LocalMLDatabase {
                     db.createObjectStore("creation-painter-data");
                     db.createObjectStore("minimap-colors");
                 }
+                if (oldVersion < 5) {
+                    console.log("running migration 4");
+
+                    db.createObjectStore("minimap-area-tile-ids");
+                }
+
                 console.log("done!")
             }
         });
@@ -229,6 +233,17 @@ class LocalMLDatabase {
     }
     async creation_getMinimapColor(creationId: string) {
         return await this.db.get("minimap-colors", creationId);
+    }
+
+    async minimap_getTile(areaId: string, x: number, y: number) {
+        const key = `${areaId}_${x}_${y}`;
+
+        return await this.db.get("minimap-area-tile-ids", key);
+    }
+    async minimap_setTile(areaId: string, x: number, y: number, tileId: string) {
+        const key = `${areaId}_${x}_${y}`;
+
+        return await this.db.put("minimap-area-tile-ids", tileId, key);
     }
 
 

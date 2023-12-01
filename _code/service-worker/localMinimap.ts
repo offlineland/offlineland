@@ -35,8 +35,7 @@ const getMostUsedColor = (pixels: Uint8ClampedArray) => {
 
 }
 
-/** @param {[number, number, [ number, number, number, number]][]} xyc */
-const generateMinimapTile = async (xyc) => {
+const generateMinimapTile = async (xyc: [number, number, string][]) => {
     const size = 32;
     const canvas = new OffscreenCanvas(size, size);
     const ctx = canvas.getContext('2d');
@@ -64,7 +63,7 @@ const getMapPixelColorFor = async (creationId: string) => {
         console.error("getMapColorFor(): creation does not exist in cache!", creationId)
         // Note: this means that it will generate *and cache* the minimap tile with this red pixel!
         // This is probably alright, since the map is just there to get around
-        return [255, 0, 0, 1];
+        return `rgba(255, 0, 0, 1)`;
     }
 
     const blob = await creationRes.blob();

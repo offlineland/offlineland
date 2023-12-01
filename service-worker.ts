@@ -822,19 +822,22 @@ class ArchivedAreaManager {
 
     async getMinimapData_Tile(x: number, y: number) {
         console.log("getMinimapData_Tile", x, y, this.areaId)
-        const key = `area-minimaptile-${this.areaId}_${x}_${y}`;
-        const fromDb = await idbKeyval.get(key)
-        if (fromDb) return fromDb;
+
+        const placeNames = []; // TODO: find placenames!
+
+        const db = await dbPromise;
+        const fromDb = await db.minimap_getTile(this.areaId, x, y);
+        if (fromDb !== undefined) return { x, y, id: fromDb, pn: placeNames };
 
 
         console.log("getMinimapData_Tile", x, y, "getting sector")
         const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
 
         if (sectorFile === null) {
-            const data = { x: x, y: y, id: null, pn: [] }
-            await idbKeyval.set(key, data);
-            return data;
+            await db.minimap_setTile(this.areaId, x, y, null);
+            return { x, y, id: null, pn: placeNames };
         }
+
 
 
         console.log("getMinimapData_Tile", x, y, "opening cache")
@@ -855,36 +858,24 @@ class ArchivedAreaManager {
         await maptilesCache.put(url, new Response(minimapTileBlob, { headers: { 'Content-Type': 'image/png' } }))
 
 
-        // TODO: find place names!
-        const placeNames = [];
-        const data = { x: x, y: y, id: tileId, pn: placeNames }
         console.log("storing to db...")
-        await idbKeyval.set(key, data);
-        return data;
+        await db.minimap_setTile(this.areaId, x, y, tileId);
+
+        return { x: x, y: y, id: tileId, pn: placeNames };
     }
 
     async getMinimapData_Region(x1, y1, x2, y2) {
-        const coords = [];
-        const keys = [];
+        const db = await dbPromise;
+        const promises = [];
+
 
         for (let x = x1; x <= x2; x++) {
             for (let y = y1; y <= y2; y++) {
-                coords.push([x, y])
-                keys.push(`area-minimaptile-${this.areaId}_${x}_${y}`);
+                promises.push(this.getMinimapData_Tile(x, y));
             }
         }
 
-
-        const fromDb = await idbKeyval.getMany(keys)
-        const tiles = Promise.all(fromDb.map((tile, i) => {
-            if (tile) return tile;
-            else {
-                const [ x, y ] = coords[i];
-                return this.getMinimapData_Tile(x, y);
-            }
-        }))
-
-        return tiles;
+        return Promise.all(promises);
     }
 
     async onWsConnection(player: PlayerDataManager, client) {
