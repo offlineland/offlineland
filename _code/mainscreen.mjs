@@ -5,9 +5,6 @@ const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
 const { el, text, mount, setChildren, setAttr, list } = /**@type { import('redom' )} */ (globalThis.redom);
 
 
-const swRegP = registerServiceWorker()
-
-
 const dlAreaResSchema = z.object({ ok: z.boolean() })
 
 class AreaCard {
@@ -111,6 +108,20 @@ class AreaCard {
 
 
 
+class Modal {
+    constructor(titleEls, textEls) {
+        this.el = el("dialog.modal", [
+            el('div.modal-box', [
+                el('h3.font-bold.text-lg', titleEls),
+                textEls
+            ]),
+        ])
+    }
+
+    showModal() {
+        this.el.showModal();
+    }
+}
 
 class MainInterface {
     constructor() {
@@ -128,7 +139,24 @@ class MainInterface {
             setChildren(this.el, this.areaListEl);
             this.areaListEl.update(data.areas)
         }
-
+        else if (data.state === "ERROR") {
+            setChildren(this.el, [
+                el("div.alert.alert-error", {role: alert}, [
+                    el("svg.stroke-current.shrink-0.h-6.w-6", {
+                        xmlns: "http://www.w3.org/2000/svg",
+                        fill: "none",
+                        viewBox: "0 0 24 24"
+                    }
+                    , el("path", {
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                        strokeWidth: "2",
+                        d: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    })),
+                    el("span", "Oops, seems like something broke! Try reloading I guess"),
+                ])
+            ])
+        }
     }
 }
 
@@ -137,7 +165,18 @@ class MainInterface {
 
 
 
+const noServiceWorkerModal = new Modal("Error!", [
+    el('p.py-4', [
+        "It seems like your browser does not support Web Workers! Some reasons might be:",
+        el("ul.list-disc.px-4.py-2", [
+            el("li", "You are in incognito mode"),
+            el("li", "You are not on the https:// verion of this page"),
+            el("li", "You use a weird browser"),
+        ]),
+        "The safest bet is to try with another browser.",
 
+    ])
+]);
 const mainInterface = new MainInterface();
 mainInterface.update("LOADING");
 const versionText = text("loading...")
@@ -215,6 +254,8 @@ const main = el("main", [
             ]),
         ]),
     ]),
+
+    noServiceWorkerModal,
     el("footer.footer.footer-center.p-4.bg-neutral.text-neutral-content", [
         el("div.text-xs.opacity-80", [
             el("p", ["offlineland.io is not affiliated with manyland.com or it's developers."]),
@@ -262,36 +303,64 @@ class ImportMgr {
     }
 
 }
-const importMgr = new ImportMgr();
 
 
-document.addEventListener("DOMContentLoaded", () => mount(document.getElementById("app"), main));
-const pond = FilePond.create(importInput, {
-    allowMultiple: true,
-    allowRevert: false,
-    acceptedFileTypes: [ "application/zip" ],
-    labelFileProcessing: "Importing",
-    labelFileProcessingComplete: "Import complete",
-    labelFileProcessingError: "Error during import",
-    server: {
-        process: async (fieldName, file, metadata, load, error, progress, abort, transfer, options) => {
-            importMgr.addFile(file, { progress, load, error });
-        }
+document.addEventListener("DOMContentLoaded", async () => {
+    mount(document.getElementById("app"), main);
+
+    if ('serviceWorker' in navigator === false) {
+        noServiceWorkerModal.showModal()
+        mainInterface.update({ state: "ERROR", error: "Cannot use Service Workers in this context. Check the modal" })
+        return;
     }
-});
-pond.on("processfile", (err, file) => {
-    console.log("processfile", err, file);
-    setTimeout(() => pond.removeFile(file.id), 1500);
-})
 
 
+    try { await registerServiceWorker() }
+    catch(e) {
+        // Will this error if we're offline??
+        // TODO: split registering and updating. Failing to register is fatal, failing to update is fine
+        console.error("Service worker error!")
+        mainInterface.update({ state: "ERROR", error: "Unable to register or update the Service Worker." })
+        throw e;
+    }
+
+    const importMgr = new ImportMgr();
+
+    const pond = FilePond.create(importInput, {
+        allowMultiple: true,
+        allowRevert: false,
+        acceptedFileTypes: [ "application/zip" ],
+        labelFileProcessing: "Importing",
+        labelFileProcessingComplete: "Import complete",
+        labelFileProcessingError: "Error during import",
+        server: {
+            process: async (fieldName, file, metadata, load, error, progress, abort, transfer, options) => {
+                importMgr.addFile(file, { progress, load, error });
+            }
+        }
+    });
+    pond.on("processfile", (err, file) => {
+        console.log("processfile", err, file);
+        setTimeout(() => pond.removeFile(file.id), 1500);
+    })
+
+    await new Promise(r => setTimeout(r, 50)) // Sleep 50ms to let the new service worker settle
+    fetch("/_mlspinternal_/getversion").then(r => r.json())
+        .then(v => versionText.textContent = v)
+        .catch(e => {
+            console.error("Unable to get version. If SW broke, the other fetch will fail too");
+        })
+    ;
 
 
-await swRegP;
-await new Promise(r => setTimeout(r, 50))
-fetch("/_mlspinternal_/getversion").then(r => r.json()).then(v => versionText.textContent = v);
-fetch("/_mlspinternal_/getdata").then(r => r.json()).then(data => {
-    mainInterface.update({state: "AREALIST", areas: data})
+    fetch("/_mlspinternal_/getdata").then(r => r.json())
+        .then(data => mainInterface.update({state: "AREALIST", areas: data}) )
+        .catch(e => {
+            console.error(e);
+            mainInterface.update({ state: "ERROR", error: "Unable to load area list." })
+        })
+    ;
+
 })
 
 document.addEventListener("unhandledrejection", (event) => {
