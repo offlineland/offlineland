@@ -177,13 +177,12 @@ const getAreaRes = (areaId: string) => getOrSetFromCache( CACHE_AREAS_V2, new Re
 const getAreaZip = (areaId: string) => getAreaRes(areaId).then(res => res.blob()).then(blob => JSZip.loadAsync(blob))
 
 const addAreaThumb = (areaUrlName: string, thumbnail: Blob) => addToCache( CACHE_THUMBS, `/static/data/area-thumbnails/${areaUrlName}.png`, thumbnail)
-const getAreaThumbRes = async (areaUrlName: string) => {
+const getAreaThumbRes = async (req: Request) => {
     const cache = await self.caches.open(CACHE_THUMBS);
-    const req = new Request(`/static/data/area-thumbnails/${areaUrlName}.png`);
 
     const match = await cache.match(req);
     if (match) return match;
-    else return await cache.match(`/static/data/area-thumbnail/kingbrownssanctum.png`); // TODO find a proper default thumbnail
+    else return await fetch(`/static/data/area-thumbnails/kingbrownssanctum.png`); // TODO find a proper default thumbnail
 }
 
 return {

@@ -1839,7 +1839,7 @@ const makeFakeAPI = async (
             const schema = z.object({ name: z.string(), id: z.string(), }).required();
             const data = schema.parse(await readRequestBody(request));
 
-            await db.player_setBoostAssociation(player.rid, data.name, data.id) 
+            await db.player_setBoostAssociation(player.rid, data.name, data.id);
 
             return json({ ok: true })
         });
@@ -1916,6 +1916,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             }
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
+            if (url.pathname.startsWith("/static/data/area-thumbnails/")) return cache.getAreaThumbRes(event.request);
             if (url.pathname.startsWith("/static/")) return cache.getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/image/")){
               const creationId = url.pathname.slice(1)

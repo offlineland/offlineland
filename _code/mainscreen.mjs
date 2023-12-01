@@ -90,8 +90,7 @@ class AreaCard {
         }
 
         this.cardTitle.textContent = this.areaRealName
-        //setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/${aun}.png` })
-        setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/kingbrownssanctum.png` })
+        setAttr(this.cardThumb, { src: `/static/data/area-thumbnails/${this.areaUrlName}.png` })
     }
 }
 
