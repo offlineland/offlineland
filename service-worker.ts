@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 4;
+const SW_VERSION = 5;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -82,6 +82,35 @@ const bundledAreasFile = {
     "chronology": {
         areaId: "56ed2214c94d7b0e132538b9",
         areaRealName: "Chronology",
+        tags: [],
+        subareas: {},
+    },
+    "theshadowwithin": {
+        areaId: "55657bcebdd3248b656e90aa",
+        areaRealName: "the shadow within",
+        tags: [ "exploration", "adventure" ],
+        subareas: {
+            "ruins of shadow": "57ecf10dab33dd7b132137cc",
+            "crysis": "557599c37fd8549f6d9d09a9",
+            "shadow castle": "556ebbebd7835e8367c4b98f",
+
+        },
+    },
+    "forlilies": {
+        areaId: "5c2b212a68664f316cdc47d0",
+        areaRealName: "for lilies",
+        tags: [],
+        subareas: {},
+    },
+    "cryostat": {
+        areaId: "548f227450f6035e134c6dcb",
+        areaRealName: "cryostat",
+        tags: [],
+        subareas: {},
+    },
+    "teapot": {
+        areaId: "583a837c9e8d00e20ff58dfa",
+        areaRealName: "teapot",
         tags: [],
         subareas: {},
     },
