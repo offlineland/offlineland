@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 3;
+const SW_VERSION = 4;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -19,6 +19,7 @@ importScripts("/_code/libs/qs.js");
 importScripts("/_code/libs/jszip.js");
 importScripts("/_code/libs/zod.umd.js");
 const z = Zod;
+importScripts("/_code/libs/idb.umd.js");
 importScripts("/_code/libs/idb-keyval.umd.js");
 
 
@@ -32,7 +33,8 @@ importScripts("/_code/service-worker/localCreations.js");
 importScripts("/_code/service-worker/localMinimap.js");
 importScripts("/_code/service-worker/PlayerDataManager.js");
 importScripts("/_code/service-worker/Storage.js");
-importScripts("/_code/service-worker/DataImport.js");
+importScripts("/_code/service-worker/DataImport_Profile.js");
+importScripts("/_code/service-worker/DataImport_Area.js");
 } catch(e) {
     console.log("error while trying to import a module. Are you sure the paths are correct?", e)
 }
@@ -62,6 +64,7 @@ const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
 
 // #region misc
 
+const dbPromise = LocalMLDatabase.make();
 const cache = makeCache(originUrl, SpriteGroundBlob);
 const { generateMinimapTile, getMapPixelColorFor } = makeMinimapGenerator(idbKeyval, cache.getCreationSprite)
 const { saveCreation } = makeLocalCreations(idbKeyval)
@@ -208,102 +211,88 @@ const getAreaIdForAreaName = (areaUrlName) => {
 
 // #region areazips_cache
 
+// TODO: use these helpers everywhere
+// TODO: should I use a non-existent path?? Or should I store blobs in idb?
+const getURLForArea = (areaId: string) => new URL(self.origin + `/static/data/v2/${areaId}.zip`)
+const getAreaIdFromUrl = (url: URL) => {
+    const MONGOID_LENGTH = 24;
+    const start = "/static/data/v2/".length
+    const end = start + MONGOID_LENGTH;
+
+    return url.pathname.slice(start, end);
+}
 
 const getAvailableAreas = async () => {
+    const db = await dbPromise;
+    const areasInCache: string[] = [];
     const data = [
         // TODO local areas
         { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
     ];
-    const availableAreas = await getAreaList()
+    
+    // Areas in cache
+    const areasCache = await caches.open(CACHE_AREAS_V2);
+    const keys = await areasCache.keys();
 
-    const areasv2cache = await caches.open(CACHE_AREAS_V2);
+    for (const req of keys) {
+        const areaId = getAreaIdFromUrl(new URL(req.url))
+        console.log("checking cached area", areaId)
+
+        areasInCache.push(areaId);
+        const areaData = await db.area_getData(areaId);
+        console.log(areaData);
+
+        if (areaData.sub === true)
+            continue;
+
+        data.push({
+            areaUrlName: areaData.aun,
+            areaRealName: areaData.arn,
+            status: "DOWNLOADED"
+        })
+    }
+
+
+    // Bundled areas
+    const availableAreas = await getAreaList();
     for (const areaUrlName of availableAreas) {
-        const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${getAreaIdForAreaName(areaUrlName)}.zip`))
+        const areaId = getAreaIdForAreaName(areaUrlName);
+
+        if (areasInCache.includes(areaId))
+            continue;
+
+        const cachematch = await areasCache.match(new URL(self.origin + `/static/data/v2/${areaId}.zip`));
 
         data.push({
             areaUrlName: areaUrlName,
             areaRealName: bundledAreasFile[areaUrlName].areaRealName || areaUrlName,
-            status: cachematch ? "DOWNLOADED" : "AVAILABLE"
+            status: cachematch ? "DOWNLOADED" : "DOWNLOADABLE"
         })
     }
+
 
     return data;
 }
 
-const isAreaInCache = async (areaId) => {
-    const areasv2cache = await caches.open(CACHE_AREAS_V2);
-    const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${areaId}.zip`))
-
-    return !!cachematch
-}
-
-
-
-const getAreaFromCache = (areaId) => cache.getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
-
-// TODO: going to need to refactor this to allow imports from areabackup
-const downloadAndHandleAreaArchive = async (areaId) => {
-    const cacheAreas = await caches.open(CACHE_AREAS_V2);
-
-    const res = await getAreaFromCache(areaId)
-    console.log("zip res", res, res.ok, res.status)
-
-    if (res.ok === false) {
-        console.warn("downloadAndHandleAreaArchive(): response not ok!", areaId, res)
-        throw new Error("request not ok")
-    }
-
-
-    const blob = await res.blob()
-
-    console.log("reading zip")
-    const zip = await JSZip.loadAsync(blob)
-    console.log("reading zip ok", zip)
-
-    console.log("reading settings file")
-    const data = JSON.parse(await zip.file("area_settings.json").async("string"))
-    console.log("reading settings file ok", { areaId, data, zip })
-
-
-    const loadingPromises = [];
-
-    zip.folder("creations/").forEach((path, file) => {
-        const filenameWithoutExtension = path.slice(0, path.lastIndexOf("."))
-        if (filenameWithoutExtension.length !== 24) {
-            console.warn("got a file that does not seem to be a creationId!", path, file)
-            return;
-        }
-
-        if (path.endsWith(".png")) {
-            console.log("adding", filenameWithoutExtension, "to cache (sprite)")
-            loadingPromises.push(
-                file.async("blob").then(blob => cache.setCreationSprite(filenameWithoutExtension, blob))
-            )
-        }
-        else if (path.endsWith(".json")) {
-            console.log("adding", filenameWithoutExtension, "to cache (def)")
-            loadingPromises.push(
-                file.async("text").then(text => cache.setCreationDef(filenameWithoutExtension, text))
-            )
-        }
-    })
-
-    await Promise.all(loadingPromises);
-}
-
-const makeAreaAvailableOffline = async (areaName) => {
+const makeBundledAreaAvailableOffline = async (areaName: string) => {
+    console.log("makeBundledAreaAvailableOffline()", areaName)
     const areaData = bundledAreasFile[areaName]
     if (!areaData) {
         console.error("asked to download an area that isn't referenced in our file!")
         return Response.json({ ok: false });
     }
 
-    try {
-        await downloadAndHandleAreaArchive(areaData.areaId)
+    const db = await dbPromise;
 
-        const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId);
+    try {
+        console.log("getting zip...")
+        const zip = await cache.getAreaZip(areaData.areaId);
+        await importAreaData(zip, db, cache)
+
+        const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId as string);
         for (const subareaId of subareaIds) {
-            await downloadAndHandleAreaArchive(subareaId)
+            const subareaZip = await cache.getAreaZip(subareaId)
+            await importAreaData(subareaZip, db, cache)
         }
 
 
@@ -313,7 +302,6 @@ const makeAreaAvailableOffline = async (areaName) => {
         console.log("error while caching! Are you sure the files exist (for all subareas too)?", e)
         return Response.json({ ok: false });
     }
-
 }
 
 // #endregion areazips_cache
@@ -541,7 +529,7 @@ class LocalAreaManager {
         client.postMessage({ m: "WS_MSG", data: initDataMsg });
     }
 
-    onWsMessage(player: PlayerDataManager, client, msg) {
+    async onWsMessage(player: PlayerDataManager, client, msg) {
         if (typeof msg === "string")
             // TODO actually handle messages
             console.log("onWsMessage()", fromClient(msg))
@@ -570,10 +558,19 @@ class AreaPossessionsManager {
 }
 
 
+// TODO: move this to Storage
 const getAreaOrSubareaIdFor = async (player: PlayerDataManager, areaGroupId: string): Promise<string> => {
     return (await idbKeyval.get(`area-current-subarea-${areaGroupId}`)) || areaGroupId
 }
 
+const findSubareaFor = async (areaUrlName: string, areaGroupId: string, subareaName: string) => {
+    const inBundledFile = bundledAreasFile[areaUrlName]?.subareas?.[subareaName]
+    if (inBundledFile) return inBundledFile;
+
+    const db = await dbPromise;
+    const inDB = await db.area_getSubareasIn(areaGroupId)
+    return inDB.find(sub => sub.arn === subareaName);
+}
 
 class ArchivedAreaManager {
     clients = new Set();
@@ -626,13 +623,14 @@ class ArchivedAreaManager {
     }
 
     static async make(wssUrl: string, areaId: string, possessionsMgr: AreaPossessionsManager) {
-        if (await isAreaInCache(areaId) === false) {
+        if (await cache.isAreaInCache(areaId) === false) {
             // This shouldn't happen, but in case it ever does, we just load it on the fly
             // TODO: send messages to inform progress?
-            await downloadAndHandleAreaArchive(areaId)
+            // TODO: this will fail if the area isn't a bundled one. It would be safer to display an error and return to /
+            await makeBundledAreaAvailableOffline(areaId)
         }
 
-        const res = await getAreaFromCache(areaId);
+        const res = await cache.getAreaRes(areaId);
         // TODO handle errors?
         console.log("AreaManager make(): zip res", res, res.ok, res.status)
 
@@ -842,7 +840,7 @@ class ArchivedAreaManager {
         await idbKeyval.set(`area-current-subarea-${this.areaGroupId}`, subareaName)
     }
 
-    onWsMessage(player: PlayerDataManager, client: Client, msg: String | ArrayBuffer) {
+    async onWsMessage(player: PlayerDataManager, client: Client, msg: String | ArrayBuffer) {
         if (typeof msg === "string") {
             // TODO: validate
             const parsedMsg = /** @type { { data: any, m: string } } */ (fromClient(msg))
@@ -877,7 +875,7 @@ class ArchivedAreaManager {
                     else if (parsedMsg.data.tol) {
                         console.log("user asked to teleport to", parsedMsg.data.tol)
                         const subareaName = parsedMsg.data.tol;
-                        const subareaId = bundledAreasFile[this.areaUrlName]?.subareas?.[subareaName];
+                        const subareaId = await findSubareaFor(this.areaUrlName, this.areaGroupId, subareaName);
 
                         // NOTE: there are rare edge cases where there's actually a subarea with the same name as the current area. I'm going to ignore these
                         // TODO: this might break if the area name is spelled using the areaRealName instead of the areaUrlName!
@@ -990,7 +988,14 @@ class ArchivedAreaManager {
 
 
 
-const getAreaManagerClassForAreaId = (areaId) => {
+// TODO refactor this
+const getAreaManagerClassForAreaId = async (areaId) => {
+    const db = await dbPromise;
+    const areaData = await db.area_getData(areaId);
+    if (areaData) {
+        return ArchivedAreaManager;
+    }
+
     // TODO
     for (const area of Object.values(bundledAreasFile)) {
         if (area.areaId === areaId) {
@@ -1024,7 +1029,7 @@ class AreaManagerManager {
         console.log("AreaManagerManager: makeAreaManager()", areaId)
         const wssUrl = `ws191919x${String(this.wssCount++)}.ws.manyland.local`;
 
-        const amClass = getAreaManagerClassForAreaId(areaId)
+        const amClass = await getAreaManagerClassForAreaId(areaId)
         const am = await amClass.make(wssUrl, areaId, this.areaPossessionsMgr)
 
         this.areaManagerByWSSUrl.set(wssUrl, am)
@@ -1041,7 +1046,7 @@ class AreaManagerManager {
         else return await this.makeAreaManager("shouldnthappen_" + String(Date.now()));
     }
 
-    async getByAreaId(/** @type { string } */ areaId) {
+    async getByAreaId(areaId: string) {
         console.log("AreaManagerManager: getByAreaId()", areaId)
 
         const am = this.areaManagerByAreaId.get(areaId);
@@ -1052,8 +1057,15 @@ class AreaManagerManager {
     async getByAreaName(player: PlayerDataManager, areaUrlName: string) {
         console.log("AreaManagerManager: getByAreaName()", areaUrlName)
 
-        // TODO: handle cases where client is in a subarea
-        const areaGroupId = getAreaIdForAreaName(areaUrlName);
+        const db = await dbPromise;
+        const areaData = await db.area_getDataByAun(areaUrlName);
+
+        if (!areaData) {
+            console.warn("getByAreaName(): unknown area!")
+            return this.makeAreaManager("unknownarea_" + String(Date.now()));
+        }
+
+        const areaGroupId = areaData.gid;
         const currentAreaId = await getAreaOrSubareaIdFor(player, areaGroupId)
         console.log("AreaManagerManager: getByAreaName()", `player is currently in (sub)area ${currentAreaId} of area ${areaGroupId}(${areaUrlName})`)
         return await this.getByAreaId(currentAreaId)
@@ -1100,15 +1112,17 @@ class AreaManagerManager {
 //  ██   ██ ██    ██ ██    ██    ██    ██           ██ 
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
 
-class FakeAPI {
-    router: ReturnType<typeof makeRouter>;
 
-    constructor(
-        areaManagerMgr: AreaManagerManager,
-        areaPossessionsMgr: AreaPossessionsManager,
-        db: LocalMLDatabase,
-    ) {
-        const router = this.router = makeRouter(matchPath)
+const makeFakeAPI = async (
+    areaManagerMgr: AreaManagerManager,
+    areaPossessionsMgr: AreaPossessionsManager,
+) => {
+    const db = await dbPromise;
+    const router = this.router = makeRouter(matchPath)
+
+
+    // #region routes
+
 
         // Area init
         router.post("/j/i/", async ({ player, json, request, }) => {
@@ -1825,7 +1839,7 @@ class FakeAPI {
             const schema = z.object({ name: z.string(), id: z.string(), }).required();
             const data = schema.parse(await readRequestBody(request));
 
-            await db.player_setBoostAssociation(player.rid, data.name, data.id);
+            await db.player_setBoostAssociation(player.rid, data.name, data.id) 
 
             return json({ ok: true })
         });
@@ -1842,12 +1856,14 @@ class FakeAPI {
             return new Response("Not found or not implemented", { status: 404 })
         })
 
+    // #endregion routes
+
+    const handle = async (method: "GET" | "POST", pathname: string, event: FetchEvent, player: PlayerDataManager) => {
+        console.log("FakeAPI.handle()", method, pathname, event);
+        return await router.matchRoute(method, pathname, event, player);
     }
 
-    async handle(method: "GET" | "POST", pathname: string, event: FetchEvent, player: PlayerDataManager) {
-        console.log("FakeAPI.handle()", method, pathname, event);
-        return await this.router.matchRoute(method, pathname, event, player);
-    }
+    return handle;
 }
 
 // #endregion HTTP routes
@@ -1869,8 +1885,7 @@ console.log("Hi from service worker global context")
 
 const areaPossessionsMgr = new AreaPossessionsManager();
 const areaManagerMgr = new AreaManagerManager(areaPossessionsMgr);
-const db = new LocalMLDatabase();
-const fakeAPI = new FakeAPI(areaManagerMgr, areaPossessionsMgr, db);
+const fakeAPIPromise = makeFakeAPI(areaManagerMgr, areaPossessionsMgr);
 
 /***
  *     ██████   ██████  ██    ██ ████████ ██ ███    ██  ██████  
@@ -1913,11 +1928,13 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             if (url.pathname === "/media/painter/cursor_pickColor.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_pickColor.png"));
 
             if (url.pathname.startsWith("/j/")) {
+                const db = await dbPromise;
+                const fakeAPI_handle = await fakeAPIPromise;
                 // TODO: do we want to handle different player ids for different clients? Let's just keep things simple for now
                 const player = await PlayerDataManager.make(idbKeyval, db);
                 const method = event.request.method as Method;
 
-                return await fakeAPI.handle(method, url.pathname, event, player)
+                return await fakeAPI_handle(method, url.pathname, event, player)
             }
 
             if (url.pathname.startsWith("/sct/")) {
@@ -1930,6 +1947,8 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 
 
             // TODO get this from a file (and update it)
+            // TODO: the file should be "curated areas" and all these areas are static files on a CDN.
+            // For online.offlineland.io, the list of areas would come from the server so that the creator can update it?
             if (url.pathname === "/_mlspinternal_/getdata") {
                 return Response.json(await getAvailableAreas());
             }
@@ -1938,11 +1957,10 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
                 return Response.json(SW_VERSION);
             }
 
-            // Note: we use an http call instead of a message because message events don't have a .respondWith
-            // I don't think downloading + processing an area's .zip would be long enough or that the browser would interrupt us, but better safe than sorry
+            // TODO: use events instead?
             if (url.pathname === "/_mlspinternal_/dlArea") {
                 const areaName = url.searchParams.get("area");
-                return await makeAreaAvailableOffline(areaName);
+                return await makeBundledAreaAvailableOffline(areaName);
             }
 
 
@@ -2002,6 +2020,7 @@ const handleDataImport = async (file: File, key, client: Client) => {
         const zip = await JSZip.loadAsync(await file.arrayBuffer());
         console.log("loading zip ok", zip);
 
+        const db = await dbPromise;
 
         if (zip.file("profile.json")) {
             try {
@@ -2014,7 +2033,8 @@ const handleDataImport = async (file: File, key, client: Client) => {
             }
         }
         else if (zip.file("area_settings.json")) {
-            client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Psyke I haven't implemented area import yet` } })
+            const data = await importAreaData(zip, db, cache);
+            client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Sucessfully imported area data "${data.arn}"!` } })
         }
         else {
             client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This "${file.name}" file does not look like a manyland export.` } })
@@ -2030,6 +2050,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
     try {
         const message = event.data;
         const client = event.source as Client;
+        const db = await dbPromise;
 
         //console.log("MSG", client.id, message, { event })
         if (message.m === "WSMSG") {
@@ -2037,7 +2058,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
             const amgr = await areaManagerMgr.getByAreaId(areaId)
             const player = await PlayerDataManager.make(idbKeyval, db);
 
-            amgr.onWsMessage(player, client, message.data.msg)
+            await amgr.onWsMessage(player, client, message.data.msg)
         }
         else if (message.m === "PLS_OPEN_WS") {
             console.log("client sent PLS_OPEN_WS!", message)
@@ -2046,7 +2067,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
             const amgr = await areaManagerMgr.getByWSSUrl(wsUrl.host)
             const player = await PlayerDataManager.make(idbKeyval, db);
 
-            amgr.onWsConnection(player, client)
+            await amgr.onWsConnection(player, client)
         }
         else if (message.m === "DATA_IMPORT") {
             console.log("client sent DATA_IMPORT!", message);
@@ -2074,7 +2095,7 @@ const onInstall = async (/** @type {ExtendableEvent} */ event) => {
 
         // TODO: create cache for sounds and other static assets
         // TODO: create cache for code, update it on load
-        await makeAreaAvailableOffline("chronology");
+        await makeBundledAreaAvailableOffline("chronology");
     } catch(e) {
         console.error("onInstall error!", e)
     }

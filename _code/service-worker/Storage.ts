@@ -1,9 +1,67 @@
+
 // TODO: move stuff from cache in here
 class LocalMLCDN {
 
 }
 
+
+
+type AreaData = {
+    aid: string;
+    gid: string;
+    sub: boolean;
+    arn: string;
+    agn: string;
+    aun: string;
+    ard: string;
+}
+
+// TODO: migrate the idb-keyval data to this?
+interface OfflinelandIDBSchema extends DBSchema {
+    "area-data": {
+        key: string;
+        value: AreaData;
+        indexes: {
+            "by-gid": string;
+            "by-aun": string;
+        }
+    };
+}
+
+type OfflinelandDB = Awaited<ReturnType<typeof idb.openDB<OfflinelandIDBSchema>>>;
+
 class LocalMLDatabase {
+    db: OfflinelandDB;
+
+    constructor(DB: OfflinelandDB) {
+        this.db = DB;
+    }
+
+    static async make() {
+          const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 2, {
+            upgrade(db, oldVersion, newVersion) {
+                console.log("upgrading db from", oldVersion, "to", newVersion)
+
+                if (oldVersion < 1) { // 0
+                    const areasStore = db.createObjectStore('area-data', { keyPath: 'aid' });
+
+                    areasStore.createIndex('by-gid', 'gid');
+                    areasStore.createIndex('by-aun', 'aun');
+                }
+                if (oldVersion < 2) { // 1
+                    // Nothing here
+                }
+                if (oldVersion < 3) { // 2
+                    // Nothing here
+                }
+            }
+        });
+
+        return new LocalMLDatabase(db);
+    }
+
+
+
     async player_setTopCreations(playerId, topCreations) {
         await idbKeyval.set(`playertopcreations-p${playerId}`, topCreations);
     }
@@ -80,5 +138,27 @@ class LocalMLDatabase {
     }
     async creation_getStats(creationId) {
         return await idbKeyval.get(`creationdata-stats-c${creationId}`);
+    }
+
+
+    async area_setData(data: AreaData) {
+        try {
+            return await this.db.put("area-data", data)
+        } catch(e) {
+            console.error("error storing area data!", data)
+            console.error(e);
+            throw e;
+        }
+    }
+    async area_getData(id: string) {
+        return await this.db.get("area-data", id)
+    }
+    async area_getDataByAun(areaUrlName: string): Promise<AreaData | null> {
+        return (await this.db.getAllFromIndex("area-data", "by-aun", areaUrlName)).at(0)
+    }
+    async area_getSubareasIn(gid: string): Promise<AreaData[]> {
+        const areas = await this.db.getAllFromIndex("area-data", "by-gid", gid);
+
+        return areas.filter(area => area.sub)
     }
 }
