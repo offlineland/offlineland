@@ -484,7 +484,7 @@ class LocalAreaManager {
     // TODO
     getDataForSector(x, y) {
         return {
-            "iix": [ "50372a99f5d33dc56f000001" ],
+            "iix": [ groundId ],
             "ps": [
                 [ 15, 17, 0, 0, 0, 0 ],
                 [ 14, 17, 0, 0, 0, 0 ],
@@ -859,6 +859,41 @@ class ArchivedAreaManager {
                                 pos: { x: 2168, y: -19 },
                                 vel: { x: -29.958401433280066, y: 0 },
                                 loc: { x: 111, y: -1 }
+                            }
+                        })
+                    });
+
+                    break;
+                }
+                case msgTypes.MAP_EDIT: {
+                    const mapRejectionReasons = {
+                        OK: 0,
+                        BAD: 1,
+                        THROTTLED: 2,
+                        RANKRESTRICTED: 3,
+                        NEARPLAYER: 4,
+                        SOFTBAN: 5,
+                        PLACENAMEDUP: 6,
+                        R5OUTERPROTECT: 7
+                    };
+
+
+                    // TODO: properly handle storing map edits
+
+                    const { x, y, def } = parsedMsg.data;
+
+                    // TODO: figure out what was there before
+                    const prevBlock = def ? null : groundId;
+
+                    client.postMessage({
+                        m: "WS_MSG",
+                        data: toClient({
+                            m: msgTypes.MAP_EDIT_REJECTED,
+                            data: {
+                                def: prevBlock,
+                                x: x,
+                                y: y,
+                                rsn: mapRejectionReasons.THROTTLED
                             }
                         })
                     });
