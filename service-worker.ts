@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 5;
+const SW_VERSION = 6;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -66,7 +66,7 @@ const SpriteGroundBlob = dataURLtoBlob(SpriteGroundDataURI);
 
 const dbPromise = LocalMLDatabase.make();
 const cache = makeCache(originUrl, SpriteGroundBlob);
-const { generateMinimapTile, getMapPixelColorFor } = makeMinimapGenerator(idbKeyval, cache.getCreationSprite)
+const { generateMinimapTile, getMapPixelColorFor } = makeMinimapGenerator(dbPromise, cache.getCreationSprite)
 const { saveCreation } = makeLocalCreations(idbKeyval)
 
 
@@ -1697,7 +1697,13 @@ const makeFakeAPI = async (
             const inDb = await db.creation_getHolderContent(creationId)
 
             if (inDb) { return json(inDb); }
-            else { return Response.error(); }
+            else {
+                const placeholderData: HolderData = {
+                    isCreator: false,
+                    contents: [ {_id: groundId, itemId: groundId, x: 0, y: 0, z: 0, flip: 0, rot: 0, pageNo: 0} ]
+                }
+                return json(placeholderData)
+            }
         });
 
         // Set Content
@@ -2161,6 +2167,34 @@ const handleDataImport = async (file: File, key, client: Client) => {
     }
 }
 
+const handleDeleteArea = async (areaUrlName: string, client: Client) => {
+    try {
+        console.log("deleting area", areaUrlName);
+        const db = await dbPromise;
+        const cache = await caches.open(CACHE_AREAS_V2)
+
+        const areaData = await db.area_getDataByAun(areaUrlName);
+        const subs = await db.area_getSubareasIn(areaData.aid);
+
+        console.log("clearing main area")
+        await db.area_delArea(areaData.aid);
+        await cache.delete(getURLForArea(areaData.aid));
+        console.log("clearing main area ok")
+
+        for (const sub of subs) {
+            console.log("clearing subarea", sub.arn)
+            await db.area_delArea(sub.aid);
+            await cache.delete(getURLForArea(sub.aid));
+            console.log("clearing subarea", sub.arn, "ok")
+        }
+
+        console.log("deleting area", areaUrlName, "ok");
+        client.postMessage({ m: "AREA_DELETED", data: { msg: `Sucessfully cleared area "${areaData.arn}"!` } })
+    }
+    catch(e) {
+        console.error("deleting area", areaUrlName, "error!", e);
+    }
+}
 
 
 const handleClientMessage = async (event: ExtendableMessageEvent) => {
@@ -2190,6 +2224,11 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
             console.log("client sent DATA_IMPORT!", message);
 
             event.waitUntil(handleDataImport(message.data.file, message.data.key, client));
+        }
+        else if (message.m === "DELETE_AREA") {
+            console.log("client sent DELETE_AREA!", message);
+
+            event.waitUntil(handleDeleteArea(message.data.areaUrlName, client));
         }
         else {
             console.warn("Unhandled event", message)

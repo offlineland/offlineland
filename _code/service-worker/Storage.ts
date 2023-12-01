@@ -16,6 +16,51 @@ type AreaData = {
     ard: string;
 }
 
+type MultiData = unknown;
+
+type MotionsOfBody = {
+    midpoint: number;
+    ids: string[];
+}
+
+type HolderData = {
+    isCreator: boolean;
+    contents: {
+        _id: string;
+        itemId: string;
+        x: number;
+        y: number;
+        z: number;
+        flip: number;
+        rot: number;
+        pageNo: number;
+    }[];
+}
+
+type CreationStats = {
+    timesCd: number;
+    timesPd: number;
+}
+
+type CreationProps = {
+    textSize?: number;
+    rgb?: string;
+    rgb2?: string;
+    attr?: number[];
+    // TODO: more
+}
+
+type PainterData = {
+    name: string;
+    base: string;
+    prop: CreationProps;
+    imageData: {
+        pixels: number[][][];
+        colors: { alpha: number | string, r: number | string, g: number | string, b: number | string }[];
+    }
+    creator: string;
+}
+
 // TODO: migrate the idb-keyval data to this?
 interface OfflinelandIDBSchema extends DBSchema {
     "area-data": {
@@ -26,6 +71,19 @@ interface OfflinelandIDBSchema extends DBSchema {
             "by-aun": string;
         }
     };
+    "multis": {
+        key: string;
+        value: MultiData;
+        indexes: {
+            "by-_id": string;
+            "by-multithingId": string;
+        }
+    };
+    "holders": { key: string; value: HolderData; };
+    "motions-of-body": { key: string; value: MotionsOfBody | null; };
+    "creation-stats": { key: string; value: CreationStats };
+    "creation-painter-data": { key: string; value: PainterData };
+    "minimap-colors": { key: string; value: string; };
 }
 
 type OfflinelandDB = Awaited<ReturnType<typeof idb.openDB<OfflinelandIDBSchema>>>;
@@ -38,24 +96,46 @@ class LocalMLDatabase {
     }
 
     static async make() {
-          const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 2, {
+        console.log("making db")
+        const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 4, {
             upgrade(db, oldVersion, newVersion) {
                 console.log("upgrading db from", oldVersion, "to", newVersion)
 
                 if (oldVersion < 1) { // 0
+                    console.log("running migration 0")
                     const areasStore = db.createObjectStore('area-data', { keyPath: 'aid' });
 
                     areasStore.createIndex('by-gid', 'gid');
                     areasStore.createIndex('by-aun', 'aun');
                 }
                 if (oldVersion < 2) { // 1
+                    console.log("running migration 1")
                     // Nothing here
                 }
                 if (oldVersion < 3) { // 2
+                    console.log("running migration 2")
                     // Nothing here
                 }
+                if (oldVersion < 4) { // 3
+                    console.log("running migration 3")
+                    // Nothing here
+                }
+                if (oldVersion < 5) { // 3
+                    console.log("running migration 4")
+                    const multisStore = db.createObjectStore("multis");
+                    multisStore.createIndex("by-_id", "data._id");
+                    multisStore.createIndex("by-multithingId", "data.multithingId");
+
+                    db.createObjectStore("holders");
+                    db.createObjectStore("motions-of-body");
+                    db.createObjectStore("creation-stats");
+                    db.createObjectStore("creation-painter-data");
+                    db.createObjectStore("minimap-colors");
+                }
+                console.log("done!")
             }
         });
+        console.log("making db ok")
 
         return new LocalMLDatabase(db);
     }
@@ -105,39 +185,50 @@ class LocalMLDatabase {
     }
 
 
-    async creation_setMotionData(bodyId, data) {
-        await idbKeyval.set(`creationdata-bodymotions-c${bodyId}`, data);
+    async creation_setMotionData(bodyId: string, data: MotionsOfBody | null) {
+        await this.db.put("motions-of-body", data, bodyId);
     }
     async creation_getMotionData(bodyId) {
-        return await idbKeyval.get(`creationdata-bodymotions-c${bodyId}`);
+        return await this.db.get("motions-of-body", bodyId);
     }
 
     async creation_setHolderContent(holderId, data) {
-        await idbKeyval.set(`creationdata-holdercontent-c${holderId}`, data);
+        await this.db.put("holders", data, holderId)
     }
     async creation_getHolderContent(holderId) {
-        return await idbKeyval.get(`creationdata-holdercontent-c${holderId}`);
+        return await this.db.get("holders", holderId)
     }
 
     async creation_setMultiData(multiId, data) {
-        await idbKeyval.set(`creationdata-multidata-c${multiId}`, data);
+        await this.db.put("multis", data, multiId)
     }
     async creation_getMultiData(multiId) {
-        return await idbKeyval.get(`creationdata-multidata-c${multiId}`);
+        return await this.db.get("multis", multiId)
     }
 
-    async creation_setPainterData(creationId, data) {
-        await idbKeyval.set(`creationdata-painterdata-c${creationId}`, data);
+    async creation_setPainterData(creationId: string, data: PainterData) {
+        await this.db.put("creation-painter-data", data, creationId)
     }
     async creation_getPainterData(creationId) {
-        return await idbKeyval.get(`creationdata-painterdata-c${creationId}`);
+        return await this.db.get("creation-painter-data", creationId)
     }
 
-    async creation_setStats(creationId, data) {
-        await idbKeyval.set(`creationdata-stats-c${creationId}`, data);
+    async creation_setStats(creationId: string, data: CreationStats) {
+        await this.db.put("creation-stats", data, creationId)
     }
-    async creation_getStats(creationId) {
-        return await idbKeyval.get(`creationdata-stats-c${creationId}`);
+    async creation_getStats(creationId: string) {
+        return await this.db.get("creation-stats", creationId)
+    }
+
+    async creation_setMinimapColor(creationId: string, colorStr: string) {
+        if (!colorStr.startsWith("rgba(")) {
+            throw new Error("setMinimapColor: tried to set a colorStr that doesn't start with rgba(!")
+        }
+
+        await this.db.put("minimap-colors", colorStr, creationId);
+    }
+    async creation_getMinimapColor(creationId: string) {
+        return await this.db.get("minimap-colors", creationId);
     }
 
 
@@ -152,6 +243,9 @@ class LocalMLDatabase {
     }
     async area_getData(id: string) {
         return await this.db.get("area-data", id)
+    }
+    async area_delArea(id: string) {
+        return await this.db.delete("area-data", id)
     }
     async area_getDataByAun(areaUrlName: string): Promise<AreaData | null> {
         return (await this.db.getAllFromIndex("area-data", "by-aun", areaUrlName)).at(0)

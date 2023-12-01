@@ -1,5 +1,5 @@
-const makeMinimapGenerator = (idbKeyval, cache_getCreationSprite) => {
-const getPixelsFor = async (/** @type { Blob } */ blob) => {
+const makeMinimapGenerator = (dbPromise: Promise<LocalMLDatabase>, cache_getCreationSprite) => {
+const getPixelsFor = async (blob: Blob) => {
     const imageBitmap = await self.createImageBitmap(blob)
 
     const offscreenCanvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
@@ -10,8 +10,7 @@ const getPixelsFor = async (/** @type { Blob } */ blob) => {
     return imageData.data;
 }
 
-/** @param { Uint8ClampedArray } pixels */
-const getMostUsedColor = (pixels) => {
+const getMostUsedColor = (pixels: Uint8ClampedArray) => {
   const colorCount = new Map();
   let maxCount = 0;
   let mostUsedColor = null;
@@ -32,7 +31,7 @@ const getMostUsedColor = (pixels) => {
   }
 
   // Return the most used color as an array [r, g, b]
-  return mostUsedColor ? mostUsedColor.split(',').map(Number) : null;
+  return mostUsedColor ? `rgba(${mostUsedColor})` : null;
 
 }
 
@@ -44,16 +43,18 @@ const generateMinimapTile = async (xyc) => {
 
     xyc.forEach(item => {
         const [x, y, color] = item;
-        ctx.fillStyle = `rgba(${color.join(',')})`;
+        ctx.fillStyle = color;
         ctx.fillRect(x, y, 1, 1); // Fill in one pixel at the specified position
     });
 
     return await canvas.convertToBlob();
 }
 
-const getMapPixelColorFor = async (creationId) => {
+const getMapPixelColorFor = async (creationId: string) => {
     console.log("getMapPixelColorFor", creationId)
-    const fromDb = await idbKeyval.get(`pixelColor-c${creationId}`);
+    const db = await dbPromise;
+
+    const fromDb = await db.creation_getMinimapColor(creationId)
     if (fromDb) return fromDb;
 
 
@@ -71,7 +72,7 @@ const getMapPixelColorFor = async (creationId) => {
     // TODO: this isn't exactly how ML picks it's colors, but we don't have access to creation palette here.
     const mostUsedColor = getMostUsedColor(pixels)
 
-    await idbKeyval.set(`pixelColor-c${creationId}`, mostUsedColor);
+    await db.creation_setMinimapColor(creationId, mostUsedColor)
 
     return mostUsedColor;
 }
