@@ -32,7 +32,30 @@ const getMostUsedColor = (pixels: Uint8ClampedArray) => {
 
   // Return the most used color as an array [r, g, b]
   return mostUsedColor ? `rgba(${mostUsedColor})` : null;
+}
 
+const getAverageColor = (pixels: Uint8ClampedArray) => {
+	let totalRed = 0, totalGreen = 0, totalBlue = 0, totalAlpha = 0;
+	let countPixels = 0; // Count of non-transparent pixels
+	for (let i = 0; i < pixels.length; i += 4) {
+		if (pixels[i+3] === 0) {
+			continue;
+		}
+
+		totalRed   += pixels[i];
+		totalGreen += pixels[i + 1];
+		totalBlue  += pixels[i + 2];
+		totalAlpha += pixels[i + 3];
+		countPixels++;
+	}
+
+	const averageRed   = totalRed   / countPixels;
+	const averageGreen = totalGreen / countPixels;
+	const averageBlue  = totalBlue  / countPixels;
+	const averageAlpha = totalAlpha / countPixels;
+
+	const averageColor = `rgba(${averageRed}, ${averageGreen}, ${averageBlue}, ${averageAlpha})`;
+	return averageColor;
 }
 
 const generateMinimapTile = async (xyc: [number, number, string][]) => {
@@ -69,7 +92,7 @@ const getMapPixelColorFor = async (creationId: string) => {
     const blob = await creationRes.blob();
     const pixels = await getPixelsFor(blob);
     // TODO: this isn't exactly how ML picks it's colors, but we don't have access to creation palette here.
-    const mostUsedColor = getMostUsedColor(pixels)
+    const mostUsedColor = getAverageColor(pixels)
 
     await db.creation_setMinimapColor(creationId, mostUsedColor)
 
