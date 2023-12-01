@@ -2,6 +2,8 @@
 const importAreaData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType<typeof makeCache>) => {
     console.log("importAreaData", zip)
     const loadingPromises = [];
+    const readJson = (path: string) => zip.file(path).async("text").then(JSON.parse);
+    const readJsonf = (file) => file.async("text").then(JSON.parse);
 
     console.log("reading settings file")
     const data = JSON.parse(await zip.file("area_settings.json").async("string"))
@@ -41,6 +43,25 @@ const importAreaData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType<t
                 file.async("text").then(text => cache.setCreationDef(filenameWithoutExtension, text))
             )
         }
+    })
+
+    zip.folder("creations-data/holders/").forEach((path, file) => {
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        loadingPromises.push( readJsonf(file).then(data => db.creation_setHolderContent(id, data)) );
+    })
+    zip.folder("creations-data/multis/").forEach((path, file) => {
+        const id = path.slice(0, path.lastIndexOf("."))
+        if (id.length !== 24) {
+            console.warn("got a file that does not seem to be a creationId!", path, file)
+            return;
+        }
+
+        loadingPromises.push( readJsonf(file).then(data => db.creation_setMultiData(id, data)) );
     })
 
     await Promise.all(loadingPromises);
