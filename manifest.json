@@ -1,0 +1,21 @@
+{
+    "name": "offlineland.io",
+    "short_name": "offlineland",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "description": "An interactive monument to Manyland",
+    "icons": [
+        {
+            "src": "static/media/mobile/icon-57.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "static/media/mobile/icon-114.png",
+            "sizes": "114x114",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#000000"
+}

@@ -1914,6 +1914,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
                 const res = await fetch("/exporter.html?cachebust=" + Date.now());
                 return res;
             }
+            if (url.pathname === "/manifest.json") return fetch("/manifest.json");
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/data/area-thumbnails/")) return cache.getAreaThumbRes(event.request);
