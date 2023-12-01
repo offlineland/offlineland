@@ -43,10 +43,23 @@ class AreaCard {
     }
 
     onBtnClick() {
-        this.triggerAreaDownload() 
-        this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADING"})
+        switch (this.status) {
+            case "DOWNLOADED": {
+                window.location.href = "/" + this.areaUrlName;
+                break;
+            }
+            case "DOWNLOADABLE":
+            case "DOWNLOAD_ERROR": {
+                this.triggerAreaDownload();
+                this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADING"})
+                break;
+            }
+            case "DOWNLOADING": {
+                break;
+            }
+        }
     }
-    
+
     update({ areaUrlName, areaRealName, status }) {
         console.log("update", areaUrlName, areaRealName)
         this.areaUrlName = areaUrlName
