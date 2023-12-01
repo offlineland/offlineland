@@ -205,7 +205,7 @@ class PlayerDataManager {
         const fullInventory = await this.inv_getAllCollects();
 
         return {
-            items: fullInventory.slice(start, end),
+            items: fullInventory.slice(start, end + 1),
             itemCount: fullInventory.length
         };
     }
@@ -246,7 +246,7 @@ class PlayerDataManager {
         const fullInventory = await this.inv_getAllCreated();
         
         return {
-            items: fullInventory.slice(start, end),
+            items: fullInventory.slice(start, end + 1),
             itemCount: fullInventory.length
         };
     }
