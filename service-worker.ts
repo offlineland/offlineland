@@ -1588,7 +1588,7 @@ const makeFakeAPI = async (
         // Create
         router.post("/j/i/c/", async ({ player, request, json }) => {
             const { itemData } = await readRequestBody(request)
-            const { itemId } = await saveCreation(player, itemData, cache)
+            const { itemId } = await saveCreation(player, itemData, db, cache)
 
             return json( { itemId: itemId });
         });
@@ -1652,7 +1652,7 @@ const makeFakeAPI = async (
         });
 
         // Painter data
-        router.get("/j/i/datp/", async ({ params, json }) => {
+        router.get("/j/i/datp/:creationId", async ({ params, json }) => {
             const { creationId } = params;
             const inDb = await db.creation_getPainterData(creationId)
 

@@ -81,7 +81,7 @@ const generateCreationSpriteFromPixels = async (colors, cells) => {
 }
 
 
-const saveCreation = async (player: PlayerDataManager, itemData, cache) => {
+const saveCreation = async (player: PlayerDataManager, itemData, db: LocalMLDatabase, cache: ReturnType<typeof makeCache>) => {
     console.log("client tried to create something!", itemData)
 
     const pixels = JSON.parse(decompressAscii(itemData.pixels));
@@ -103,6 +103,13 @@ const saveCreation = async (player: PlayerDataManager, itemData, cache) => {
     await cache.setCreationDef(itemId, JSON.stringify(itemDef));
 
     await player.addLocalCreation(itemId);
+    await db.creation_setPainterData(itemId, {
+        imageData: { pixels, colors: itemData.colors },
+        name: itemData.name,
+        base: itemData.type,
+        creator: player.rid,
+        prop: itemData.prop,
+    });
 
     return {
         itemId: itemId,
