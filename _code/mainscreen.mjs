@@ -13,7 +13,11 @@ const dlAreaResSchema = z.object({ ok: z.boolean() })
 class AreaCard {
     constructor() {
         this.el = el("div.w-56.m-1.my-3.rounded.overflow-hidden.shadow-lg", [
-            this.cardThumb = el("img.w-full.rounded", { src: "/static/data/area-thumbnails/3.png", alt: "Image Description" }),
+            this.cardThumb = el("img.w-full.rounded.cursor-pointer", {
+                src: "/static/data/area-thumbnails/3.png",
+                alt: "Image Description",
+                onclick: () => this.onBtnClick(),
+            }),
             el("div.p-2.text-center.break-words", [
                 el("div.font-bold.text-xl.mb-2.h-12", this.cardTitle = text())
 
@@ -100,8 +104,8 @@ class AreaCard {
 class MainInterface {
     constructor() {
         this.areaListEl = list("div.flex.flex-row.flex-wrap.justify-around.justify-items-center", AreaCard)
-        this.el = el("div", [
-            el("span.loading.loading-spinner.loading-lg"),
+        this.el = el("div.flex.justify-center", [
+            el("span.loading.loading-spinner.loading-lg.pt-52"),
         ])
     }
 
@@ -132,8 +136,21 @@ const importInput = el("input#fileInput", { type: "file", accept: ".zip" } );
 
 const main = el("main", [
     el("div.text-center.p-3.pb-8", [
-        el("h1.text-4xl.font-bold.p-3", "Offlineland"),
-        el("p.text-lg", [ "An interactive monument to ", el("a", { href: "https://manyland.com" }, "Manyland") ]),
+        el("div", [
+            el("h1.text-6xl.font-bold.p-1", "Offlineland"),
+        ]),
+        el("p.text-xl", [ "An interactive monument to ", el("a.link.link-primary", { href: "https://manyland.com" }, "Manyland") ]),
+    ]),
+
+    el("div.p-4.pb-8", [
+        el("p", [
+            "Offlineland allows you to browse Manyland areas offline. You can create stuff, but for now placements aren't saved."
+        ]),
+        el("p", [
+            "Eventually, it will be possible to share and browse worlds on ",
+            el("a.link.link-secondary", {href: "https://online.offlineland.com"}, "online.offlineland.com"),
+            "."
+        ]),
     ]),
 
     el("div.grid.grid-cols-5", [
@@ -147,17 +164,26 @@ const main = el("main", [
                 el("h2.text-2xl.text-center", "Data import"),
                 el("p", [
                     "You can import areas from ",
-                    el("a.link.link-primary", {href: "https://areabackup.com"}, "areabackup.com"),
+                    el("a.link.link-secondary", {href: "https://areabackup.com"}, "areabackup.com"),
                     " or ",
-                    el("a.link.link-primary", {href: "/exporter"}, "the exporter"),
+                    el("a.link.link-secondary", {href: "/exporter"}, "the exporter"),
                     " here. Everything stays on your device."
                 ]),
                 el("div.p-4", [ importInput ])
             ]),
+            el("div.border-b-1.border-black"),
+            el("div.mt-6", [
+                el("h2.text-2xl.text-center", "Search area"),
+                el("p", "You can search for areas uploaded to online.offlineland.io (Coming soon!)"),
+                el("div.p-4.join", [ 
+                    el("input.input.input-bordered.w-full.max-w-xs.join-item", { type: "search", disabled: true } ),
+                    el("button.btn.btn-disabled.join-item", { disabled: true }, "Search"),
+                ])
+            ])
         ]),
     ]),
     el("div", [
-        el("h2.text-2xl", "Data viewer"),
+        el("h2.text-2xl", "Data viewer (Coming soon!)"),
         el("p", "Once you've imported your data from the exporter, you can view it's content here."),
         el("div", [
             el("h3", "Snaps"),
@@ -178,9 +204,15 @@ const main = el("main", [
             ]),
         ]),
     ]),
-    el("div.text-xs.opacity-50", [ el("p", ["SW version: ", versionText, " | page version: ", 1]), ]),
-
+    el("footer.footer.footer-center.p-4.bg-neutral.text-neutral-content", [
+        el("div.text-xs.opacity-80", [
+            el("p", ["offlineland.io is not affiliated with manyland.com or it's developers."]),
+            el("p", ["SW version: ", versionText, " | page version: ", 1]),
+        ]),
+    ]),
 ])
+
+
 
 
 
@@ -222,7 +254,7 @@ class ImportMgr {
 const importMgr = new ImportMgr();
 
 
-mount(document.body, main);
+document.addEventListener("DOMContentLoaded", () => mount(document.getElementById("app"), main));
 const pond = FilePond.create(importInput, {
     allowMultiple: true,
     allowRevert: false,
@@ -249,4 +281,13 @@ await new Promise(r => setTimeout(r, 50))
 fetch("/_mlspinternal_/getversion").then(r => r.json()).then(v => versionText.textContent = v);
 fetch("/_mlspinternal_/getdata").then(r => r.json()).then(data => {
     mainInterface.update({state: "AREALIST", areas: data})
+})
+
+document.addEventListener("unhandledrejection", (event) => {
+    console.error("oops, error!", event);
+    toastError(`Oops, something broke! ${String(event.error)}`)
+})
+document.addEventListener("error", (event) => {
+    console.error("oops, error!", event);
+    toastError(`Oops, something broke! ${String(event.error)}`)
 })
