@@ -259,7 +259,7 @@ const main = el("main", [
     el("footer.footer.footer-center.p-4.bg-neutral.text-neutral-content", [
         el("div.text-xs.opacity-80", [
             el("p", ["offlineland.io is not affiliated with manyland.com or it's developers."]),
-            el("p", ["SW version: ", versionText, " | page version: ", 1]),
+            el("p", ["SW version: ", versionText, " | page version: ", 2]),
         ]),
     ]),
 ])

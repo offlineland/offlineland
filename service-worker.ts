@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 6;
+const SW_VERSION = 9;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -643,11 +643,14 @@ const getAreaOrSubareaIdFor = async (player: PlayerDataManager, areaGroupId: str
     return (await idbKeyval.get(`area-current-subarea-${areaGroupId}`)) || areaGroupId
 }
 
-const findSubareaFor = async (areaUrlName: string, areaGroupId: string, subareaName: string) => {
-    const inBundledFile = bundledAreasFile[areaUrlName]?.subareas?.[subareaName]
-    if (inBundledFile) return inBundledFile;
-
+const findSubareaFor = async (areaUrlName: string, areaGroupId: string, subareaName: string): Promise<AreaData | undefined> => {
     const db = await dbPromise;
+
+    const inBundledFile = bundledAreasFile[areaUrlName]?.subareas?.[subareaName]
+    if (inBundledFile) {
+        return await db.area_getData(inBundledFile);
+    }
+
     const inDB = await db.area_getSubareasIn(areaGroupId)
     return inDB.find(sub => sub.arn === subareaName);
 }
@@ -979,13 +982,27 @@ class ArchivedAreaManager {
                         client.postMessage({ m: "NAVIGATE_TO_MAINSCREEN" })
                     }
                     else if (parsedMsg.data.tol) {
-                        console.log("user asked to teleport to", parsedMsg.data.tol)
-                        const subareaName = parsedMsg.data.tol;
-                        const subareaId = await findSubareaFor(this.areaUrlName, this.areaGroupId, subareaName);
+                        const wantedDestination: string = parsedMsg.data.tol;
+                        console.log("user asked to teleport to", wantedDestination)
+                        const subarea = await findSubareaFor(this.areaUrlName, this.areaGroupId, wantedDestination);
+                        console.log("user asked to teleport to", wantedDestination, subarea)
 
                         // NOTE: there are rare edge cases where there's actually a subarea with the same name as the current area. I'm going to ignore these
-                        // TODO: this might break if the area name is spelled using the areaRealName instead of the areaUrlName!
-                        if (subareaName === this.areaUrlName) {
+                        if (subarea !== undefined) {
+                            console.log(`subarea named "${subarea.arn} (id: "${subarea.aid}") found!`)
+                            this.setCurrentSubarea(subarea.aid)
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.TELEPORT,
+                                    data: {
+                                        rid: player.rid,
+                                        gun: null,
+                                    }
+                                })
+                            });
+                        }
+                        else if (wantedDestination === this.areaUrlName) {
                             console.log("player asked to teleport to main area!")
                             this.setCurrentSubarea(null)
                             client.postMessage({
@@ -999,9 +1016,9 @@ class ArchivedAreaManager {
                                 })
                             });
                         } 
-                        else if (subareaId) {
-                            console.log(`subarea named "${subareaName} (id: "${subareaId}") found!`)
-                            this.setCurrentSubarea(subareaId)
+                        else if (wantedDestination.toLowerCase().replace(/[^a-z0-9-]/gi, "") === this.areaUrlName) {
+                            console.log("player asked to teleport to main area!")
+                            this.setCurrentSubarea(null)
                             client.postMessage({
                                 m: "WS_MSG",
                                 data: toClient({
