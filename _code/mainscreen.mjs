@@ -74,7 +74,7 @@ class AreaCard {
                 "button.w-36.h-10.bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center.justify-items-center",
                 { disabled: true },
                 [
-                    "Downloading",
+                    "Loading",
                     el("div.flex.justify-center.items-center.p-2", [
                         el("div.animate-spin.rounded-full.h-4.w-4.border-b-2.border-white")
                     ])
@@ -96,7 +96,7 @@ class AreaCard {
             const btn = el(
                 "button.w-36.h-10.bg-blue-500.hover:bg-blue-700.active:bg-blue-600.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center",
                 { onclick: () => this.onBtnClick() },
-                "Download",
+                "Load",
             )
             setChildren(this.btnSpot, [ btn ])
             this.cardThumb.src = `/static/data/area-thumbnails/3.png`;
@@ -215,7 +215,7 @@ const main = el("main", [
                 el("p", [
                     "You can import areas from ",
                     el("a.link.link-secondary", {href: "https://areabackup.com"}, "areabackup.com"),
-                    " or ",
+                    " or your account data from ",
                     el("a.link.link-secondary", {href: "/exporter"}, "the exporter"),
                     " here. Everything stays on your device."
                 ]),
