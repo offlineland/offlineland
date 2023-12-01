@@ -143,9 +143,17 @@ const main = el("main", [
         ]),
 
         el("div.p-4", [
-            el("h2.text-2xl.text-center", "Data import"),
-            el("p", "You can import areas from areabackup.com or the exporter here. Everything stays on your device."),
-            el("div.p-4", [ importInput ])
+            el("div", [
+                el("h2.text-2xl.text-center", "Data import"),
+                el("p", [
+                    "You can import areas from ",
+                    el("a.link.link-primary", {href: "https://areabackup.com"}, "areabackup.com"),
+                    " or ",
+                    el("a.link.link-primary", {href: "/exporter"}, "the exporter"),
+                    " here. Everything stays on your device."
+                ]),
+                el("div.p-4", [ importInput ])
+            ]),
         ]),
     ]),
     el("div", [
