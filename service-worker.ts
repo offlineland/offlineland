@@ -530,9 +530,60 @@ class LocalAreaManager {
     }
 
     async onWsMessage(player: PlayerDataManager, client, msg) {
-        if (typeof msg === "string")
+        if (typeof msg === "string") {
             // TODO actually handle messages
             console.log("onWsMessage()", fromClient(msg))
+
+            const parsedMsg = /** @type { { data: any, m: string } } */ (fromClient(msg))
+            console.log("onWsMessage()", msgTypes_rev[parsedMsg.m], parsedMsg)
+
+            switch (parsedMsg.m) {
+                case msgTypes.MAP_EDIT: {
+                    const mapRejectionReasons = {
+                        OK: 0,
+                        BAD: 1,
+                        THROTTLED: 2,
+                        RANKRESTRICTED: 3,
+                        NEARPLAYER: 4,
+                        SOFTBAN: 5,
+                        PLACENAMEDUP: 6,
+                        R5OUTERPROTECT: 7
+                    };
+
+
+                    // TODO: properly handle storing map edits
+
+                    const { x, y, def } = parsedMsg.data;
+
+                    // TODO: figure out what was there before
+                    const prevBlock = def ? null : groundId;
+
+                    client.postMessage({
+                        m: "WS_MSG",
+                        data: toClient({
+                            m: msgTypes.MAP_EDIT_REJECTED,
+                            data: {
+                                def: prevBlock,
+                                x: x,
+                                y: y,
+                                rsn: mapRejectionReasons.THROTTLED
+                            }
+                        })
+                    });
+
+                    break;
+                }
+                case msgTypes.TELEPORT: {
+                    // TODO: store current player position once we actually decode it from binary messages
+
+                    if (parsedMsg.data === null) {
+                        console.log("tried to go to elsewhere")
+                        client.postMessage({ m: "NAVIGATE_TO_MAINSCREEN" })
+                    }
+                    break;
+                }
+            }
+        }
         else {
             // TODO read binary messages
             console.log("onWsMessage() binary", msg)
