@@ -6,9 +6,6 @@ const { el, text, mount, setChildren, setAttr, list } = /**@type { import('redom
 
 
 const swRegP = registerServiceWorker()
-let areaData = [
-    { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
-];
 
 
 const dlAreaResSchema = z.object({ ok: z.boolean() })
@@ -31,19 +28,19 @@ class AreaCard {
         const { ok } = dlAreaResSchema.parse(json)
 
         if (ok) {
-            setAreaStatus(this.areaUrlName, "DOWNLOADED")
+            this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADED"})
         }
         else {
             // TODO: fancy UI
             console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?")
-            setAreaStatus(this.areaUrlName, "DOWNLOAD_ERROR")
+            this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOAD_ERROR"})
         }
 
     }
 
     onBtnClick() {
         this.triggerAreaDownload() 
-        setAreaStatus(this.areaUrlName, "DOWNLOADING")
+        this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADING"})
     }
     
     update({ areaUrlName, areaRealName, status }) {
@@ -94,24 +91,44 @@ class AreaCard {
     }
 }
 
-const areaListEl = list("div.flex.flex-row.flex-wrap.justify-around.justify-items-center", AreaCard)
-areaListEl.update(areaData)
-const setAreaStatus = (areaUrlName, status) => {
-    areaData = areaData.map(a => a.areaUrlName === areaUrlName ? { ...a, status: status } : a)
-    areaListEl.update(areaData)
+
+
+
+class MainInterface {
+    constructor() {
+        this.areaListEl = list("div.flex.flex-row.flex-wrap.justify-around.justify-items-center", AreaCard)
+        this.el = el("div", [
+            el("span.loading.loading-spinner.loading-lg"),
+        ])
+    }
+
+    update(data) {
+        if (data.state === "LOADING") {
+
+        }
+        else if (data.state === "AREALIST") {
+            setChildren(this.el, this.areaListEl);
+            this.areaListEl.update(data.areas)
+        }
+
+    }
 }
 
 
 
 
 
+
+
+const mainInterface = new MainInterface();
+mainInterface.update("LOADING");
 const versionText = text("loading...")
 const importInput = el("input#fileInput", { type: "file", accept: ".zip" } );
 
 
 
 const main = el("main", [
-    el("div.text-center.p-3.pb-6", [
+    el("div.text-center.p-3.pb-8", [
         el("h1.text-4xl.font-bold.p-3", "Offlineland"),
         el("p.text-lg", [ "An interactive monument to ", el("a", { href: "https://manyland.com" }, "Manyland") ]),
     ]),
@@ -119,7 +136,7 @@ const main = el("main", [
     el("div.grid.grid-cols-5", [
         el("div.col-span-4", [
             el("h2.text-2xl.text-center", "Available areas"),
-            areaListEl,
+            mainInterface,
         ]),
 
         el("div.p-4", [
@@ -220,6 +237,5 @@ await swRegP;
 await new Promise(r => setTimeout(r, 50))
 fetch("/_mlspinternal_/getversion").then(r => r.json()).then(v => versionText.textContent = v);
 fetch("/_mlspinternal_/getdata").then(r => r.json()).then(data => {
-    areaData = data;
-    areaListEl.update(areaData)
+    mainInterface.update({state: "AREALIST", areas: data})
 })
