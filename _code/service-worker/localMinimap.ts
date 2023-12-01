@@ -73,6 +73,11 @@ const generateMinimapTile = async (xyc: [number, number, string][]) => {
 }
 
 const getMapPixelColorFor = async (creationId: string) => {
+	if (creationId === null) {
+		console.warn("getMapPixelColorFor asked for a null id!", creationId)
+        return `rgba(255, 0, 0, 1)`;
+	}
+
     console.log("getMapPixelColorFor", creationId)
     const db = await dbPromise;
 
@@ -83,7 +88,7 @@ const getMapPixelColorFor = async (creationId: string) => {
     const creationRes = await cache_getCreationSprite(creationId)
 
     if (!creationRes) {
-        console.error("getMapColorFor(): creation does not exist in cache!", creationId)
+        console.warn("getMapColorFor(): creation does not exist in cache!", creationId, "returning red")
         // Note: this means that it will generate *and cache* the minimap tile with this red pixel!
         // This is probably alright, since the map is just there to get around
         return `rgba(255, 0, 0, 1)`;
