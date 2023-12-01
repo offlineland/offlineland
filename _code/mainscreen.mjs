@@ -14,7 +14,6 @@ class AreaCard {
     constructor() {
         this.el = el("div.w-56.m-1.my-3.rounded.overflow-hidden.shadow-lg", [
             this.cardThumb = el("img.w-full.rounded.cursor-pointer", {
-                src: "/static/data/area-thumbnails/3.png",
                 alt: "Image Description",
                 onclick: () => this.onBtnClick(),
             }),
@@ -66,7 +65,6 @@ class AreaCard {
         this.areaRealName = areaRealName
         this.status = status
 
-        this.cardThumb.src = `/static/data/area-thumbnails/3.png`;
 
         if (status === "DOWNLOADED") {
             const btn = el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { href: "/" + areaUrlName }, "Play")
@@ -104,7 +102,7 @@ class AreaCard {
                 "Download",
             )
             setChildren(this.btnSpot, [ btn ])
-            this.cardThumb.src = `/static/data/area-thumbnails/${this.areaUrlName}.png`;
+            this.cardThumb.src = `/static/data/area-thumbnails/3.png`;
         }
 
         this.cardTitle.textContent = this.areaRealName
