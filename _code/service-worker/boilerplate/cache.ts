@@ -176,13 +176,26 @@ const addArea = (areaId: string, zip: Zip) => zip.generateAsync({ type: "blob" }
 const getAreaRes = (areaId: string) => getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
 const getAreaZip = (areaId: string) => getAreaRes(areaId).then(res => res.blob()).then(blob => JSZip.loadAsync(blob))
 
+const getAreaNameFromThumbnailReq = (url: URL) => {
+    const start = "/static/data/area-thumbnails/".length;
+
+    return url.pathname.slice(start, -4)
+}
+
 const addAreaThumb = (areaUrlName: string, thumbnail: Blob) => addToCache( CACHE_THUMBS, `/static/data/area-thumbnails/${areaUrlName}.png`, thumbnail)
 const getAreaThumbRes = async (req: Request) => {
-    const cache = await self.caches.open(CACHE_THUMBS);
+    const areaName = getAreaNameFromThumbnailReq(new URL(req.url))
 
+    // Thumbnails are broken for short area names
+    if (areaName.length < 6) {
+        return await fetch(`/static/data/area-thumbnails/3.png`); // TODO find a proper default thumbnail
+    }
+
+    const cache = await self.caches.open(CACHE_THUMBS);
     const match = await cache.match(req);
     if (match) return match;
-    else return await fetch(`/static/data/area-thumbnails/kingbrownssanctum.png`); // TODO find a proper default thumbnail
+
+    return await fetch(`/static/data/area-thumbnails/3.png`); // TODO find a proper default thumbnail
 }
 
 return {
