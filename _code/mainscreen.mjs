@@ -284,6 +284,10 @@ class ImportMgr {
                 const callbacks = this.files.get(msg.data.key);
                 callbacks?.progress(false);
             }
+            if (msg.m === "IMPORT_PROGRESS") {
+                const callbacks = this.files.get(msg.data.key);
+                callbacks?.progress(true, msg.data.current, msg.data.total);
+            }
             else if (msg.m === "IMPORT_COMPLETE") {
                 const callbacks = this.files.get(msg.data.key);
                 callbacks?.load("ok");
@@ -306,7 +310,6 @@ class ImportMgr {
         this.files.set(key, callbacks);
         navigator.serviceWorker.controller.postMessage({ m: "DATA_IMPORT", data: { file, key: key } });
     }
-
 }
 
 
@@ -339,6 +342,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         mainInterface.update({ state: "ERROR", error: "Unable to register or update the Service Worker." })
         throw e;
     }
+
+    navigator.serviceWorker.addEventListener("message", (ev) => {
+            const msg = ev.data;
+            //console.log("SW MSG", msg);
+
+            if (msg.m === "GENERIC_ERROR") {
+                toastError(msg.data.message)
+            }
+            else if (msg.m === "GENERIC_SUCCESS") {
+                toastSuccess(msg.data.message)
+            }
+    })
 
     const importMgr = new ImportMgr();
 

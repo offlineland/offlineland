@@ -2175,7 +2175,13 @@ const handleDataImport = async (file: File, key, client: Client) => {
 
         if (zip.file("profile.json")) {
             try {
-                const profile = await importPlayerData(zip, db, cache);
+                const profile = await importPlayerData(
+                    zip,
+                    db,
+                    cache,
+                    (current, total) => client.postMessage({ m: "IMPORT_PROGRESS", data: { key, current, total } }),
+                    (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } })
+                );
                 client.postMessage({ m: "IMPORT_COMPLETE", data: { key, type: "PLAYER", message: `Sucessfully imported player data. Welcome to Offlineland, ${profile.screenName}!` } })
             }
             catch(e) {
