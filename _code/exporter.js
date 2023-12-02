@@ -143,10 +143,10 @@
             el("ul", [
                 el("li", [ btn_snapsEnabled, "Snaps" ]),
                 el("li", [ btn_miftsEnabled, "Mifts" ]),
-                el("li", [ btn_collectionsEnabled, "Collections" ]),
-                el("li", [ btn_creationsEnabled, "Creations" ]),
-                el("li", [ btn_binEnabled, "Creations in bin" ]),
-                el("li", [ btn_queueEnabled, "Creations in multis, holders, and body motions" ]),
+                el("li", [ btn_collectionsEnabled, "Collections tab" ]),
+                el("li", [ btn_creationsEnabled, "Creations tab" ]),
+                el("li", [ btn_binEnabled, "Creations in bin (search tab)" ]),
+                el("li", [ btn_queueEnabled, "Creations in multis, holders, and body motions (this can take a very long time!)" ]),
             ])
         ]),
 
@@ -351,12 +351,12 @@
         log("processing queue")
         while (true) {
             const queue = await db.getAllKeys("creations-queue");
-            status.textContent = `Downloading remaining queued creations... (0 / ${queue.length})`
+            status.textContent = `Downloading queued creations... (0 / ${queue.length})`
             if (queue.length === 0) break;
 
             for (let i = 0; i < queue.length; i++) {
                 const id = queue[i];
-                status.textContent = `Downloading remaining queued creations... (${i} / ${queue.length})`
+                status.textContent = `Downloading queued creations... (${i} / ${queue.length})`
                 await saveCreation(id);
                 await db.delete("creations-queue", id);
             }
@@ -835,7 +835,7 @@
         status.textContent = "Downloading created creations..."
         await downloadAllCreatedCreations();
         if (btn_queueEnabled.checked) {
-            status.textContent = "Downloading remaining queued creations..."
+            status.textContent = "Downloading queued creations..."
             await processCreationsInQueue();
         }
 
