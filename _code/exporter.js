@@ -149,12 +149,12 @@
         el("h1", "offlineland.io's exporter thingy"),
         el("div", [
             el("ul", [
-                el("li", [ btn_snapsEnabled, "Snaps" ]),
-                el("li", [ btn_miftsEnabled, "Mifts" ]),
-                el("li", [ btn_collectionsEnabled, "Collections tab" ]),
-                el("li", [ btn_creationsEnabled, "Creations tab" ]),
-                el("li", [ btn_binEnabled, "Creations in bin (search tab)" ]),
-                el("li", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ]),
+                el("li", el("label", [ btn_snapsEnabled, "Snaps" ])),
+                el("li", el("label", [ btn_miftsEnabled, "Mifts" ])),
+                el("li", el("label", [ btn_collectionsEnabled, "Collections tab" ])),
+                el("li", el("label", [ btn_creationsEnabled, "Creations tab" ])),
+                el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)" ])),
+                el("li", el("label", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ])),
             ])
         ]),
 
