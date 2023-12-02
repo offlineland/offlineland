@@ -1,5 +1,11 @@
-# Disallow crawlers for now, since this is on a temporary domain
-
 User-agent: *
-Disallow: /
-
+Disallow: /manyland.js
+Disallow: /intermission*
+Disallow: /?c
+Disallow: *?c
+Disallow: /info-area-lock
+Disallow: /info-rift
+Disallow: /info-speed-issues
+Disallow: /login
+Disallow: /auth/*
+Disallow: /err/*
