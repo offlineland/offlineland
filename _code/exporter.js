@@ -133,6 +133,7 @@
     const btn_collectionsEnabled = el("input", { type: "checkbox", checked: false })
     const btn_creationsEnabled = el("input", { type: "checkbox", checked: true })
     const btn_binEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_queueEnabled = el("input", { type: "checkbox", checked: true })
     const btn_start = el("button.okButton", ["Start exporter"])
 
 
@@ -145,6 +146,7 @@
                 el("li", [ btn_collectionsEnabled, "Collections" ]),
                 el("li", [ btn_creationsEnabled, "Creations" ]),
                 el("li", [ btn_binEnabled, "Creations in bin" ]),
+                el("li", [ btn_queueEnabled, "Creations in multis, holders, and body motions" ]),
             ])
         ]),
 
@@ -812,17 +814,17 @@
 
         }
 
-        if (btn_collectionsEnabled) {
+        if (btn_collectionsEnabled.checked) {
             status.textContent = "Finding collected creations..."
             await scanInventoryCollections();
         }
 
-        if (btn_creationsEnabled) {
+        if (btn_creationsEnabled.checked) {
             status.textContent = "Finding created creations..."
             await scanInventoryCreations();
         }
 
-        if (btn_binEnabled) {
+        if (btn_binEnabled.checked) {
             status.textContent = "Finding creations in bin..."
             await scanInBin();
         }
@@ -832,8 +834,10 @@
         await downloadAllCollectedCreations();
         status.textContent = "Downloading created creations..."
         await downloadAllCreatedCreations();
-        status.textContent = "Downloading remaining queued creations..."
-        await processCreationsInQueue();
+        if (btn_queueEnabled.checked) {
+            status.textContent = "Downloading remaining queued creations..."
+            await processCreationsInQueue();
+        }
 
 
 
