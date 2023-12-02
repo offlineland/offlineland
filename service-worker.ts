@@ -1026,7 +1026,7 @@ class ArchivedAreaManager {
                                     m: msgTypes.TELEPORT,
                                     data: {
                                         rid: player.rid,
-                                        gun: null,
+                                        gun: this.areaUrlName,
                                     }
                                 })
                             });
