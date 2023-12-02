@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 10;
+const SW_VERSION = 11;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -316,12 +316,24 @@ const makeBundledAreaAvailableOffline = async (areaName: string) => {
     try {
         console.log("getting zip...")
         const zip = await cache.getAreaZip(areaData.areaId);
-        await importAreaData(zip, db, cache)
+        await importAreaData(
+            zip,
+            db,
+            cache,
+            (current, total) => {}, //TODO
+            (error) => {}, // TODO
+        )
 
         const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId as string);
         for (const subareaId of subareaIds) {
             const subareaZip = await cache.getAreaZip(subareaId)
-            await importAreaData(subareaZip, db, cache)
+            await importAreaData(
+                subareaZip,
+                db,
+                cache,
+                (current, total) => {}, //TODO
+                (error) => {}, // TODO
+            )
         }
 
 
@@ -2190,7 +2202,13 @@ const handleDataImport = async (file: File, key, client: Client) => {
             }
         }
         else if (zip.file("area_settings.json")) {
-            const data = await importAreaData(zip, db, cache);
+            const data = await importAreaData(
+                zip,
+                db,
+                cache,
+                (current, total) => client.postMessage({ m: "IMPORT_PROGRESS", data: { key, current, total } }),
+                (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } })
+            );
             client.postMessage({ m: "IMPORT_COMPLETE", data: { key, type: "AREA", message: `Sucessfully imported area data "${data.arn}"!` } })
         }
         else {
