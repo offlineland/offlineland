@@ -14,6 +14,15 @@ type AreaData = {
     agn: string;
     aun: string;
     ard: string;
+    acl: { x: number, y: number };
+    iid?: string;
+    adr?: { angle: number; speed: number; };
+    apr: string;
+    axx: boolean;
+    aul: boolean;
+    spe: boolean;
+    ece: boolean;
+    mpv: number;
 }
 
 type MultiData = unknown;
@@ -61,6 +70,21 @@ type PainterData = {
     creator: string;
 }
 
+type SectorData = {
+    iix: string[];
+    ps: [number, number, number, number, number][];
+    i: {
+        b: string[];
+        p: CreationProps[];
+        n: string[];
+        dr: string[];
+    };
+
+    v: number;
+    x: number;
+    y: number;
+}
+
 // TODO: migrate the idb-keyval data to this?
 interface OfflinelandIDBSchema extends DBSchema {
     "area-data": {
@@ -71,6 +95,10 @@ interface OfflinelandIDBSchema extends DBSchema {
             "by-aun": string;
         }
     };
+    "area-sectors": {
+        key: string;
+        value: SectorData;
+    },
     "multis": {
         key: string;
         value: MultiData;
@@ -98,7 +126,7 @@ class LocalMLDatabase {
 
     static async make() {
         console.log("making db")
-        const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 5, {
+        const db = await idb.openDB<OfflinelandIDBSchema>('offlineland-db', 6, {
             upgrade(db, oldVersion, newVersion) {
                 console.log("upgrading db from", oldVersion, "to", newVersion)
 
@@ -134,6 +162,11 @@ class LocalMLDatabase {
                     console.log("running migration 4");
 
                     db.createObjectStore("minimap-area-tile-ids");
+                }
+                if (oldVersion < 6) {
+                    console.log("running migration 5");
+
+                    db.createObjectStore("area-sectors");
                 }
 
                 console.log("done!")
@@ -247,6 +280,26 @@ class LocalMLDatabase {
     }
 
 
+    async area_getSector(areaId: string, x: number, y: number) {
+        const key = `${areaId}_${x}_${y}`;
+
+        return await this.db.get("area-sectors", key);
+    }
+    async area_setSector(areaId: string, x: number, y: number, sectorData: SectorData) {
+        const key = `${areaId}_${x}_${y}`;
+
+        return await this.db.put("area-sectors", sectorData, key);
+    }
+    async area_delAllAreaSectors(id: string) {
+        const keys = await this.db.getAllKeys("area-sectors")
+
+        for (const key of keys) {
+            if (key.startsWith(id + "_")) {
+                await this.db.delete("area-sectors", key);
+            }
+        }
+    }
+
     async area_setData(data: AreaData) {
         try {
             return await this.db.put("area-data", data)
@@ -258,6 +311,9 @@ class LocalMLDatabase {
     }
     async area_getData(id: string) {
         return await this.db.get("area-data", id)
+    }
+    async area_getData_all() {
+        return await this.db.getAll("area-data")
     }
     async area_delArea(id: string) {
         return await this.db.delete("area-data", id)

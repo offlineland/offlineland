@@ -1,5 +1,4 @@
 const CACHE_NAME = 'cache-v1';
-const CACHE_AREAS_V2 = "cache_areas_v2"
 const CACHE_THUMBS = "cache_thumbs_v2"
 
 const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
@@ -158,23 +157,13 @@ const getCreationDefRes = async (creationId) => {
 }
 
 
-const isAreaInCache = async (areaId: string) => {
-    const areasv2cache = await caches.open(CACHE_AREAS_V2);
-    const cachematch = await areasv2cache.match(new URL(self.origin + `/static/data/v2/${areaId}.zip`))
-
-    return !!cachematch
-}
 
 const addToCache = async (cacheName: string, path: string, blob: Blob) => {
-    const areasv2cache = await caches.open(cacheName);
+    const cache = await caches.open(cacheName);
     const response = new Response(blob);
-    await areasv2cache.put(new URL(self.origin + path), response)
+    await cache.put(new URL(self.origin + path), response)
 }
 
-// TODO: pass the blob directly
-const addArea = (areaId: string, zip: Zip) => zip.generateAsync({ type: "blob" }).then(blob => addToCache( CACHE_AREAS_V2, `/static/data/v2/${areaId}.zip`, blob))
-const getAreaRes = (areaId: string) => getOrSetFromCache( CACHE_AREAS_V2, new Request(`/static/data/v2/${areaId}.zip`) )
-const getAreaZip = (areaId: string) => getAreaRes(areaId).then(res => res.blob()).then(blob => JSZip.loadAsync(blob))
 
 const getAreaNameFromThumbnailReq = (url: URL) => {
     const start = "/static/data/area-thumbnails/".length;
@@ -207,11 +196,6 @@ return {
     getCreationSprite,
     setCreationSprite,
     getCreationSpriteRes,
-
-    isAreaInCache,
-    addArea,
-    getAreaRes,
-    getAreaZip,
 
     addAreaThumb,
     getAreaThumbRes,

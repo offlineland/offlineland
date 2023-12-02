@@ -7,7 +7,7 @@ const importAreaData = async (
     onError: (message: string) => void,
 ) => {
     const readJson = (path: string) => zip.file(path).async("text").then(JSON.parse);
-    const readJsonf = (file) => file.async("text").then(JSON.parse);
+    const readJsonf = (file): Promise<any> => file.async("text").then(JSON.parse);
 
     const filesCount = Object.keys(zip.files).length;
     let handledFiles = 0;
@@ -20,8 +20,6 @@ const importAreaData = async (
 
     console.log("storing area data")
     await db.area_setData(data);
-    console.log("adding zip to cache")
-    await cache.addArea(areaId, zip);
     console.log("storing area data ok")
 
 
@@ -84,6 +82,19 @@ const importAreaData = async (
                 }
 
                 await readJsonf(file).then(data => db.creation_setMultiData(id, data));
+            }
+            else if (path === "sectors/") {
+                const maybeMatch = filename.match(/sector(?<x>[-\d]+)T(?<y>[-\d]+).json/);
+                if (maybeMatch === null) {
+                    console.warn("got a file that does not seem to be a valid sector!", fullPath)
+                    continue;
+                }
+
+                const x = Number(maybeMatch.groups.x);
+                const y = Number(maybeMatch.groups.y);
+
+                const data = await readJsonf(file)
+                await db.area_setSector(areaId, x, y, data)
             }
             else if (fullPath === "thumbnail.png") {
                 console.log("storing thumbnail")

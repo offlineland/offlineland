@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 11;
+const SW_VERSION = 15;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -253,33 +253,28 @@ const getAreaIdFromUrl = (url: URL) => {
 
 const getAvailableAreas = async () => {
     const db = await dbPromise;
-    const areasInCache: string[] = [];
+    const areasStoredLocally: string[] = [];
     const data = [
         // TODO local areas
         { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
     ];
     
     // Areas in cache
-    const areasCache = await caches.open(CACHE_AREAS_V2);
-    const keys = await areasCache.keys();
+    const areas = await db.area_getData_all();
 
-    for (const req of keys) {
-        const areaId = getAreaIdFromUrl(new URL(req.url))
-        console.log("checking cached area", areaId)
+    for (const area of areas) {
+        areasStoredLocally.push(area.aid);
 
-        areasInCache.push(areaId);
-        const areaData = await db.area_getData(areaId);
-        console.log(areaData);
-
-        if (areaData.sub === true)
+        if (area.sub === true)
             continue;
 
         data.push({
-            areaUrlName: areaData.aun,
-            areaRealName: areaData.arn,
+            areaUrlName: area.aun,
+            areaRealName: area.arn,
             status: "DOWNLOADED"
         })
     }
+
 
 
     // Bundled areas
@@ -287,15 +282,13 @@ const getAvailableAreas = async () => {
     for (const areaUrlName of availableAreas) {
         const areaId = getAreaIdForAreaName(areaUrlName);
 
-        if (areasInCache.includes(areaId))
+        if (areasStoredLocally.includes(areaId))
             continue;
-
-        const cachematch = await areasCache.match(new URL(self.origin + `/static/data/v2/${areaId}.zip`));
 
         data.push({
             areaUrlName: areaUrlName,
             areaRealName: bundledAreasFile[areaUrlName].areaRealName || areaUrlName,
-            status: cachematch ? "DOWNLOADED" : "DOWNLOADABLE"
+            status: "DOWNLOADABLE"
         })
     }
 
@@ -303,6 +296,7 @@ const getAvailableAreas = async () => {
     return data;
 }
 
+const getZipForAreaId = (areaId) => fetch(`/static/data/v2/${areaId}.zip`).then(res => res.blob()).then(blob => JSZip.loadAsync(blob))
 const makeBundledAreaAvailableOffline = async (areaName: string) => {
     console.log("makeBundledAreaAvailableOffline()", areaName)
     const areaData = bundledAreasFile[areaName]
@@ -315,7 +309,7 @@ const makeBundledAreaAvailableOffline = async (areaName: string) => {
 
     try {
         console.log("getting zip...")
-        const zip = await cache.getAreaZip(areaData.areaId);
+        const zip = await getZipForAreaId(areaData.areaId);
         await importAreaData(
             zip,
             db,
@@ -326,7 +320,7 @@ const makeBundledAreaAvailableOffline = async (areaName: string) => {
 
         const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId as string);
         for (const subareaId of subareaIds) {
-            const subareaZip = await cache.getAreaZip(subareaId)
+            const subareaZip = await getZipForAreaId(subareaId);
             await importAreaData(
                 subareaZip,
                 db,
@@ -669,7 +663,7 @@ const findSubareaFor = async (areaUrlName: string, areaGroupId: string, subareaN
 
 class ArchivedAreaManager {
     clients = new Set();
-    zip: typeof JSZip;
+    db: LocalMLDatabase;
     wssUrl: string;
     areaId: string;
     possessionsMgr: AreaPossessionsManager;
@@ -690,9 +684,9 @@ class ArchivedAreaManager {
     explorerChatAllowed: boolean;
     mpv: number;
 
-    constructor(wssUrl: string, areaId: string, data: any, zip: any, possessionsMgr: AreaPossessionsManager) {
+    constructor(wssUrl: string, areaId: string, data: AreaData, db: LocalMLDatabase, possessionsMgr: AreaPossessionsManager) {
         console.log("ArchivedAreaManager constructor", wssUrl, areaId, data)
-        this.zip = zip;
+        this.db = db;
         this.wssUrl = wssUrl;
         this.areaId = areaId;
         this.possessionsMgr = possessionsMgr;
@@ -718,30 +712,15 @@ class ArchivedAreaManager {
     }
 
     static async make(wssUrl: string, areaId: string, possessionsMgr: AreaPossessionsManager) {
-        if (await cache.isAreaInCache(areaId) === false) {
-            // This shouldn't happen, but in case it ever does, we just load it on the fly
-            // TODO: send messages to inform progress?
-            // TODO: this will fail if the area isn't a bundled one. It would be safer to display an error and return to /
-            await makeBundledAreaAvailableOffline(areaId)
+        const db = await dbPromise;
+        const data = await db.area_getData(areaId);
+
+        if (!data) {
+            // TODO this shouldn't happen. But if it does, send a message to the client to display an error?
+            throw new Error("Trying to create an ArchivedAreaManager but no data found in db")
         }
 
-        const res = await cache.getAreaRes(areaId);
-        // TODO handle errors?
-        console.log("AreaManager make(): zip res", res, res.ok, res.status)
-
-        const blob = await res.blob()
-
-        console.log("AreaManager make(): reading zip")
-        const zip = await JSZip.loadAsync(blob)
-        console.log("AreaManager make(): reading zip ok", zip)
-
-        console.log("AreaManager make(): reading settings file")
-        const data = JSON.parse(await zip.file("area_settings.json").async("string"))
-        console.log("AreaManager make(): reading settings file ok", { areaId, data, zip })
-
-
-
-        return new ArchivedAreaManager(wssUrl, areaId, data, zip, possessionsMgr)
+        return new ArchivedAreaManager(wssUrl, areaId, data, db, possessionsMgr)
     }
 
     async getInitData(player: PlayerDataManager) {
@@ -802,17 +781,7 @@ class ArchivedAreaManager {
     }
 
     async getDataForSector(x: number, y: number) {
-        console.log(`loadingsectordata ${x}:${y}: reading zip`)
-        const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
-        console.log(`loadingsectordata ${x}:${y}: reading zip ok`, sectorFile)
-
-        if (sectorFile === null) return undefined;
-
-        console.log(`loadingsectordata ${x}:${y}: parsing file`)
-        const data = JSON.parse(await sectorFile.async("string"))
-        console.log(`loadingsectordata ${x}:${y}: parsing file ok`, data)
-
-        return data;
+        return this.db.area_getSector(this.areaId, x, y);
     }
 
     getSpawnpoint() {
@@ -846,22 +815,15 @@ class ArchivedAreaManager {
 
 
         console.log("getMinimapData_Tile", x, y, "getting sector")
-        const sectorFile = this.zip.file(`sectors/sector${x}T${y}.json`)
+        const sector = await this.getDataForSector(x, y);
 
-        if (sectorFile === null) {
+        if (!sector) {
             await db.minimap_setTile(this.areaId, x, y, null);
             return { x, y, id: null, pn: placeNames };
         }
 
 
-
-        console.log("getMinimapData_Tile", x, y, "opening cache")
         const maptilesCache = await caches.open("MAP_TILES_V1");
-
-        console.log("getMinimapData_Tile", x, y, "reading sector")
-        const sector = JSON.parse(await sectorFile.async("string"))
-        console.log("getMinimapData_Tile", x, y, "reading sector ok", sector)
-
         const colors = await Promise.all(sector.iix.map(id => getMapPixelColorFor(id)))
         console.log("generating minimapTileBlob...")
         const minimapTileBlob = await generateMinimapTile(sector.ps.map(([x, y, i]) => [x, y, colors[i]]))
@@ -1149,16 +1111,6 @@ const getAreaManagerClassForAreaId = async (areaId) => {
         return ArchivedAreaManager;
     }
 
-    // TODO
-    for (const area of Object.values(bundledAreasFile)) {
-        if (area.areaId === areaId) {
-            return ArchivedAreaManager;
-        }
-
-        if (Object.values(area.subareas).includes(areaId)) {
-            return ArchivedAreaManager;
-        }
-    }
 
     return LocalAreaManager;
 }
@@ -2219,27 +2171,30 @@ const handleDataImport = async (file: File, key, client: Client) => {
         console.error("error processing data!", e);
     }
 }
+const handleDeleteArea = async (areaId: string) => {
+    const db = await dbPromise;
+    const subs = await db.area_getSubareasIn(areaId);
 
-const handleDeleteArea = async (areaUrlName: string, client: Client) => {
+    console.log("clearing main area")
+    await db.area_delArea(areaId);
+    await db.area_delAllAreaSectors(areaId);
+    console.log("clearing main area ok")
+
+    for (const sub of subs) {
+        console.log("clearing subarea", sub.arn)
+        await db.area_delArea(sub.aid);
+        await db.area_delAllAreaSectors(sub.aid);
+        console.log("clearing subarea", sub.arn, "ok")
+    }
+}
+
+const handleDeleteAreaByName = async (areaUrlName: string, client: Client) => {
     try {
         console.log("deleting area", areaUrlName);
         const db = await dbPromise;
-        const cache = await caches.open(CACHE_AREAS_V2)
-
         const areaData = await db.area_getDataByAun(areaUrlName);
-        const subs = await db.area_getSubareasIn(areaData.aid);
 
-        console.log("clearing main area")
-        await db.area_delArea(areaData.aid);
-        await cache.delete(getURLForArea(areaData.aid));
-        console.log("clearing main area ok")
-
-        for (const sub of subs) {
-            console.log("clearing subarea", sub.arn)
-            await db.area_delArea(sub.aid);
-            await cache.delete(getURLForArea(sub.aid));
-            console.log("clearing subarea", sub.arn, "ok")
-        }
+        await handleDeleteArea(areaData.aid);
 
         console.log("deleting area", areaUrlName, "ok");
         client.postMessage({ m: "AREA_DELETED", data: { msg: `Sucessfully cleared area "${areaData.arn}"!` } })
@@ -2281,7 +2236,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
         else if (message.m === "DELETE_AREA") {
             console.log("client sent DELETE_AREA!", message);
 
-            event.waitUntil(handleDeleteArea(message.data.areaUrlName, client));
+            event.waitUntil(handleDeleteAreaByName(message.data.areaUrlName, client));
         }
         else {
             console.warn("Unhandled event", message)
@@ -2301,9 +2256,26 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
 const onInstall = async (/** @type {ExtendableEvent} */ event) => {
     try {
         console.log("service worker install event")
+        console.log("waiting for db")
+        const db = await dbPromise;
+        console.log("waiting for db ok")
 
         // TODO: create cache for sounds and other static assets
         // TODO: create cache for code, update it on load
+        if (await caches.has("cache_areas_v2")) {
+            console.log("updating old cache_areas_v2")
+            const areasCache = await caches.open("cache_areas_v2");
+            const keys = await areasCache.keys()
+
+            for (const req of keys) {
+                const areaId = getAreaIdFromUrl(new URL(req.url));
+                await handleDeleteArea(areaId);
+            }
+
+            await caches.delete("cache_areas_v2");
+            console.log("updating old cache_areas_v2 done");
+        }
+
         await makeBundledAreaAvailableOffline("chronology");
     } catch(e) {
         console.error("onInstall error!", e)
