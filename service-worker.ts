@@ -2160,7 +2160,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 const handleDataImport = async (file: File, key, client: Client) => {
     if (file.type !== "application/zip") {
         console.warn("file is not a zip")
-        client.postMessage({ m: "IMPORT_ERROR", data: { key, error: "This file is not a zip! How did you get this thing in here!" } })
+        client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This file "${file.name}" does not look like a zip! Type: "${file.type}" (expected: "application/zip")` } })
         return;
     }
 
