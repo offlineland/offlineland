@@ -214,7 +214,7 @@ const main = el("main", [
                 el("h2.text-2xl.text-center", "Data import"),
                 el("p", [
                     "You can import areas from ",
-                    el("a.link.link-secondary", {href: "https://areabackup.com"}, "areabackup.com"),
+                    el("a.link.link-secondary", {href: "https://areabackup.com",target: "_blank"}, "areabackup.com"),
                     " or your account data from ",
                     el("a.link.link-secondary", {href: "/exporter"}, "the exporter"),
                     " here. Everything stays on your device."
