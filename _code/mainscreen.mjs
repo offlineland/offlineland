@@ -1,5 +1,6 @@
 import { registerServiceWorker } from "./register-service-worker.js"
 import * as FilePond from "./libs/filepond.esm.min.js"
+import FilePondPluginFileValidateType from "./libs/filepond-plugin-file-validate-type.esm.js"
 import Toastify from "./libs/toastify-es.js"
 const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
 const { el, text, mount, setChildren, setAttr, list } = /**@type { import('redom' )} */ (globalThis.redom);
@@ -180,7 +181,7 @@ const noServiceWorkerModal = new Modal("Error!", [
 const mainInterface = new MainInterface();
 mainInterface.update("LOADING");
 const versionText = text("loading...")
-const importInput = el("input#fileInput", { type: "file", accept: ".zip" } );
+const importInput = el("input#fileInput", { type: "file", accept: "application/zip, application/x-zip-compressed, application/octet-stream" } );
 
 
 
@@ -341,10 +342,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const importMgr = new ImportMgr();
 
+    FilePond.registerPlugin(FilePondPluginFileValidateType);
     const pond = FilePond.create(importInput, {
         allowMultiple: true,
         allowRevert: false,
-        acceptedFileTypes: [ "application/zip" ],
+        acceptedFileTypes: [ "application/zip", "application/x-zip-compressed", "application/octet-stream" ],
         labelFileProcessing: "Importing",
         labelFileProcessingComplete: "Import complete",
         labelFileProcessingError: "Error during import",
