@@ -2061,7 +2061,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
                 const res = await fetch("/exporter.html?cachebust=" + Date.now());
                 return res;
             }
-            if (url.pathname === "/exporter.js") return fetch("/service-worker.js");
+            if (url.pathname === "/exporter.js") return fetch("/exporter.js");
             if (url.pathname === "/manifest.json") return fetch("/manifest.json");
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
