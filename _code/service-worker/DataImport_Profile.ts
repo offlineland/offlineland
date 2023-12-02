@@ -39,9 +39,11 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
 
 
     for (const file of Object.values(zip.files)) {
+        if (file.dir) continue;
+
         const fullPath = file.name
         try {
-            const path = fullPath.substring(0, fullPath.lastIndexOf('/'));
+            const path = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
             const filename = fullPath.substring(fullPath.lastIndexOf('/') + 1);
 
             // TODO: deduplicate this with area import
@@ -141,11 +143,24 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
                 const data = await readJsonf(file);
                 await db.creation_setMultiData(id, data);
             }
+            else if (path === "mifts/public/") {
+                // TODO
+            }
+            else if (path === "mifts/private/") {
+                // TODO
+            }
+            else if (path === "snapshots/") {
+                // TODO
+            }
+            // Ignored things
+            else if (path === "areas/") {}
+            else if (path === "areas.csv") {}
+            else if (path === "snapshots.csv") {}
+            else if (path === "snapshots/filename_mapping.json") {}
+            else if (path === "mifts.csv") {}
             else {
                 console.warn("unhandled file!", fullPath)
             }
-            // TODO snaps
-            // TODO mifts
 
 
             handledFiles++;
