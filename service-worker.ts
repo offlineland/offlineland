@@ -2158,7 +2158,8 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 
 
 const handleDataImport = async (file: File, key, client: Client) => {
-    if (file.type !== "application/zip") {
+    const ACCEPTED_MIME_TYPES = [ "application/zip", "application/x-zip-compressed", "application/octet-stream" ];
+    if (ACCEPTED_MIME_TYPES.includes(file.type) === false) {
         console.warn("file is not a zip")
         client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This file "${file.name}" does not look like a zip! Type: "${file.type}" (expected: "application/zip")` } })
         return;
@@ -2190,6 +2191,7 @@ const handleDataImport = async (file: File, key, client: Client) => {
             client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This "${file.name}" file does not look like a manyland export.` } })
         }
     } catch(e) {
+        client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `Error importing data, sorry!!! Error: "${e?.message}"` } })
         console.error("error processing data!", e);
     }
 }
