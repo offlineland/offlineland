@@ -130,7 +130,7 @@
 
 
     const root = el("div.contentPart", [
-        el("h1", "manyland exporter"),
+        el("h1", "offlineland.io's exporter thingy"),
         el("div", [
             el("ul", [
                 el("li", [ btn_snapsEnabled, "Snaps" ]),
