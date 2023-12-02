@@ -1,6 +1,6 @@
 import { registerServiceWorker } from "./register-service-worker.js"
 import * as FilePond from "./libs/filepond.esm.min.js"
-import FilePondPluginFileValidateType from "./libs/filepond-plugin-file-validate-type.esm.js"
+import FilePondPluginFileValidateType from "./libs/filepond-plugin-file-validate-type.esm.min.js"
 import Toastify from "./libs/toastify-es.js"
 const { z } = /** @type { import('zod' )} */ (globalThis.Zod);
 const { el, text, mount, setChildren, setAttr, list } = /**@type { import('redom' )} */ (globalThis.redom);
