@@ -398,7 +398,9 @@
     const MAX_CREATIONS_PAGE_SIZE = 20;
     const MAX_SEARCH_PAGE_SIZE = 10;
     const scanInventoryCollections = async () => {
+        status_totalCollectionsFound.update(() => 0); // Reset the counter
         let page = 0;
+
         while (true) {
             log("scanInventoryCollections page", page)
             status_currentPageCollections.update(() => page);
@@ -431,6 +433,7 @@
         }
     }
     const scanInventoryCreations = async () => {
+        status_totalCreationsFound.update(() => 0); // Reset the counter
         let page = 0;
 
         while (true) {
