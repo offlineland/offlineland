@@ -349,9 +349,12 @@
         log("processing queue")
         while (true) {
             const queue = await db.getAllKeys("creations-queue");
+            status.textContent = `Downloading remaining queued creations... (0 / ${queue.length})`
             if (queue.length === 0) break;
 
-            for (const id of queue) {
+            for (let i = 0; i < queue.length; i++) {
+                const id = queue[i];
+                status.textContent = `Downloading remaining queued creations... (${i} / ${queue.length})`
                 await saveCreation(id);
                 await db.delete("creations-queue", id);
             }
