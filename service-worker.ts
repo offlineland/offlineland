@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 9;
+const SW_VERSION = 10;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -997,7 +997,7 @@ class ArchivedAreaManager {
                                     m: msgTypes.TELEPORT,
                                     data: {
                                         rid: player.rid,
-                                        gun: null,
+                                        gun: this.areaUrlName,
                                     }
                                 })
                             });
@@ -1011,7 +1011,7 @@ class ArchivedAreaManager {
                                     m: msgTypes.TELEPORT,
                                     data: {
                                         rid: player.rid,
-                                        gun: null,
+                                        gun: this.areaUrlName,
                                     }
                                 })
                             });
@@ -1046,7 +1046,7 @@ class ArchivedAreaManager {
                                     m: msgTypes.TELEPORT,
                                     data: {
                                         rid: player.rid,
-                                        gun: null,
+                                        gun: this.areaUrlName,
                                     }
                                 })
                             });
