@@ -133,7 +133,7 @@
     const btn_collectionsEnabled = el("input", { type: "checkbox", checked: false })
     const btn_creationsEnabled = el("input", { type: "checkbox", checked: true })
     const btn_binEnabled = el("input", { type: "checkbox", checked: true })
-    const btn_queueEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_queueEnabled = el("input", { type: "checkbox", checked: false })
     const btn_start = el("button.okButton", ["Start exporter"])
 
 
@@ -146,7 +146,7 @@
                 el("li", [ btn_collectionsEnabled, "Collections tab" ]),
                 el("li", [ btn_creationsEnabled, "Creations tab" ]),
                 el("li", [ btn_binEnabled, "Creations in bin (search tab)" ]),
-                el("li", [ btn_queueEnabled, "Creations in multis, holders, and body motions (this can take a very long time!)" ]),
+                el("li", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ]),
             ])
         ]),
 
@@ -158,10 +158,10 @@
                 el("li", [ "Snaps: ", status_totalSnapsFound ]),
                 el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved ]),
                 el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved ]),
-                el("li", [ "Saved creations: ", status_totalSavedCreations ]),
-                el("li", [ "Creations in queue: ", status_creationsInQueue ]),
                 el("li", [ "Inventory (collects): ", status_totalCollectionsFound ]),
                 el("li", [ "Inventory (creations): ", status_totalCreationsFound ]),
+                el("li", [ "Total saved items: ", status_totalSavedCreations ]),
+                el("li", [ "Remaining items in body/multi/holder to download: ", status_creationsInQueue ]),
             ]),
         ])
     ]);
