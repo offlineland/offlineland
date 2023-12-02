@@ -983,9 +983,10 @@ class ArchivedAreaManager {
                     }
                     else if (parsedMsg.data.tol) {
                         const wantedDestination: string = parsedMsg.data.tol;
+                        const wantedDestination_urlclean = wantedDestination.toLowerCase().replace(/[^a-z0-9-]/gi, "");
                         console.log("user asked to teleport to", wantedDestination)
+
                         const subarea = await findSubareaFor(this.areaUrlName, this.areaGroupId, wantedDestination);
-                        console.log("user asked to teleport to", wantedDestination, subarea)
 
                         // NOTE: there are rare edge cases where there's actually a subarea with the same name as the current area. I'm going to ignore these
                         if (subarea !== undefined) {
@@ -1016,7 +1017,7 @@ class ArchivedAreaManager {
                                 })
                             });
                         } 
-                        else if (wantedDestination.toLowerCase().replace(/[^a-z0-9-]/gi, "") === this.areaUrlName) {
+                        else if (wantedDestination_urlclean === this.areaUrlName) {
                             console.log("player asked to teleport to main area!")
                             this.setCurrentSubarea(null)
                             client.postMessage({
@@ -1031,7 +1032,24 @@ class ArchivedAreaManager {
                             });
                         }
                         else {
-                            console.log("no subarea..")
+                            const db = await dbPromise;
+                            const area = await db.area_getDataByAun(wantedDestination_urlclean);
+                            if (area) {
+                                console.log("found matching area in db!", area)
+                                client.postMessage({
+                                    m: "WS_MSG",
+                                    data: toClient({
+                                        m: msgTypes.TELEPORT,
+                                        data: {
+                                            rid: player.rid,
+                                            gun: area.aun,
+                                        }
+                                    })
+                                });
+                            }
+                            else {
+                                console.warn("No area or subarea found for teleport request!")
+                            }
                         }
                     }
                     // TODO: use Zod unions to figure out the object's shape
