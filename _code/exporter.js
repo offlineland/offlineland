@@ -217,9 +217,11 @@
         await store_setProfileTopCreations(topCreations);
 
         const boostAssociations = await api_getPlayerBoostAssociations();
-        const itemsInBoosts = Object.values(boostAssociations.associations).filter(v => typeof v === "string" && v.length == 24);
-        for (const creationId of itemsInBoosts) {
-            await saveCreation(creationId)
+        if (boostAssociations && boostAssociations.associations) {
+            const itemsInBoosts = Object.values(boostAssociations.associations).filter(v => typeof v === "string" && v.length == 24);
+            for (const creationId of itemsInBoosts) {
+                await saveCreation(creationId)
+            }
         }
     }
     // #endregion profile
