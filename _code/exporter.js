@@ -103,7 +103,7 @@
 
 
     // #region UI
-    const { el, text, mount } = redom;
+    const { el, text, mount, setAttr } = redom;
 
     const status = text("waiting");
 
@@ -805,6 +805,7 @@
 
 
     const runExporter = async () => {
+        setAttr(btn_start, { disabled: true });
 
         log("runExporter", btn_snapsEnabled, btn_collectionsEnabled)
 
@@ -861,6 +862,7 @@
 
 
         //db.close();
+        setAttr(btn_start, { disabled: false });
     }
 
     btn_start.onclick = runExporter;
