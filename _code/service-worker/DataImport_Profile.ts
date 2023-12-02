@@ -107,7 +107,7 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
                 const id = getIdFromCreation_simple(filename)
                 if (!id) {
                     console.warn("got a file that does not seem to be a creationId!", fullPath, file)
-                    return;
+                    continue;
                 }
 
                 const data = await readJsonf(file);
@@ -117,7 +117,7 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
                 const id = getIdFromCreation_simple(filename)
                 if (!id) {
                     console.warn("got a file that does not seem to be a creationId!", path, file)
-                    return;
+                    continue;
                 }
 
                 const data = await readJsonf(file);
@@ -127,7 +127,7 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
                 const id = getIdFromCreation_simple(filename)
                 if (!id) {
                     console.warn("got a file that does not seem to be a creationId!", path, file)
-                    return;
+                    continue;
                 }
 
                 const data = await readJsonf(file);
@@ -137,7 +137,7 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
                 const id = getIdFromCreation_simple(filename)
                 if (!id) {
                     console.warn("got a file that does not seem to be a creationId!", path, file)
-                    return;
+                    continue;
                 }
 
                 const data = await readJsonf(file);
