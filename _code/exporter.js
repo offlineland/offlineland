@@ -107,24 +107,32 @@
 
     const status = text("waiting");
 
-    // TODO: restore from DB
-    const status_totalSnapsFound = text(await db.count("snapshots-data"));
+    const mkNumberStat = (init) => {
+        const txtNode = text(init);
+        let value = init;
 
-    const status_currentMiftsPublicSaved = text(await db.count("mifts-public"));
-    const status_currentMiftsPrivateSaved = text(await db.count("mifts-private"));
+        const update = (fn) => {
+            value = fn(value);
+            txtNode.textContent = value;
+        }
 
-    let savedCreations = await db.count("creations-data-def");
-    const status_totalSavedCreations = text(savedCreations);
-    let creationsInQueue = await db.count("creations-queue");
-    const status_creationsInQueue = text(creationsInQueue);
+        return { el: txtNode, update }
+    }
 
-    const status_totalCollectionsFound = text(await db.count("inventory-collections"));
-    const status_currentPageCollections = text(0);
-    const status_totalPageCollections = text(0);
+    const status_totalSnapsFound = mkNumberStat(await db.count("snapshots-data"));
+    const status_currentMiftsPublicSaved = mkNumberStat(await db.count("mifts-public"));
+    const status_currentMiftsPrivateSaved = mkNumberStat(await db.count("mifts-private"));
 
-    const status_totalCreationsFound = text(await db.count("inventory-creations"));
-    const status_currentPageCreations = text(0);
-    const status_totalPagesCreations = text(0);
+    const status_totalSavedCreations = mkNumberStat(await db.count("creations-data-def"));
+    const status_creationsInQueue = mkNumberStat(await db.count("creations-queue"));
+
+    const status_totalCollectionsFound = mkNumberStat(await db.count("inventory-collections"));
+    const status_currentPageCollections = mkNumberStat(0);
+    const status_totalPageCollections = mkNumberStat(0);
+
+    const status_totalCreationsFound = mkNumberStat(await db.count("inventory-creations"));
+    const status_currentPageCreations = mkNumberStat(0);
+    const status_totalPagesCreations = mkNumberStat(0);
 
 
 
@@ -155,13 +163,13 @@
         el("div", { style: "padding-top: 1em;"}, [
             el("h3", ["status:", status ]),
             el("ul", [
-                el("li", [ "Snaps: ", status_totalSnapsFound ]),
-                el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved ]),
-                el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved ]),
-                el("li", [ "Inventory (collects): ", status_totalCollectionsFound ]),
-                el("li", [ "Inventory (creations): ", status_totalCreationsFound ]),
-                el("li", [ "Total saved items: ", status_totalSavedCreations ]),
-                el("li", [ "Remaining items in body/multi/holder to download: ", status_creationsInQueue ]),
+                el("li", [ "Snaps: ", status_totalSnapsFound.el ]),
+                el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
+                el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
+                el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
+                el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
+                el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
+                el("li", [ "Remaining items in body/multi/holder to download: ", status_creationsInQueue.el ]),
             ]),
         ])
     ]);
@@ -255,8 +263,7 @@
     const api_getCreationPainterData = async (id) => await api_getJSON(`https://manyland.com/j/i/datp/${id}`)
 
     const store_addToQueue = async (creationId) => {
-        creationsInQueue++;
-        status_creationsInQueue.innerText = creationsInQueue;
+        status_creationsInQueue.update(v => v + 1);
         await db.put("creations-queue", null, creationId);
     }
     const saveCreation = async (creationId) => {
@@ -320,8 +327,7 @@
             }
 
             await store_addCreationDef(creationId, def);
-            savedCreations++;
-            status_totalSavedCreations.innerText = savedCreations;
+            status_totalSavedCreations.update(v => v + 1);
             await sleep(SLEEP_CREATIONDL_CDN);
         }
 
@@ -350,6 +356,7 @@
     const processCreationsInQueue = async () => {
         log("processing queue")
         while (true) {
+            log("still processing queue...")
             const queue = await db.getAllKeys("creations-queue");
             status.textContent = `Downloading queued creations... (0 / ${queue.length})`
             if (queue.length === 0) break;
@@ -359,6 +366,7 @@
                 status.textContent = `Downloading queued creations... (${i} / ${queue.length})`
                 await saveCreation(id);
                 await db.delete("creations-queue", id);
+                status_creationsInQueue.update(v => v - 1);
             }
 
         }
@@ -393,13 +401,14 @@
         let page = 0;
         while (true) {
             log("scanInventoryCollections page", page)
-            status_currentPageCollections.textContent = page;
+            status_currentPageCollections.update(() => page);
 
             const start = page * MAX_COLLECTIONS_PAGE_SIZE;
             const end = start + MAX_COLLECTIONS_PAGE_SIZE;
             const { items, itemCount } = await api_getInventoryCollectionsPage(start, end);
 
-            status_totalPageCollections.textContent = Math.floor(itemCount / MAX_COLLECTIONS_PAGE_SIZE);
+            status_totalPageCollections.update(() => Math.floor(itemCount / MAX_COLLECTIONS_PAGE_SIZE));
+            status_totalCollectionsFound.update(v => v + items.length);
 
             for (const item of items) {
                 await store_addCollectedId(item);
@@ -426,13 +435,14 @@
 
         while (true) {
             log("scanInventoryCreations page", page)
-            status_currentPageCreations.textContent = page;
+            status_currentPageCreations.update(() => page);
 
             const start = page * MAX_CREATIONS_PAGE_SIZE;
             const end = start + MAX_CREATIONS_PAGE_SIZE;
             const { items, itemCount} = await api_getInventoryCreationsPage(start, end);
 
-            status_totalPagesCreations.textContent = Math.floor(itemCount / MAX_CREATIONS_PAGE_SIZE);
+            status_totalPagesCreations.update(() => Math.floor(itemCount / MAX_CREATIONS_PAGE_SIZE));
+            status_totalCreationsFound.update(v => v + items.length);
 
             for (const item of items) {
                 await store_addCreatedId(item);
@@ -524,8 +534,8 @@
                 await saveCreation(mift.itemId);
 
 
-                if (priv) status_currentMiftsPrivateSaved.textContent = Number(status_currentMiftsPrivateSaved.textContent) + 1;
-                else status_currentMiftsPublicSaved.textContent = Number(status_currentMiftsPublicSaved.textContent) + 1;
+                if (priv) status_currentMiftsPrivateSaved.update(v => v + 1);
+                else status_currentMiftsPublicSaved.update(v => v + 1);
             }
 
             if (page.results.length < 5) break;
@@ -561,6 +571,7 @@
     })
     const getSnap = async (index) => await (await fetch(`https://manyland.com/j/v/loc/${index}`, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const scanSnaps = async (startIndex = 0) => {
+    status_totalSnapsFound.update(() => 0);
       let index = startIndex;
 
       while (true) {
@@ -573,6 +584,7 @@
         log(rawData, result)
         if (result.success === false) {
           log("unable to parse snap data", { index, error: result.error, rawData })
+          continue;
         };
         const snap = result.data;
         
@@ -582,6 +594,7 @@
     
         log("storing snap data...")
         await storeSnapData(snap.visitedLocation);
+        status_totalSnapsFound.update(v => v + 1);
 
         await sleep(SLEEP_SNAP_PAGE)
       }
