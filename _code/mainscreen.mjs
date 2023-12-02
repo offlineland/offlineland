@@ -189,7 +189,7 @@ const main = el("main", [
         el("div", [
             el("h1.text-6xl.font-bold.p-1", "Offlineland"),
         ]),
-        el("p.text-xl", [ "An interactive monument to ", el("a.link.link-primary", { href: "https://manyland.com" }, "Manyland") ]),
+        el("p.text-xl", [ "An interactive monument to ", el("a.link.link-primary", { href: "https://manyland.com", target: "_blank" }, "Manyland") ]),
     ]),
 
     el("div.p-4.pb-8", [
