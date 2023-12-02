@@ -146,7 +146,10 @@
 
 
     const root = el("div.contentPart", [
-        el("h1", "offlineland.io's exporter thingy"),
+        el("div", { style: "padding-bottom: 2em;" }, [
+            el("h1", "offlineland.io's exporter thingy"),
+            el("div", "Note: it'll pick back where it left off, you can reload at any time to stop it"),
+        ]),
         el("div", [
             el("ul", [
                 el("li", el("label", [ btn_snapsEnabled, "Snaps" ])),
@@ -158,7 +161,9 @@
             ])
         ]),
 
-        el("div", { style: "padding: 1em; text-align: center;" }, [ btn_start ]),
+        el("div", { style: "padding: 1em; text-align: center;" }, [
+            btn_start,
+        ]),
 
         el("div", { style: "padding-top: 1em;"}, [
             el("h3", ["status:", status ]),
@@ -166,10 +171,10 @@
                 el("li", [ "Snaps: ", status_totalSnapsFound.el ]),
                 el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
                 el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
-                el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
                 el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
+                el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
                 el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
-                el("li", [ "Remaining items in body/multi/holder to download: ", status_creationsInQueue.el ]),
+                el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
             ]),
         ])
     ]);
