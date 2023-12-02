@@ -368,7 +368,7 @@
 
             for (let i = 0; i < queue.length; i++) {
                 const id = queue[i];
-                status.textContent = `Downloading queued creations... (${i} / ${queue.length})`
+                status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil(queue.length * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
                 await saveCreation(id);
                 await db.delete("creations-queue", id);
                 status_creationsInQueue.update(v => v - 1);
