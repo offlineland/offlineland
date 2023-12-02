@@ -22,8 +22,8 @@
             })
 
 
-            function copyToClipboard() {
-                const cb = document.getElementById("codeBlock");
+            function copyToClipboard(elementId) {
+                const cb = document.getElementById(elementId);
                 const text = cb.innerText;
                 navigator.clipboard.writeText(text).then(() => {
                     toastSuccess('Copied to clipboard!');
@@ -72,7 +72,7 @@
             </div>
 
             <div class="flex flex-col space-y-2 p-4">
-                <button onclick="copyToClipboard()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                <button onclick="copyToClipboard('codeBlock')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                     Copy to Clipboard
                 </button>
                 <pre id="codeBlock" class="p-4 bg-gray-100 rounded-md overflow-auto">fetch("https://offlineland.io/exporter.js").then(res => res.text()).then(txt => eval(txt));</pre>
@@ -96,7 +96,12 @@
                 If you're curious, here's the full code:
                 <details>
                     <summary class="cursor-pointer">Show</summary>
-                    <pre id="codeBlock_full" class="p-4 bg-gray-100 rounded-md overflow-auto"></pre>
+                    <div class="flex flex-col space-y-2 p-4">
+                        <button onclick="copyToClipboard('codeBlock_full')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Copy full code to Clipboard
+                        </button>
+                        <pre id="codeBlock_full" class="p-4 bg-gray-100 rounded-md overflow-auto"></pre>
+                    </div>
                 </details>
             </div>
 
