@@ -6,6 +6,11 @@
 			return;
 		}
 	}
+	if(window.location.pathname !== "/info-rift"){
+		if(confirm("Redirecting to /info-rift?")){
+			window.location = "/info-rift";
+		}
+	}
 	
     // #region boilerplate
     eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
