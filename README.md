@@ -26,8 +26,8 @@
 - make all the where-does-data-comes-from logic more explicit and configurable (CDN, origin's server, another url...)
 
 ### Game:
-- teleport redirects to / for some reason. Figure out a way to handle this properly
 - store numbers (figure out how they are saved, then do the same thing as possessions)
+- enable the ads-disabled setting by default
 
 ### Further features:
 - interface at `/` to list available areas
