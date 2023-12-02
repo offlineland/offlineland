@@ -113,8 +113,10 @@
     const status_currentMiftsPublicSaved = text(await db.count("mifts-public"));
     const status_currentMiftsPrivateSaved = text(await db.count("mifts-private"));
 
-    const status_totalSavedCreations = text(await db.count("creations-data-def"));
-    const status_creationsInQueue = text(await db.count("creations-queue"));
+    let savedCreations = await db.count("creations-data-def");
+    const status_totalSavedCreations = text(savedCreations);
+    let creationsInQueue = await db.count("creations-queue");
+    const status_creationsInQueue = text(creationsInQueue);
 
     const status_totalCollectionsFound = text(await db.count("inventory-collections"));
     const status_currentPageCollections = text(0);
@@ -250,7 +252,11 @@
     const api_getCreationStats = async (id) => await api_getJSON(`https://manyland.com/j/i/st/${id}`)
     const api_getCreationPainterData = async (id) => await api_getJSON(`https://manyland.com/j/i/datp/${id}`)
 
-    const store_addToQueue = async (creationId) => await db.put("creations-queue", null, creationId);
+    const store_addToQueue = async (creationId) => {
+        creationsInQueue++;
+        status_creationsInQueue.innerText = creationsInQueue;
+        await db.put("creations-queue", null, creationId);
+    }
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
             const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).json();
@@ -312,6 +318,8 @@
             }
 
             await store_addCreationDef(creationId, def);
+            savedCreations++;
+            status_totalSavedCreations.innerText = savedCreations;
             await sleep(SLEEP_CREATIONDL_CDN);
         }
 
