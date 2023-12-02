@@ -287,6 +287,10 @@ class ImportMgr {
                 const callbacks = this.files.get(msg.data.key);
                 callbacks?.load("ok");
                 toastSuccess(msg.data.message);
+
+                if (msg.data.type === "AREA") {
+                    updateAreaList();
+                }
             }
             else if (msg.m === "IMPORT_ERROR") {
                 const callbacks = this.files.get(msg.data.key);
@@ -302,6 +306,17 @@ class ImportMgr {
         navigator.serviceWorker.controller.postMessage({ m: "DATA_IMPORT", data: { file, key: key } });
     }
 
+}
+
+
+const updateAreaList = () => {
+    fetch("/_mlspinternal_/getdata").then(r => r.json())
+        .then(data => mainInterface.update({state: "AREALIST", areas: data}) )
+        .catch(e => {
+            console.error(e);
+            mainInterface.update({ state: "ERROR", error: "Unable to load area list." })
+        })
+    ;
 }
 
 
@@ -360,6 +375,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             mainInterface.update({ state: "ERROR", error: "Unable to load area list." })
         })
     ;
+
+    updateAreaList();
 
 })
 

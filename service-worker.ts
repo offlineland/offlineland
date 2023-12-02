@@ -2175,7 +2175,7 @@ const handleDataImport = async (file: File, key, client: Client) => {
         if (zip.file("profile.json")) {
             try {
                 const profile = await importPlayerData(zip, db, cache);
-                client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Sucessfully imported player data. Welcome to Offlineland, ${profile.screenName}!` } })
+                client.postMessage({ m: "IMPORT_COMPLETE", data: { key, type: "PLAYER", message: `Sucessfully imported player data. Welcome to Offlineland, ${profile.screenName}!` } })
             }
             catch(e) {
                 client.postMessage({ m: "IMPORT_ERROR", data: { key, error: "Error importing player data: " + e.message } })
@@ -2184,7 +2184,7 @@ const handleDataImport = async (file: File, key, client: Client) => {
         }
         else if (zip.file("area_settings.json")) {
             const data = await importAreaData(zip, db, cache);
-            client.postMessage({ m: "IMPORT_COMPLETE", data: { key, message: `Sucessfully imported area data "${data.arn}"!` } })
+            client.postMessage({ m: "IMPORT_COMPLETE", data: { key, type: "AREA", message: `Sucessfully imported area data "${data.arn}"!` } })
         }
         else {
             client.postMessage({ m: "IMPORT_ERROR", data: { key, error: `This "${file.name}" file does not look like a manyland export.` } })
