@@ -425,7 +425,7 @@
                     await saveCreation(id);
                 }
 
-                await db.delete("creations-queue", id);
+                db.delete("creations-queue", id);
                 status_creationsInQueue.update(v => v - 1);
             }
 
