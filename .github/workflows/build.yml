@@ -17,17 +17,14 @@ jobs:
     - uses: oven-sh/setup-bun@v1
     - run: sudo apt-get install brotli
     - run: sudo apt-get install gzip
-    - run: sudo apt-get install zstd
 
     - run: bun install
     - run: bun run build
 
-    - name: pre-compress (brotliBrotli)
-      run: find static -type f -exec brotli --best --force --keep --output="{}.br" {} \;
+    - name: pre-compress (brotli)
+      run: find static/offlineland -type f -exec brotli --best --force --keep --output="{}.br" {} \;
     - name: pre-compress (gzip)
-      run: find static -type f ! -name '*.br' ! -name '*.zst' -exec gzip --best --force --keep "{}" \;
-    - name: pre-compress (zstd)
-      run: find static -type f ! -name '*.br' ! -name '*.gz' -exec zstd --ultra -22 --keep "{}" \;
+      run: find static/offlineland -type f ! -name '*.br' ! -name '*.zst' -exec gzip --best --force --keep "{}" \;
 
 
 
