@@ -56,31 +56,40 @@
 
         return [ set, get ];
     }
-    
+
 
     log("creating db")
-    const db = await idb.openDB("mlexporter", 1, {
-        upgrade(db) {
-            db.createObjectStore('misc-data');
+    /** @type { import("idb").IDBPDatabase} */
+    const db = await idb.openDB("mlexporter", 2, {
+        upgrade(db, oldVersion, newVersion) {
+            console.log("upgrading db from", oldVersion, "to", newVersion);
 
-            db.createObjectStore('inventory-creations');
-            db.createObjectStore('inventory-collections');
+            if (oldVersion < 1) {
+                db.createObjectStore('misc-data');
 
-            db.createObjectStore('snapshots-data');
-            db.createObjectStore('snapshots-image');
+                db.createObjectStore('inventory-creations');
+                db.createObjectStore('inventory-collections');
 
-            db.createObjectStore('creations-data-def');
-            db.createObjectStore('creations-data-painter');
-            db.createObjectStore('creations-image');
-            db.createObjectStore('creations-stats');
-            db.createObjectStore('creations-queue');
+                db.createObjectStore('snapshots-data');
+                db.createObjectStore('snapshots-image');
 
-            db.createObjectStore('mifts-public');
-            db.createObjectStore('mifts-private');
+                db.createObjectStore('creations-data-def');
+                db.createObjectStore('creations-data-painter');
+                db.createObjectStore('creations-image');
+                db.createObjectStore('creations-stats');
+                db.createObjectStore('creations-queue');
 
-            db.createObjectStore('holders-content');
-            db.createObjectStore('multis-content');
-            db.createObjectStore('body-motions');
+                db.createObjectStore('mifts-public');
+                db.createObjectStore('mifts-private');
+
+                db.createObjectStore('holders-content');
+                db.createObjectStore('multis-content');
+                db.createObjectStore('body-motions');
+            }
+            if (oldVersion < 2) {
+                db.createObjectStore('public-creations-downloaded-prefixes');
+                db.createObjectStore('public-creations');
+            }
 
         }
     });
@@ -97,6 +106,30 @@
     const SLEEP_SNAP_DL = 50;
 
     const api_getMyAreaList = async () => await api_getJSON(`https://manyland.com/j/a/mal/`);
+
+
+    /**
+     * Check if a creation is in universe search, by fetching it from offlineland.io
+     * @param {string} creationId
+     * @returns { Promise<boolean> }
+     */
+    const isCreationPublic = async (creationId) => {
+        const PREFIX_LENGTH = 3;
+        const prefix = id.substring(0, PREFIX_LENGTH)
+
+        // Download the json file if we don't have it yet
+        if (db.get("public-creations-downloaded-prefixes")) {
+            const ids = await fetch(`https://offlineland.io/static/public-creations/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
+
+            for (const id of ids) {
+                await db.put("public-creations", id, true);
+            }
+            await db.put("public-creations-downloaded-prefixes", prefix, true);
+        }
+
+        return db.get("public-creations", creationId);
+    }
+
 
 
     // #endregion boilerplate
@@ -369,7 +402,14 @@
             for (let i = 0; i < queue.length; i++) {
                 const id = queue[i];
                 status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil(queue.length * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
-                await saveCreation(id);
+
+                if (await isCreationPublic(id)) {
+                    console.debug("skipping creation", id, "as it is available from universe search");
+                }
+                else {
+                    await saveCreation(id);
+                }
+
                 await db.delete("creations-queue", id);
                 status_creationsInQueue.update(v => v - 1);
             }
@@ -434,7 +474,13 @@
         for (let i = 0; i < allIds.length; i++) {
             status.textContent = `Downloading collected creations... (${i} / ${allIds.length})`
             const id = allIds[i];
-            await saveCreation(id);
+
+            if (await isCreationPublic(id)) {
+                console.debug("skipping creation", id, "as it is available from universe search");
+            }
+            else {
+                await saveCreation(id);
+            }
         }
     }
     const scanInventoryCreations = async () => {
