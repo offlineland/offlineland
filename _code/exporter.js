@@ -395,9 +395,11 @@
             if (def.props?.hasId) await store_addToQueue(def.props.hasId)
             if (def.props?.holdableId) await store_addToQueue(def.props.holdableId)
             if (def.props?.wearableId) await store_addToQueue(def.props.wearableId)
-            if (def.props?.thingsRef) {
-                for (thingRef in def.props.thingsRef) {
-                    await store_addToQueue(def.props.wearableId);
+            if (def.props?.thingRefs) {
+                if (Array.isArray(def.props.thingRefs)) {
+                    for (const [ id ] of def.props.thingRefs) {
+                        await store_addToQueue(id);
+                    }
                 }
             }
 
