@@ -193,7 +193,12 @@ class LocalMLDatabase {
         await idbKeyval.update(`playersettings-p${playerId}`, (v) => {
             const settings = v || {};
 
-            settings[settingName] = settingValue;
+            if (settingValue === "") {
+                delete settings[settingName];
+            }
+            else {
+                settings[settingName] = settingValue;
+            }
 
             return settings;
         })
