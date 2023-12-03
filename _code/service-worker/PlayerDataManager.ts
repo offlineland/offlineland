@@ -78,10 +78,16 @@ class PlayerDataManager {
         this.unfindable = unfindable;
         this.age = rid === "000000000000000000000000" ? 191919 : daysSinceDate(dateFromObjectId(rid));
         this.isFullAccount = isFullAccount;
-        this.leftMinfinityAmount = leftMinfinityAmount;
         this.isBacker = isBacker;
-        this.boostsLeft = boostsLeft;
-        this.hasMinfinity = hasMinfinity;
+
+        //this.leftMinfinityAmount = leftMinfinityAmount;
+        //this.boostsLeft = boostsLeft;
+        //this.hasMinfinity = hasMinfinity;
+
+        // Give free minfinity
+        this.leftMinfinityAmount = 191919;
+        this.boostsLeft = 191919;
+        this.hasMinfinity = true;
 
         this.profileItemIds = profile.profileItemIds;
         this.profileColor = profile.profileColor;
