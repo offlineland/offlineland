@@ -15,7 +15,7 @@ class AreaCard {
                 alt: "Image Description",
                 onclick: () => this.onBtnClick(),
             }),
-            el("div.p-2.text-center.break-words.h-20.md:h-12", [
+            el("div.p-2.text-center.break-words.h-20.md:h-16", [
                 el("div.font-bold.text-xl.mb-2", this.cardTitle = text())
 
             ]),
