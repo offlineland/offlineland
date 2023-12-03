@@ -2030,6 +2030,8 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/data/area-thumbnails/")) return cache.getAreaThumbRes(event.request);
+            if (url.pathname.startsWith("/static/data/v2/")) return fetch(event.request);
+            if (url.pathname.startsWith("/static/offlineland/")) return fetch(event.request);
             if (url.pathname.startsWith("/static/")) return cache.getOrSetFromCache(CACHE_NAME, event.request);
             if (url.pathname.startsWith("/image/")){
               const creationId = url.pathname.slice(1)

@@ -3,5 +3,5 @@ node_modules/
 
 service-worker.js
 _code/service-worker/**/*.js
-_code/output.css
+static/offlineland/style.css
 

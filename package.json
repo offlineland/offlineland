@@ -3,8 +3,8 @@
   "scripts": {
     "tsc": "tsc --project tsconfig.json",
     "tsc:w": "tsc --project tsconfig.json --watch",
-    "tailwind": "tailwindcss -i ./_code/input.css -o ./_code/output.css",
-    "tailwind:w": "tailwindcss -i ./_code/input.css -o ./_code/output.css --watch",
+    "tailwind": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css",
+    "tailwind:w": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css --watch",
     "build": "bun run tsc && bun run tailwind"
   }
 }
