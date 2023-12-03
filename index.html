@@ -20,7 +20,70 @@
         <script type="module" src="/_code/mainscreen.mjs"></script>
     </head>
     <body>
-        <noscript>Please enable javascript to use offlineland.io</noscript>
-        <div id="app"></div>
+        <!--
+        <div class="bg-base-100 text-base-content sticky top-0 z-30 h-16 w-full bg-opacity-90 backdrop-blur">
+            <nav className="navbar w-full">
+                <div className="flex-1">
+                    <a class="flex-0 btn btn-ghost gap-1 px-2 md:gap-2">
+                        <img src="/static/offlineland/book-open-1.png" class="w-10 h-10" />
+                        <span className="font-title text-base-content text-lg md:text-2xl">offlineland.io</span>
+                    </a>
+                </div>
+                <div class=""flex-0>
+
+                </div>
+            </nav>
+        </div>
+        -->
+
+        <div class="">
+            <div class="text-center p-3 pb-8">
+                <div class="flex justify-center">
+                    <img src="/static/offlineland/book-open-1.png" class="w-20 h-20" />
+                    <h1 class="text-6xl font-bold p-1">Offlineland.io</h1>
+                </div>
+                <p class="text-xl">
+                    An interactive monument to <a class="link link-primary" href="https://manyland.com" target="_blank">Manyland</a>
+                </p>
+            </div>
+
+
+            <div class="flex flex-row justify-center gap-6">
+                <div class="card card-side bg-base-100 shadow-xl max-w-xl">
+                    <figure class="w-40"><img src="/static/offlineland/book-open-2.png" alt="Logo" /></figure>
+                    <div class="card-body w-96">
+                        <h2 class="card-title">Visit archived worlds</h2>
+                        <p class="">Visit worlds from the archives, or import your own</p>
+                    </div>
+                </div>
+
+                <div class="card card-side bg-base-100 shadow-xl max-w-xl">
+                    <figure class="w-40"><img src="/static/offlineland/book-writing-2.png" alt="Logo" /></figure>
+                    <div class="card-body w-96">
+                        <h2 class="card-title">Build locally</h2>
+                        <p>Create new items and areas on your device</p>
+                    </div>
+                </div>
+
+                <div class="card card-side bg-base-100 shadow-xl max-w-xl">
+                    <figure class="w-40"><img src="/static/offlineland/hands-share-1.png" alt="Logo" /></figure>
+                    <div class="card-body w-96">
+                        <h2 class="card-title">Share worlds</h2>
+                        <p>Share and visit others' creations and worlds via <a class="link link-secondary" href="https://online.offlineland.io">online.offlineland.io</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 pb-16 text-center text-lg">
+                <p>
+                    (That's the plan anyway. For now, area creation and sharing doesn't work)
+            </p>
+            </div>
+        </div>
+
+        <main>
+            <noscript>Please enable javascript to use offlineland.io</noscript>
+            <div id="app"></div>
+        </main>
     </body>
 </html>

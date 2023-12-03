@@ -185,25 +185,8 @@ const importInput = el("input#fileInput", { type: "file", accept: "application/z
 
 
 
+// TODO: make HTML elements in index.html to mount mainInterface, importInput etc on
 const main = el("main", [
-    el("div.text-center.p-3.pb-8", [
-        el("div", [
-            el("h1.text-6xl.font-bold.p-1", "Offlineland"),
-        ]),
-        el("p.text-xl", [ "An interactive monument to ", el("a.link.link-primary", { href: "https://manyland.com", target: "_blank" }, "Manyland") ]),
-    ]),
-
-    el("div.p-4.pb-8", [
-        el("p", [
-            "Offlineland allows you to browse Manyland areas offline. You can create stuff, but for now placements aren't saved."
-        ]),
-        el("p", [
-            "Eventually, it will be possible to share and browse worlds on ",
-            el("a.link.link-secondary", {href: "https://online.offlineland.com"}, "online.offlineland.com"),
-            "."
-        ]),
-    ]),
-
     el("div.grid.grid-cols-5", [
         el("div.col-span-4", [
             el("h2.text-2xl.text-center", "Available areas"),
