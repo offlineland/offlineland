@@ -21,6 +21,8 @@ class AreaCard {
             ]),
             this.btnSpot = el("div.flex.justify-center.pb-4")
         ])
+
+        this.progressElem = el("progress.item-join.progress.progress-primary.w-36", { value: 0, max: 100 })
     }
 
     async triggerAreaDownload() {
@@ -34,7 +36,7 @@ class AreaCard {
             const msg = ev.data;
 
             if (msg.m === "LOAD_AREA_PROGRESS" && msg.data.areaUrlName === this.areaUrlName) {
-                // TODO
+                setAttr(this.progressElem, { value: msg.data.current, max: msg.data.total })
             }
             else if (msg.m === "LOAD_AREA_ERROR" && msg.data.areaUrlName === this.areaUrlName) {
                 console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?", msg.data.error)
@@ -85,19 +87,12 @@ class AreaCard {
             setChildren(this.btnSpot, [ btn ])
         }
         else if (status === "DOWNLOADING") {
-            const btn = el(
-                "button.w-36.h-10.bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center.justify-items-center",
-                { disabled: true },
-                [
-                    "Loading",
-                    el("div.flex.justify-center.items-center.p-2", [
-                        el("div.animate-spin.rounded-full.h-4.w-4.border-b-2.border-white")
-                    ])
-
-                ],
-            )
-
+            const btn = el("div.join.join-vertical", [
+                el("button.join-item.w-36.h-10.bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.flex-row.justify-center.justify-items-center", { disabled: true }, "Loading" ),
+                this.progressElem,
+            ])
             setChildren(this.btnSpot, [ btn ])
+
         }
         else if (status === "DOWNLOAD_ERROR") {
             const btn = el(

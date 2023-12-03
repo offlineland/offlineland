@@ -2207,7 +2207,7 @@ const handleLoadArea = async (areaUrlName: string, client: Client) => {
     try {
         await makeBundledAreaAvailableOffline(
             areaUrlName,
-            (areaUrlName, current, total) => client.postMessage({ m: "LOAD_AREA_PROGRESS", data: { areaUrlName, percent: (current / total) * 100} }),
+            (areaUrlName, current, total) => client.postMessage({ m: "LOAD_AREA_PROGRESS", data: { areaUrlName, current, total } }),
             (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } }),
         )
         client.postMessage({ m: "LOAD_AREA_COMPLETE", data: { areaUrlName } })
