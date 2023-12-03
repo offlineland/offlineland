@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 16;
+const SW_VERSION = 17;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -2204,13 +2204,16 @@ const handleDeleteAreaByName = async (areaUrlName: string, client: Client) => {
     }
 }
 const handleLoadArea = async (areaUrlName: string, client: Client) => {
-    await makeBundledAreaAvailableOffline(
-        areaUrlName,
-        (areaUrlName, current, total) => client.postMessage({ m: "LOAD_AREA_PROGRESS", data: { areaUrlName: areaUrlName, percent: (current / total) * 100} }),
-        (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } }),
-    )
-
-    client.postMessage({ m: "LOAD_AREA_COMPLETE", data: { areaUrlName: areaUrlName } })
+    try {
+        await makeBundledAreaAvailableOffline(
+            areaUrlName,
+            (areaUrlName, current, total) => client.postMessage({ m: "LOAD_AREA_PROGRESS", data: { areaUrlName, percent: (current / total) * 100} }),
+            (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } }),
+        )
+        client.postMessage({ m: "LOAD_AREA_COMPLETE", data: { areaUrlName } })
+    } catch(e) {
+        client.postMessage({ m: "LOAD_AREA_ERROR", data: { areaUrlName, message: e.message } })
+    }
 }
 
 const handleClientMessage = async (event: ExtendableMessageEvent) => {

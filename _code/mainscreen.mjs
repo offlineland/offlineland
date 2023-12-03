@@ -33,10 +33,18 @@ class AreaCard {
         const onMessage = (ev) => {
             const msg = ev.data;
 
-            if (msg.m === "LOAD_AREA_PROGRESS") {
+            if (msg.m === "LOAD_AREA_PROGRESS" && msg.data.areaUrlName === this.areaUrlName) {
                 // TODO
             }
-            else if (msg.m === "LOAD_AREA_COMPLETE") {
+            else if (msg.m === "LOAD_AREA_ERROR" && msg.data.areaUrlName === this.areaUrlName) {
+                console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?", msg.data.error)
+                toastError(`Unable to load area! ${msg.data.error}`)
+
+                clearInterval(this.keepAliveInterval);
+                this.update({ areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOAD_ERROR" })
+                navigator.serviceWorker.removeEventListener("message", onMessage);
+            }
+            else if (msg.m === "LOAD_AREA_COMPLETE" && msg.data.areaUrlName === this.areaUrlName) {
                 clearInterval(this.keepAliveInterval);
                 this.update({ areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADED" })
                 navigator.serviceWorker.removeEventListener("message", onMessage);
