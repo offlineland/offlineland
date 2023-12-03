@@ -214,7 +214,7 @@
         ]),
 
         el("div", { style: "padding-top: 1em;"}, [
-            el("h3", ["status:", status ]),
+            el("p.text-left", ["status:", status ]),
             el("ul", [
                 el("li", [ "Snaps: ", status_totalSnapsFound.el ]),
                 el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
