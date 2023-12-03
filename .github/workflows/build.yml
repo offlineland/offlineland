@@ -21,12 +21,13 @@ jobs:
 
     - run: bun install
     - run: bun run build
-    - name: pre-compress (brotli)
+
+    - name: pre-compress (brotliBrotli)
       run: find static -type f -exec brotli --best --force --output {}.br {} \;
     - name: pre-compress (gzip)
-      run: find static -type f -exec gzip --best --force --output {}.gz {} \;
+      run: find static -type f ! -name '*.br' ! -name '*.zst' -exec gzip --best --force --output {}.gz {} \;
     - name: pre-compress (zstd)
-      run: find static -type f -exec zstd --ultra -22 --rm {} \;
+      run: find static -type f ! -name '*.br' ! -name '*.gz' -exec zstd --ultra -22 --output {}.zst {} \;
 
 
 
@@ -36,9 +37,7 @@ jobs:
         git config --global user.email "you@example.com"
         git config --global user.name "The little robot inside Github.com"
         git checkout -b build
-        git add -f _code/service-worker/
-        git add -f service-worker.js
-        git add -f static/offlineland/style.css
+        git add -f --all
         git commit -m "Build files"
         git push origin build --force
 
