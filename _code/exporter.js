@@ -712,7 +712,9 @@
         // #region zip_profile
         {
             zip.file(`profile_own-id.json`, JSON.stringify(ourId, null, 2));
-            zip.file(`profile_settings.json`, JSON.stringify(initData.stn, null, 2));
+            if (initData.stn) {
+                zip.file(`profile_settings.json`, JSON.stringify(initData.stn, null, 2));
+            }
 
             const profile = await store_getProfileData();
             zip.file(`profile.json`, JSON.stringify(profile, null, 2));
