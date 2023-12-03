@@ -10,13 +10,13 @@ const dlAreaResSchema = z.object({ ok: z.boolean() })
 
 class AreaCard {
     constructor() {
-        this.el = el("div.w-56.m-1.my-3.rounded.overflow-hidden.shadow-lg", [
+        this.el = el("div.w-40.md:w-56.rounded.overflow-hidden.shadow-lg", [
             this.cardThumb = el("img.w-full.rounded.cursor-pointer", {
                 alt: "Image Description",
                 onclick: () => this.onBtnClick(),
             }),
-            el("div.p-2.text-center.break-words", [
-                el("div.font-bold.text-xl.mb-2.h-12", this.cardTitle = text())
+            el("div.p-2.text-center.break-words.h-20.md:h-12", [
+                el("div.font-bold.text-xl.mb-2", this.cardTitle = text())
 
             ]),
             this.btnSpot = el("div.flex.justify-center.pb-4")
@@ -81,7 +81,7 @@ class AreaCard {
 
 
         if (status === "DOWNLOADED") {
-            const btn = el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { href: "/" + areaUrlName }, "Play")
+            const btn = el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { href: "/" + areaUrlName }, [ "Play" ])
             this.cardThumb.src = "";
             this.cardThumb.src = `/static/data/area-thumbnails/${this.areaUrlName}.png`;
             setChildren(this.btnSpot, [ btn ])
@@ -135,7 +135,7 @@ class Modal {
 
 class MainInterface {
     constructor() {
-        this.areaListEl = list("div.flex.flex-row.flex-wrap.justify-around.justify-items-center", AreaCard)
+        this.areaListEl = list("div.gap-1.md:gap-4.flex.flex-row.flex-wrap.justify-around", AreaCard)
         this.el = el("div.flex.justify-center", [
             el("span.loading.loading-spinner.loading-lg.pt-52"),
         ])
@@ -196,8 +196,8 @@ const importInput = el("input#fileInput", { type: "file", accept: "application/z
 
 // TODO: make HTML elements in index.html to mount mainInterface, importInput etc on
 const main = el("main", [
-    el("div.grid.grid-cols-5", [
-        el("div.col-span-4", [
+    el("div.grid.md:grid-cols-5", [
+        el("div.md:col-span-4", [
             el("h2.text-2xl.text-center", "Available areas"),
             mainInterface,
         ]),
