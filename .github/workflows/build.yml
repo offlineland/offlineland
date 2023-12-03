@@ -15,9 +15,21 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: oven-sh/setup-bun@v1
+    - run: sudo apt-get install brotli
+    - run: sudo apt-get install gzip
+    - run: sudo apt-get install zstd
 
     - run: bun install
     - run: bun run build
+    - name: pre-compress (brotli)
+      run: find static -type f -exec brotli --best --force --output {}.br {} \;
+    - name: pre-compress (gzip)
+      run: find static -type f -exec gzip --best --force --output {}.gz {} \;
+    - name: pre-compress (zstd)
+      run: find static -type f -exec zstd --ultra -22 --rm {} \;
+
+
+
 
     - name: Commit and Push to Build Branch
       run: |
