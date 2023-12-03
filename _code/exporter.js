@@ -115,16 +115,17 @@
      */
     const isCreationPublic = async (creationId) => {
         const PREFIX_LENGTH = 3;
-        const prefix = id.substring(0, PREFIX_LENGTH)
+        const prefix = creationId.substring(0, PREFIX_LENGTH)
 
         // Download the json file if we don't have it yet
-        if (db.get("public-creations-downloaded-prefixes")) {
-            const ids = await fetch(`https://offlineland.io/static/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
+        const prefixFileWasDownloaded = await db.get("public-creations-downloaded-prefixes", prefix)
+        if (prefixFileWasDownloaded !== true) {
+            const ids = await fetch(`https://offlineland.io/static/offlineland/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
 
             for (const id of ids) {
-                await db.put("public-creations", id, true);
+                await db.put("public-creations", true, id);
             }
-            await db.put("public-creations-downloaded-prefixes", prefix, true);
+            await db.put("public-creations-downloaded-prefixes", true, prefix);
         }
 
         return db.get("public-creations", creationId);
