@@ -221,8 +221,8 @@ const main = el("main", [
             ]),
             el("div.border-b-1.border-black"),
             el("div.mt-6", [
-                el("h2.text-2xl.text-center", "Search area"),
-                el("p", "You can search for areas uploaded to online.offlineland.io (Coming soon!)"),
+                el("h2.text-2xl.text-center", "Search worlds"),
+                el("p", "Search for worlds shared on online.offlineland.io (Coming soon!)"),
                 el("div.p-4.join", [ 
                     el("input.input.input-bordered.w-full.max-w-xs.join-item", { type: "search", disabled: true } ),
                     el("button.btn.btn-disabled.join-item", { disabled: true }, "Search"),
