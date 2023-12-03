@@ -11,9 +11,6 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
     await PlayerDataManager.import_setProfile(idbKeyval, ourId, profile)
 
     const player = await PlayerDataManager.make(idbKeyval, db);
-    await readJson("profile_top-creations.json").then(data => db.player_setTopCreations(player.rid, data))
-    await readJson("profile_settings.json").then(data => db.player_setSettings(player.rid, data))
-    await readJson("profile_boost-assocs.json").then(data => db.player_setBoostAssociations(player.rid, data))
 
 
     const getIdFromCreation_friendly = (filename: string) => {
@@ -152,12 +149,23 @@ const importPlayerData = async (zip: Zip, db: LocalMLDatabase, cache: ReturnType
             else if (path === "snapshots/") {
                 // TODO
             }
+            else if (fullPath === "profile_boost-assocs.json") {
+                await readJsonf(file).then(data => db.player_setBoostAssociations(player.rid, data))
+            }
+            else if (fullPath === "profile_top-creations.json") {
+                await readJsonf(file).then(data => db.player_setTopCreations(player.rid, data))
+            }
+            else if (fullPath === "profile_settings.json") {
+                await readJsonf(file).then(data => db.player_setSettings(player.rid, data))
+            }
             // Ignored things
-            else if (path === "areas/") {}
-            else if (path === "areas.csv") {}
-            else if (path === "snapshots.csv") {}
-            else if (path === "snapshots/filename_mapping.json") {}
-            else if (path === "mifts.csv") {}
+            else if (fullPath === "my-creations.csv") {}
+            else if (fullPath.startsWith("areas/")) {}
+            else if (fullPath === "areas.csv") {}
+            else if (fullPath === "areas-backup-links.txt") {}
+            else if (fullPath === "snapshots.csv") {}
+            else if (fullPath === "snapshots/filename_mapping.json") {}
+            else if (fullPath === "mifts.csv") {}
             else {
                 console.warn("unhandled file!", fullPath)
             }
