@@ -321,10 +321,29 @@
     }
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
-            const def = await (await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).json();
+            const res = await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`).catch(e => {
+                console.warn(`Network error while downloading creation data ${id}! Check that you're online. In the meantime, I'm going to stop here.`);
+                status.textContent += ` Network error! Are you online? Retry later!`
+
+                e._offlineland_handled = true;
+                throw e;
+            });
+
+            if (!res.ok) {
+                console.warn(`error downloading creation data ${id}! Server says: ${res.status} ${res.statusText}. I'm going to skip this creation; if you want to retry it later, just re-run the exporter.`)
+                return;
+            }
+
+            const def = await res.json().catch(e => {
+                console.warn("Unable to read creation data! It's likely the server sent us an HTML error instead. Is manyland down? In the meantime, I'm going to stop here.c", e, id)
+                status.textContent += ` Unable to read creation data! Is manyland online? Retry later!`
+
+                e._offlineland_handled = true;
+                throw e;
+            });
 
             if (def.base === "HOLDER" && (await store_getHolderContent(creationId)) == undefined) {
-                log("Queueing content of holder", def.name);
+                log(`Creation "${def.name}" is a holder, fetching content`);
                 const data = await api_getHolderContent(def.id);
 
                 for (const content of data.contents) {
@@ -333,12 +352,13 @@
 
                 await store_setHolderContent(def.id, data);
                 await sleep(SLEEP_CREATIONDL_API);
+                log(`Creation "${def.name}" is a holder, fetching content done`);
             }
             if (def.base === "MULTITHING" && (await store_getMultiData(creationId)) == undefined) {
+                log(`Creation "${def.name}" is a multi, fetching content`);
                 const data = await api_getMultiData(def.id);
 
                 if (Array.isArray(data?.itemProps)) {
-                    log("Queueing items of multi", def.name);
                     for (const { id } of data.itemProps) {
                         await store_addToQueue(id);
                     }
@@ -346,12 +366,13 @@
 
                 await store_setMultiData(def.id, data);
                 await sleep(SLEEP_CREATIONDL_API);
+                log(`Creation "${def.name}" is a multi, fetching content done`);
             }
             else if (def.base === "STACKWEARB" && (await store_getBodyMotions(creationId)) == undefined) {
+                log(`Creation "${def.name}" is a body, fetching motion bar`);
                 const data = await api_getBodyMotions(def.id);
 
                 if (Array.isArray(data.ids)) {
-                    log("Queueing motions of body", def.name);
                     for (const id of data.ids) {
                         await store_addToQueue(id);
                     }
@@ -359,6 +380,7 @@
 
                 await store_setBodyMotions(def.id, data);
                 await sleep(SLEEP_CREATIONDL_API);
+                log(`Creation "${def.name}" is a body, fetching motion bar done`);
             }
             // TODO: not all boards have settings. Is it really even useful to store this?
             //else if (def.base === "WRITABLE") {
@@ -937,4 +959,14 @@
     }
 
     btn_start.onclick = runExporter;
+
+
+
+    document.addEventListener("unhandledrejection", (e) => {
+        console.error(e);
+
+        if (!e._offlineland_handled) {
+            status.textContent += "Unexpected error! Retry later or ping Offlineland"
+        }
+    })
 })()
