@@ -84,12 +84,27 @@ window.WebSocket = FakeWebSocket;
 
 
 
+
+// Secret feature!
+// TODO: load these things from elsewhere?
+const modsBeforeLoad = [
+    async () => {
+        window.localStorage.setItem("closeAd", "true");
+    }
+];
+
+
+
 const startGame = () => jQuery(ig.module('initgame').requires('game.main').defines(function(){ MLand.start();}))
 
 const main = async () => {
     const { registration } = await registerServiceWorker()
 
     postMessage_ = (data) => registration.active.postMessage(data)
+
+    for (const mod of modsBeforeLoad) {
+        await mod();
+    }
 
     postMessage_({ m: "STARTING_GAME" })
     startGame();
