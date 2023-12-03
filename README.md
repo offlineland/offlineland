@@ -20,6 +20,7 @@
 
 
 ## TODO:
+- Wrap most http calls into a retry helper
 ### Service Worker:
 - make the service worker registration/update asynchronous, display a little loading spinner and auto-refresh on update
 - do proper caching and update of static assets
@@ -27,12 +28,10 @@
 
 ### Game:
 - store numbers (figure out how they are saved, then do the same thing as possessions)
-- enable the ads-disabled setting by default
 
 ### Further features:
-- interface at `/` to list available areas
-    - make the "download area" button actually work (make a fetch for the SW to intercept, SW dls and caches area, add fancy UI animations when done)
-    - also list snaps for that area? And buttons to teleport to it. The SW can handle placing people anywhere
+- Main screen:
+    - also list snaps for an area? And buttons to teleport to it. The SW can handle placing people anywhere
         - hand-picked snaps?
         - same thing for placenames?
     - list subareas? only subareas that one has visited?
@@ -43,7 +42,6 @@
     - Allow to "copy" an area and use it as a LocalArea, then save all changes as a CRDT log or something
 
 - Bundle as an Electron app? -> Steam store?
-- Add a manifest to go full PWA and allow Android/iOS to "install" the app (re: fix caching and sw registration)
 
 ### Museum:
 - different "exhibits" that showcase one specific content, that you can deeplink (eg. offlineland.io/snaps/shortcode, offlineland.io/creations/id...)
