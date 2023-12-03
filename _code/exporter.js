@@ -119,7 +119,7 @@
 
         // Download the json file if we don't have it yet
         if (db.get("public-creations-downloaded-prefixes")) {
-            const ids = await fetch(`https://offlineland.io/static/public-creations/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
+            const ids = await fetch(`https://offlineland.io/static/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
 
             for (const id of ids) {
                 await db.put("public-creations", id, true);
