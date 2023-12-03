@@ -249,12 +249,6 @@ const main = el("main", [
     ]),
 
     noServiceWorkerModal,
-    el("footer.footer.footer-center.p-4.bg-neutral.text-neutral-content", [
-        el("div.text-xs.opacity-80", [
-            el("p", ["offlineland.io is not affiliated with manyland.com or its developers."]),
-            el("p", ["SW version: ", versionText, " | page version: ", 2]),
-        ]),
-    ]),
 ])
 
 
@@ -318,6 +312,8 @@ const updateAreaList = () => {
 
 document.addEventListener("DOMContentLoaded", async () => {
     mount(document.getElementById("app"), main);
+    mount(document.getElementById("swVersion"), versionText);
+    mount(document.getElementById("pageVersion"), text(3));
 
     if ('serviceWorker' in navigator === false) {
         noServiceWorkerModal.showModal()
