@@ -24,19 +24,25 @@ class AreaCard {
     }
 
     async triggerAreaDownload() {
-        const res = await fetch(`/_mlspinternal_/dlArea?area=${this.areaUrlName}`)
-        const json = await res.json()
-        const { ok } = dlAreaResSchema.parse(json)
+        navigator.serviceWorker.controller.postMessage({ m: "LOAD_AREA", data: { areaUrlName: this.areaUrlName } });
 
-        if (ok) {
-            this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADED"})
-        }
-        else {
-            // TODO: fancy UI
-            console.error("Service Worker couldn't download area! Are you sure the .zip file exists (for all subareas too)?")
-            this.update({areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOAD_ERROR"})
-        }
+        this.keepAliveInterval = setInterval(async () => {
+            await fetch(`/_mlspinternal_/keepalive`)
+        }, 1000)
 
+        const onMessage = (ev) => {
+            const msg = ev.data;
+
+            if (msg.m === "LOAD_AREA_PROGRESS") {
+                // TODO
+            }
+            else if (msg.m === "LOAD_AREA_COMPLETE") {
+                clearInterval(this.keepAliveInterval);
+                this.update({ areaUrlName: this.areaUrlName, areaRealName: this.areaRealName, status: "DOWNLOADED" })
+                navigator.serviceWorker.removeEventListener("message", onMessage);
+            }
+        }
+        navigator.serviceWorker.addEventListener("message", onMessage);
     }
 
     onBtnClick() {

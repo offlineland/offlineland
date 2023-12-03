@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 15;
+const SW_VERSION = 16;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -298,7 +298,7 @@ const getAvailableAreas = async () => {
 }
 
 const getZipForAreaId = (areaId) => fetch(`/static/data/v2/${areaId}.zip`).then(res => res.blob()).then(blob => JSZip.loadAsync(blob))
-const makeBundledAreaAvailableOffline = async (areaName: string) => {
+const makeBundledAreaAvailableOffline = async (areaName: string, onProgress = (aun: string, current: number, total: number) => {}, onError = (message: string) => {}) => {
     console.log("makeBundledAreaAvailableOffline()", areaName)
     const areaData = bundledAreasFile[areaName]
     if (!areaData) {
@@ -315,8 +315,8 @@ const makeBundledAreaAvailableOffline = async (areaName: string) => {
             zip,
             db,
             cache,
-            (current, total) => {}, //TODO
-            (error) => {}, // TODO
+            onProgress,
+            onError,
         )
 
         const subareaIds = Object.values(areaData.subareas || {}).map(subareaId => subareaId as string);
@@ -326,8 +326,8 @@ const makeBundledAreaAvailableOffline = async (areaName: string) => {
                 subareaZip,
                 db,
                 cache,
-                (current, total) => {}, //TODO
-                (error) => {}, // TODO
+                onProgress,
+                onError,
             )
         }
 
@@ -2073,11 +2073,8 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             if (url.pathname === "/_mlspinternal_/getversion") {
                 return Response.json(SW_VERSION);
             }
-
-            // TODO: use events instead?
-            if (url.pathname === "/_mlspinternal_/dlArea") {
-                const areaName = url.searchParams.get("area");
-                return await makeBundledAreaAvailableOffline(areaName);
+            if (url.pathname === "/_mlspinternal_/keepalive") {
+                return Response.json(1);
             }
 
 
@@ -2161,7 +2158,7 @@ const handleDataImport = async (file: File, key, client: Client) => {
                 zip,
                 db,
                 cache,
-                (current, total) => client.postMessage({ m: "IMPORT_PROGRESS", data: { key, current, total } }),
+                (areaUrlName, current, total) => client.postMessage({ m: "IMPORT_PROGRESS", data: { key, areaUrlName, current, total } }),
                 (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } })
             );
             client.postMessage({ m: "IMPORT_COMPLETE", data: { key, type: "AREA", message: `Sucessfully imported area data "${data.arn}"!` } })
@@ -2206,7 +2203,15 @@ const handleDeleteAreaByName = async (areaUrlName: string, client: Client) => {
         console.error("deleting area", areaUrlName, "error!", e);
     }
 }
+const handleLoadArea = async (areaUrlName: string, client: Client) => {
+    await makeBundledAreaAvailableOffline(
+        areaUrlName,
+        (areaUrlName, current, total) => client.postMessage({ m: "LOAD_AREA_PROGRESS", data: { areaUrlName: areaUrlName, percent: (current / total) * 100} }),
+        (message) => client.postMessage({ m: "GENERIC_ERROR", data: { message } }),
+    )
 
+    client.postMessage({ m: "LOAD_AREA_COMPLETE", data: { areaUrlName: areaUrlName } })
+}
 
 const handleClientMessage = async (event: ExtendableMessageEvent) => {
     try {
@@ -2235,6 +2240,9 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
             console.log("client sent DATA_IMPORT!", message);
 
             event.waitUntil(handleDataImport(message.data.file, message.data.key, client));
+        }
+        else if (message.m === "LOAD_AREA") {
+            event.waitUntil(handleLoadArea(message.data.areaUrlName, client));
         }
         else if (message.m === "DELETE_AREA") {
             console.log("client sent DELETE_AREA!", message);

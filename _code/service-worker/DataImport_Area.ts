@@ -3,7 +3,7 @@ const importAreaData = async (
     zip: Zip,
     db: LocalMLDatabase,
     cache: ReturnType<typeof makeCache>,
-    onProgress: (current: number, total: number) => void,
+    onProgress: (areaUrlName: string, current: number, total: number) => void,
     onError: (message: string) => void,
 ) => {
     const readJson = (path: string) => zip.file(path).async("text").then(JSON.parse);
@@ -13,7 +13,7 @@ const importAreaData = async (
     let handledFiles = 0;
 
     console.log("reading settings file")
-    const data = JSON.parse(await zip.file("area_settings.json").async("string"))
+    const data: AreaData = JSON.parse(await zip.file("area_settings.json").async("string"))
     const areaId = data.aid;
     console.log("reading settings file ok", { areaId, data, zip })
 
@@ -116,7 +116,7 @@ const importAreaData = async (
             handledFiles++;
 
             if (handledFiles % 20 === 0) {
-                onProgress(handledFiles, filesCount);
+                onProgress(data.aun, handledFiles, filesCount);
             }
         }
         catch(e) {
@@ -126,5 +126,6 @@ const importAreaData = async (
     }
 
 
+    console.log("done importing area", areaId);
     return data;
 }
