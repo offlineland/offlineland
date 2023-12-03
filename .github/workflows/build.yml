@@ -23,11 +23,11 @@ jobs:
     - run: bun run build
 
     - name: pre-compress (brotliBrotli)
-      run: find static -type f -exec brotli --best --force --output {}.br {} \;
+      run: find static -type f -exec brotli --best --force --keep --output="{}.br" {} \;
     - name: pre-compress (gzip)
-      run: find static -type f ! -name '*.br' ! -name '*.zst' -exec gzip --best --force --output {}.gz {} \;
+      run: find static -type f ! -name '*.br' ! -name '*.zst' -exec gzip --best --force --keep "{}" \;
     - name: pre-compress (zstd)
-      run: find static -type f ! -name '*.br' ! -name '*.gz' -exec zstd --ultra -22 --output {}.zst {} \;
+      run: find static -type f ! -name '*.br' ! -name '*.gz' -exec zstd --ultra -22 --keep "{}" \;
 
 
 
