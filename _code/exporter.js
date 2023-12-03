@@ -921,11 +921,6 @@
 
         }
 
-        if (btn_collectionsEnabled.checked) {
-            status.textContent = "Finding collected creations..."
-            await scanInventoryCollections();
-        }
-
         if (btn_creationsEnabled.checked) {
             status.textContent = "Finding created creations..."
             await scanInventoryCreations();
@@ -935,6 +930,13 @@
             status.textContent = "Finding creations in bin..."
             await scanInBin();
         }
+
+        if (btn_collectionsEnabled.checked) {
+            status.textContent = "Finding collected creations..."
+            await scanInventoryCollections();
+        }
+
+
 
 
         status.textContent = "Downloading collected creations..."
