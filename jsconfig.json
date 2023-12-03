@@ -9,7 +9,8 @@
         "noEmit": true,
     },
     "include": [
-        "_code/*.js"
+        "_code/*.js",
+        "_code/*.mjs",
     ],
     "exclude": [
         "_code/libs/*.js"
