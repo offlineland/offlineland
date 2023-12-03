@@ -6,5 +6,8 @@
     "tailwind": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css",
     "tailwind:w": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css --watch",
     "build": "bun run tsc && bun run tailwind"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.15"
   }
 }
