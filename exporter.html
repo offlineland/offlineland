@@ -36,11 +36,53 @@
             window.copyToClipboard = copyToClipboard;
         </script>
 
+        <nav class="navbar w-full">
+            <div class="flex-1">
+                <a href="/" class="flex-0 btn btn-ghost gap-1 h-2 min-h-[2rem] px-2 mx-1 ">
+                    <img src="/static/offlineland/icons/icon_72x72.png" class="w-6 h-6" />
+                    <span class="font-title text-base-content text-lg md:text-xl">offlineland.io</span>
+                </a>
+            </div>
+
+            <div class="flex-none">
+                <ul class="menu menu-horizontal px-1">
+                    <li>
+                        <details class="">
+                            <summary class="py-1">
+                                Museum
+                            </summary>
+                            <ul class="p-2 bg-base-100 rounded-t-none">
+                                <li class="disabled"><a>
+                                    Maps
+                                    <span class="badge badge-sm badge-primary">Soon!</span>
+                                </a></li>
+                                <li class="disabled"><a>
+                                    Sounds
+                                    <span class="badge badge-sm badge-primary">Soon!</span>
+                                </a></li>
+                                <li class="disabled"><a>
+                                    Universe Search
+                                    <span class="badge badge-sm badge-primary">Soon!</span>
+                                </a></li>
+                            </ul>
+                        </details>
+                    </li>
+                    <li class="disabled"><a class="py-1">
+                        Achievements
+                        <span class="badge badge-sm badge-primary">Soon!</span>
+                    </a></li>
+                    <li><a class="py-1" href="/exporter">Exporter</a></li>
+                    <li><a class="py-1" href="https://online.offlineland.io">Onlineland</a></li>
+                </ul>
+            </div>
+        </nav>
+
+
         <main class="">
-            <div class="text-center p-3 pb-6">
-                <h1 class="text-4xl font-bold p-3"><a href="https://oflineland.io">Offlineland</a> exporter</h1>
+            <div class="text-center pb-6">
+                <h1 class="text-4xl font-bold"><a href="https://oflineland.io">Offlineland</a> exporter</h1>
                 <p>
-                    Code snippet to generate a .zip of most of your stuff that you can then import back on <a href="https://offlineland.io" class="text-blue-500 hover:text-blue-700 underline">offlineland.io</a>
+                    Make a .zip of your stuff that you can import back on <a href="https://offlineland.io" class="text-blue-500 hover:text-blue-700 underline">offlineland.io</a>
                 </p>
             </div>
 
@@ -74,11 +116,11 @@
                 </ul>
             </div>
 
-            <div class="flex flex-col space-y-2 p-4">
-                <button onclick="copyToClipboard('codeBlock')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            <div class="flex flex-col  p-4 join join-vertical">
+                <button onclick="copyToClipboard('codeBlock')" class="join-item bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                     Copy to Clipboard
                 </button>
-                <pre id="codeBlock" class="p-4 bg-gray-100 rounded-md overflow-auto">fetch("https://offlineland.io/_code/exporter.js").then(res => res.text()).then(txt => eval(txt));</pre>
+                <pre id="codeBlock" class="join-item p-4 bg-gray-100 rounded-md overflow-auto">fetch("https://offlineland.io/_code/exporter.js").then(res => res.text()).then(txt => eval(txt));</pre>
             </div>
 
 
@@ -99,11 +141,11 @@
                 If you're curious, here's the full code:
                 <details>
                     <summary class="cursor-pointer">Show</summary>
-                    <div class="flex flex-col space-y-2 p-4">
-                        <button onclick="copyToClipboard('codeBlock_full')" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                    <div class="flex flex-col p-4 join join-vertical">
+                        <button onclick="copyToClipboard('codeBlock_full')" class="join-item bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             Copy full code to Clipboard
                         </button>
-                        <pre id="codeBlock_full" class="p-4 bg-gray-100 rounded-md overflow-auto"></pre>
+                        <pre id="codeBlock_full" class="join-item p-4 bg-gray-100 rounded-md overflow-auto"></pre>
                     </div>
                 </details>
             </div>
