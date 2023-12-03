@@ -218,6 +218,7 @@ const bundledAreasFile = {
             "prison cell b": "54ddf8d43827a1397656ac5f",
             "prison cell c": "54dfb730e33832b16bba7427",
             "brown cinema vault": "543a04f37e81f3007a1a3e29",
+            "the kings vault": "5483ef838c53dbdc71546c13",
         }
     }
 }
