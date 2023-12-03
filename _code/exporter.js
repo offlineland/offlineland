@@ -120,12 +120,26 @@
         // Download the json file if we don't have it yet
         const prefixFileWasDownloaded = await db.get("public-creations-downloaded-prefixes", prefix)
         if (prefixFileWasDownloaded !== true) {
-            const ids = await fetch(`https://offlineland.io/static/offlineland/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
+            const prevStatusText = status.textContent;
+            status.textContent = prevStatusText +  ` (checking public creations ${prefix}...)`;
 
-            for (const id of ids) {
-                await db.put("public-creations", true, id);
-            }
+            console.time(`Downloading creation Ids ${prefix}`)
+            /** @type { string[] } */
+            const ids = await fetch(`https://offlineland.io/static/offlineland/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json())
+            console.timeEnd(`Downloading creation Ids ${prefix}`)
+
+
+            status.textContent = prevStatusText +  ` (saving public creations ${prefix}...)`;
+
+            console.time(`Storing creation Ids ${prefix}`)
+            const tx = db.transaction('public-creations', "readwrite");
+            await Promise.all(ids.map(id => tx.store.put(true, id)))
+            console.timeLog(`Storing creation Ids ${prefix}`, "closing transaction")
+            await tx.done;
+            console.timeEnd(`Storing creation Ids ${prefix}`)
+
             await db.put("public-creations-downloaded-prefixes", true, prefix);
+            status.textContent = prevStatusText;
         }
 
         return db.get("public-creations", creationId);
