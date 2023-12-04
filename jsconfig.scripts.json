@@ -3,19 +3,18 @@
         "strict": false,
         "target": "ES2015",
         "lib": [ "ESNext", "webworker", "DOM" ],
-        "moduleResolution": "nodenext",
-        "module": "nodenext",
+        "moduleResolution": "classic",
+        "module": "umd",
         "checkJs": true,
         "noEmit": true,
         "skipLibCheck": true
     },
     "include": [
-        "_code/*.js",
-        "_code/*.mjs",
+        "_code/exporter.js"
     ],
     "exclude": [
         "node_modules/**/*",
-        "_code/exporter.js",
+        "node_modules/file-saver/dist/FileSaver.min.js",
         "_code/libs/*.js"
     ]
 }

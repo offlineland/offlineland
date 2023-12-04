@@ -330,7 +330,7 @@
             });
 
             if (!res.ok) {
-                console.warn(`error downloading creation data ${id}! Server says: ${res.status} ${res.statusText}. I'm going to skip this creation; if you want to retry it later, just re-run the exporter.`)
+                console.warn(`error downloading creation data ${creationId}! Server says: ${res.status} ${res.statusText}. I'm going to skip this creation; if you want to retry it later, just re-run the exporter.`)
                 return;
             }
 

@@ -3,11 +3,14 @@
   "scripts": {
     "tsc": "tsc --project tsconfig.json",
     "tsc:w": "tsc --project tsconfig.json --watch",
+    "scripts:w": "tsc --project scripts.jsconfig.json --watch",
     "tailwind": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css",
     "tailwind:w": "tailwindcss -i ./_code/input.css -o ./static/offlineland/style.css --watch",
     "build": "bun run tsc && bun run tailwind"
   },
   "devDependencies": {
-    "bun-types": "^1.0.15"
+    "@types/file-saver": "^2.0.7",
+    "bun-types": "^1.0.15",
+    "file-saver": "^2.0.5"
   }
 }
