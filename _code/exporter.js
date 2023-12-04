@@ -919,60 +919,69 @@
     const runExporter = async () => {
         setAttr(btn_start, { disabled: true });
 
-        log("runExporter", btn_snapsEnabled, btn_collectionsEnabled)
+        try {
+            log("starting!")
+            status.textContent = "Archiving profile..."
+            await scanProfile()
 
-        status.textContent = "Archiving profile..."
-        await scanProfile()
-
-        if (btn_snapsEnabled.checked) {
-            status.textContent = "Finding snaps..."
-            await scanSnaps();
-            status.textContent = "Downloading snaps..."
+            if (btn_snapsEnabled.checked) {
+                status.textContent = "Finding snaps..."
+                await scanSnaps();
+                status.textContent = "Downloading snaps..."
+            }
             await downloadAllStoredSnaps();
+
+            if (btn_miftsEnabled.checked) {
+                status.textContent = "Archiving public mifts..."
+                await api_scanAllMifts(ourId, false);
+
+                status.textContent = "Archiving private mifts..."
+                await api_scanAllMifts(ourId, true);
+
+            }
+
+            if (btn_creationsEnabled.checked) {
+                status.textContent = "Finding created creations..."
+                await scanInventoryCreations();
+            }
+
+            if (btn_binEnabled.checked) {
+                status.textContent = "Finding creations in bin..."
+                await scanInBin();
+            }
+
+            if (btn_collectionsEnabled.checked) {
+                status.textContent = "Finding collected creations..."
+                await scanInventoryCollections();
+            }
+
+            status.textContent = "Downloading collected creations..."
+            await downloadAllCollectedCreations();
+            status.textContent = "Downloading created creations..."
+            await downloadAllCreatedCreations();
+            if (btn_queueEnabled.checked) {
+                status.textContent = "Downloading queued creations..."
+                await processCreationsInQueue();
+            }
+
+
+
+
+            status.textContent = "Creating zip..."
+            await createZip();
+            status.textContent = "Done!"
+        }
+        catch(e) {
+            console.error("error:", e);
+
+            if (!e._offlineland_handled) {
+                status.textContent += "Unexpected error! Retry later or post on the offlineland board!"
+            }
+
         }
 
-        if (btn_miftsEnabled.checked) {
-            status.textContent = "Archiving public mifts..."
-            await api_scanAllMifts(ourId, false);
-
-            status.textContent = "Archiving private mifts..."
-            await api_scanAllMifts(ourId, true);
-
-        }
-
-        if (btn_creationsEnabled.checked) {
-            status.textContent = "Finding created creations..."
-            await scanInventoryCreations();
-        }
-
-        if (btn_binEnabled.checked) {
-            status.textContent = "Finding creations in bin..."
-            await scanInBin();
-        }
-
-        if (btn_collectionsEnabled.checked) {
-            status.textContent = "Finding collected creations..."
-            await scanInventoryCollections();
-        }
 
 
-
-
-        status.textContent = "Downloading collected creations..."
-        await downloadAllCollectedCreations();
-        status.textContent = "Downloading created creations..."
-        await downloadAllCreatedCreations();
-        if (btn_queueEnabled.checked) {
-            status.textContent = "Downloading queued creations..."
-            await processCreationsInQueue();
-        }
-
-
-
-
-        status.textContent = "Creating zip..."
-        await createZip();
-        status.textContent = "Done!"
 
 
         //db.close();
@@ -987,14 +996,14 @@
         console.error("error:", e);
 
         if (!e._offlineland_handled) {
-            status.textContent += "Unexpected error! Retry later or ping Offlineland"
+            status.textContent += "Unexpected error! Retry later or post on the offlineland board!"
         }
     })
     document.addEventListener("unhandledrejection", (e) => {
         console.error("unhandledrejection:", e);
 
         if (!e._offlineland_handled) {
-            status.textContent += "Unexpected error! Retry later or ping Offlineland"
+            status.textContent += "Unexpected error! Retry later or post on the offlineland board!"
         }
     })
 })()
