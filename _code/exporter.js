@@ -724,7 +724,9 @@
     const downloadAllStoredSnaps = async () => {
         const allSnaps = await getAllSnapShortCodes();
 
-        for (const shortCode of allSnaps) {
+        for (let i = 0; i < allSnaps.length; i++) {
+            const shortCode = allSnaps[i]
+            status.textContent = "Downloading snaps... (" + i + ")"
             await downloadAndStoreSnap(shortCode)
             await sleep(SLEEP_SNAP_DL)
         }
