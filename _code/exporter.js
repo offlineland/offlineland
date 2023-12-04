@@ -966,8 +966,15 @@
 
 
 
+    document.addEventListener("error", (e) => {
+        console.error("error:", e);
+
+        if (!e._offlineland_handled) {
+            status.textContent += "Unexpected error! Retry later or ping Offlineland"
+        }
+    })
     document.addEventListener("unhandledrejection", (e) => {
-        console.error(e);
+        console.error("unhandledrejection:", e);
 
         if (!e._offlineland_handled) {
             status.textContent += "Unexpected error! Retry later or ping Offlineland"
