@@ -2015,15 +2015,23 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 
         if (url.host === originUrl.host || ["static.manyland.com"].includes(url.hostname)) {
             // TODO: properly handle cache, following best practices. Cache the .html pages, and set up a mechanism to properly update them when they change + reload the client
+            // TODO: a better system would be a "online-first" strategy: (1) try to fetch (with cachebust) (2) on success, cache and serve (3) on error, serve from cache
 
             if (url.pathname === "/") {
                 // TODO: why is this cached??
                 const res = await fetch("/index.html?cachebust=" + Date.now());
-                console.log("asked for mainscreen, sending", await res.clone().text())
                 return res;
             }
             if (url.pathname === "/exporter" || url.pathname === "/exporter.html") {
                 const res = await fetch("/exporter.html?cachebust=" + Date.now());
+                return res;
+            }
+            if (url.pathname === "/info-steam-on-browser" || url.pathname === "/info-steam-on-browser.html") {
+                const res = await fetch("/info-steam-on-browser.html?cachebust=" + Date.now());
+                return res;
+            }
+            if (url.pathname === "/static/offlineland/style.css") {
+                const res = await fetch("/static/offlineland/style.css?cachebust=" + Date.now());
                 return res;
             }
             if (url.pathname === "/exporter.js") return fetch("/exporter.js");

@@ -4,6 +4,7 @@ module.exports = {
     "./*.html",
     "./index.html",
     "./exporter.html",
+    "./info-steam-on-browser.html",
     "./_code/*.mjs",
     "./_code/*.css",
   ],
