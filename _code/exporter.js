@@ -322,7 +322,7 @@
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
             const res = await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`).catch(e => {
-                console.warn(`Network error while downloading creation data ${id}! Check that you're online. In the meantime, I'm going to stop here.`);
+                console.warn(`Network error while downloading creation data ${creationId}! Check that you're online. In the meantime, I'm going to stop here.`);
                 status.textContent += ` Network error! Are you online? Retry later!`
 
                 e._offlineland_handled = true;
@@ -335,7 +335,7 @@
             }
 
             const def = await res.json().catch(e => {
-                console.warn("Unable to read creation data! It's likely the server sent us an HTML error instead. Is manyland down? In the meantime, I'm going to stop here.c", e, id)
+                console.warn("Unable to read creation data! It's likely the server sent us an HTML error instead. Is manyland down? In the meantime, I'm going to stop here.", e, creationId)
                 status.textContent += ` Unable to read creation data! Is manyland online? Retry later!`
 
                 e._offlineland_handled = true;
@@ -462,13 +462,28 @@
     const store_addCollectedId = async (creationId) => await db.put("inventory-collections", null, creationId);
     const store_addCreatedId = async (creationId) => await db.put("inventory-creations", null, creationId);
 
+    /**
+     * 
+     * @param {number} a
+     * @param {number} b
+     */
+    // @ts-ignore
     const getRandomInt = (a, b) => parseInt(Math.floor((b + 1 - a) * Math.random() + a), 10);
-    const genId = (length) => {
+    /**
+     * 
+     * @param {number} length
+     * @returns {string}
+     */
+    const genId = (length = 16) => {
         var b = "";
-        if (undefined === length) length = 16;
         for (var c = 0; c < length; c++) b += "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".charAt(getRandomInt(0, 61));
         return b
     }
+    /**
+     * 
+     * @param {string} context
+     * @returns {string}
+     */
     const api_getCacheKey = (context) => {
         const key = "urlCacheAppend_" + context;
         sessionStorage[key] || (sessionStorage[key] = genId());
@@ -618,7 +633,7 @@
             log("Getting page of olderThan", lastDate)
             const page = await api_getMiftPage(id, lastDate, priv);
 
-            for (mift of page.results) {
+            for (const mift of page.results) {
                 if (await (store_getMift(mift._id)) != undefined) {
                     log("Reached known mift, stopping here.")
                     break mainloop;
