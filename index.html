@@ -21,15 +21,57 @@
     </head>
     <body>
         <!-- TODO find a way to not have to copy-paste this on every page lol -->
-        <nav class="navbar w-full">
-            <div class="flex-1">
-                <a href="/" class="flex-0 btn btn-ghost gap-1 h-2 min-h-[2rem] px-2 mx-1 ">
+        <nav class="navbar">
+            <div class="navbar-start">
+
+                <a href="/" class="btn btn-ghost gap-1 h-2 min-h-[2rem] px-2 mx-1 ">
                     <img src="/static/offlineland/icons/icon_72x72.png" class="w-6 h-6" />
                     <span class="font-title text-base-content text-lg md:text-xl">offlineland.io</span>
                 </a>
             </div>
 
-            <div class="flex-none">
+            <div class="navbar-center">
+                <!-- todo: move that to navbar-end, use a rightside button, figure out how to not have the menu go beyond the screen-->
+                <div class="dropdown">
+                    <div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+                        </svg>
+
+                        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+                            <li>
+                                <details class="">
+                                    <summary class="py-1">
+                                        Museum
+                                    </summary>
+                                    <ul class="p-2 bg-base-100 rounded-t-none">
+                                        <li class="disabled"><a>
+                                            Maps
+                                            <span class="badge badge-sm badge-primary">Soon!</span>
+                                        </a></li>
+                                        <li class="disabled"><a>
+                                            Sounds
+                                            <span class="badge badge-sm badge-primary">Soon!</span>
+                                        </a></li>
+                                        <li class="disabled"><a>
+                                            Universe Search
+                                            <span class="badge badge-sm badge-primary">Soon!</span>
+                                        </a></li>
+                                    </ul>
+                                </details>
+                            </li>
+                            <li class="disabled"><a class="py-1">
+                                Achievements
+                                <span class="badge badge-sm badge-primary">Soon!</span>
+                            </a></li>
+                            <li><a class="py-1" href="/exporter">Exporter</a></li>
+                            <li><a class="py-1" href="https://online.offlineland.io">Onlineland</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="navbar-end hidden lg:flex">
                 <ul class="menu menu-horizontal px-1">
                     <li>
                         <details class="">
@@ -38,7 +80,7 @@
                             </summary>
                             <ul class="p-2 bg-base-100 rounded-t-none">
                                 <li class="disabled"><a>
-                                    Map
+                                    Maps
                                     <span class="badge badge-sm badge-primary">Soon!</span>
                                 </a></li>
                                 <li class="disabled"><a>
