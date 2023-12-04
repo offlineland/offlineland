@@ -109,7 +109,7 @@
 
 
     /**
-     * Check if a creation is in universe search, by fetching it from offlineland.io
+     * Check if a creation is in universe search by fetching the list of public items that start with the same prefix from offlineland.io
      * @param {string} creationId
      * @returns { Promise<boolean> }
      */
