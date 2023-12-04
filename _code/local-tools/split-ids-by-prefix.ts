@@ -1,4 +1,4 @@
-// Usage: bun run _code/libs/split-by-prefix.ts ./all-ids.json ./static/offlineland/public-creations/ 3
+// Usage: bun run _code/local-tools/split-ids-by-prefix.ts ./all-ids.json ./static/offlineland/public-creations/ 3
 
 import fs from 'node:fs'
 import path from 'node:path'

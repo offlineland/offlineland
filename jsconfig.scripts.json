@@ -3,14 +3,16 @@
         "strict": false,
         "target": "ES2015",
         "lib": [ "ESNext", "webworker", "DOM" ],
-        "moduleResolution": "classic",
+        "moduleResolution": "node",
         "module": "umd",
         "checkJs": true,
         "noEmit": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        //"noImplicitAny": true
     },
     "include": [
-        "_code/exporter.js"
+        "_code/exporter.js",
+        //"_code/exporter.d.ts"
     ],
     "exclude": [
         "node_modules/**/*",
