@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 21;
+const SW_VERSION = 22;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -574,41 +574,6 @@ class LocalAreaManager {
             console.log("onWsMessage()", msgTypes_rev[parsedMsg.m], parsedMsg)
 
             switch (parsedMsg.m) {
-                case msgTypes.MAP_EDIT: {
-                    const mapRejectionReasons = {
-                        OK: 0,
-                        BAD: 1,
-                        THROTTLED: 2,
-                        RANKRESTRICTED: 3,
-                        NEARPLAYER: 4,
-                        SOFTBAN: 5,
-                        PLACENAMEDUP: 6,
-                        R5OUTERPROTECT: 7
-                    };
-
-
-                    // TODO: properly handle storing map edits
-
-                    const { x, y, def } = parsedMsg.data;
-
-                    // TODO: figure out what was there before
-                    const prevBlock = def ? null : groundId;
-
-                    client.postMessage({
-                        m: "WS_MSG",
-                        data: toClient({
-                            m: msgTypes.MAP_EDIT_REJECTED,
-                            data: {
-                                def: prevBlock,
-                                x: x,
-                                y: y,
-                                rsn: mapRejectionReasons.THROTTLED
-                            }
-                        })
-                    });
-
-                    break;
-                }
                 case msgTypes.TELEPORT: {
                     // TODO: store current player position once we actually decode it from binary messages
 
@@ -731,8 +696,8 @@ class ArchivedAreaManager {
             "wsh": this.wssUrl,
             "wsp": 80,
 
-            "ieh": true, // isEditorHere
-            "ish": true, // isSuperHere
+            "ieh": false, // isEditorHere
+            "ish": false, // isSuperHere
 
             "sha": false,  // ShowAdvertisment, unused
             "noi": true,  // no in-app purchases, steam-related
@@ -871,8 +836,7 @@ class ArchivedAreaManager {
 
                 "ach":"[0,4,10,11,12,8,39,5,35,9]",
                 "neo":true, // ?
-                "ieh":true,
-                "ifa":true,
+                "ieh":false,
 
                 "map":{
                     "p":0,

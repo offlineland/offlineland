@@ -164,6 +164,7 @@ class PlayerDataManager {
 
     async getInitData_ws() {
         return {
+            "ifa": this.isFullAccount,
             "rid": this.rid,
             "snm": this.name,
             "aid":"80-1-1-f",
