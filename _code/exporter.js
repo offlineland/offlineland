@@ -47,19 +47,24 @@
      * @param {number} sleepMs
      * @param {number} maxAttempts 
      * @returns {Promise<T>}
+     * @throws The last error caught from the function if all attemps failed
      */
     const retryOnThrow = async (fn, sleepMs = 1000, maxAttempts = 3) => {
+        const errors = [];
+
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 return await fn();
             } catch(e) {
                 console.warn("retry: function failed! Attempts left:", maxAttempts - attempt)
+                errors.push(e);
                 await sleep(sleepMs);
             }
-           
         }
 
 
+        log("retry: all attemps failed!", errors)
+        throw errors.at(-1);
     }
 
     // TODO migrate everything to these helpers
