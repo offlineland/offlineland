@@ -20,9 +20,8 @@
     // https://csv.js.org/stringify/api/sync/
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/csv-stringify@6.4.4/dist/iife/sync.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js", { cache: "force-cache" })).text());
-    const sleep = (ms = 1) => new Promise(res => setTimeout(res, ms));
-    const dateFromObjectId = (objectId) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
     
+    const { el, text, mount, setAttr } = redom;
     const z = Zod;
     const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)").pop();
@@ -34,6 +33,11 @@
             body: `urlName=stockpile&buster=${Date.now()}`
         })).json());
     const ourId = initData.rid;
+
+
+    const sleep = (ms = 1) => new Promise(res => setTimeout(res, ms));
+
+    const dateFromObjectId = (objectId) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 
 
     /**
@@ -177,7 +181,6 @@
 
 
     // #region UI
-    const { el, text, mount, setAttr } = redom;
 
     const status = text("waiting");
 
