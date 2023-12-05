@@ -761,42 +761,42 @@
 
     const schema_snap = z.object({
         visitedLocation: z.object({
-          _id: z.string(),
-          isPrivate: z.boolean().optional(),
-          shortCode: z.string(),
-          loc: z.object({ p: z.coerce.number(), a: z.coerce.string(), x: z.coerce.number(), y: z.coerce.number() })
+            _id: z.string(),
+            isPrivate: z.boolean().optional(),
+            shortCode: z.string(),
+            loc: z.object({ p: z.coerce.number(), a: z.coerce.string(), x: z.coerce.number(), y: z.coerce.number() })
         }).optional(),
         moreResults: z.boolean()
     })
     const getSnap = async (index) => await (await fetch(`https://manyland.com/j/v/loc/${index}`, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const scanSnaps = async (startIndex = 0) => {
-    status_totalSnapsFound.update(() => 0);
-      let index = startIndex;
+        status_totalSnapsFound.update(() => 0);
+        let index = startIndex;
 
-      while (true) {
-        status.textContent = `Archiving snaps... (page ${ index })`;
-        status_atPageSnaps.update(() => index);
-        status_totalSnapsFound.update(v => v + 1); // This is off-by-one in case we reach the end, but having them not all update on the same tick is slightly aggravating
+        while (true) {
+            status.textContent = `Archiving snaps... (page ${index})`;
+            status_atPageSnaps.update(() => index);
+            status_totalSnapsFound.update(v => v + 1); // This is off-by-one in case we reach the end, but having them not all update on the same tick is slightly aggravating
 
-        const rawData = await getSnap(index++);
-        const result = schema_snap.safeParse(rawData);
+            const rawData = await getSnap(index++);
+            const result = schema_snap.safeParse(rawData);
 
-        log(rawData, result)
-        if (result.success === false) {
-          log("unable to parse snap data", { index, error: result.error, rawData })
-          continue;
-        };
-        const snap = result.data;
-        
-        log("storing state...")
-        await storeProgress(STATE_PROGRESS_SNAPS, index, snap.moreResults === false)
-        if (snap.moreResults !== true) break;
-    
-        log("storing snap data...")
-        await storeSnapData(snap.visitedLocation);
+            log(rawData, result)
+            if (result.success === false) {
+                log("unable to parse snap data", { index, error: result.error, rawData })
+                continue;
+            };
+            const snap = result.data;
 
-        await sleep(SLEEP_SNAP_PAGE)
-      }
+            log("storing state...")
+            await storeProgress(STATE_PROGRESS_SNAPS, index, snap.moreResults === false)
+            if (snap.moreResults !== true) break;
+
+            log("storing snap data...")
+            await storeSnapData(snap.visitedLocation);
+
+            await sleep(SLEEP_SNAP_PAGE)
+        }
     }
 
     const downloadAndStoreSnap = async (shortCode) => {
