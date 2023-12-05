@@ -181,6 +181,21 @@
     }
 
 
+    const STATE_PROGRESS_SNAPS = "snapAlbum";
+    const STATE_PROGRESS_COLLECTIONS = "collectionsTab";
+    const STATE_PROGRESS_CREATIONS = "creationsTab";
+    /**
+     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS} stateName 
+     * @param {number} lastIndex
+     * @param {boolean} isDone 
+     */
+    const storeProgress = async (stateName, lastIndex, isDone) => await db.put('misc-data', { lastIndex, isDone }, `state2-${stateName}`);
+    /**
+     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS} stateName 
+     * @returns { Promise<{ lastIndex: number, isDone: boolean }>}
+     */
+    const getProgress = async (stateName) => (await db.get('misc-data', `state2-${stateName}`)) || { lastIndex: 0, isDone: false };
+
 
     // #endregion boilerplate
 
@@ -201,6 +216,8 @@
         return { el: txtNode, update }
     }
 
+    // NOTE: Ideally we'd use a Re:dom component here instead of putting everything into consts,
+    // but I haven't figured out how to make it work with my typechecker setup so bear with me
     const status_totalSnapsFound = mkNumberStat(await db.count("snapshots-data"));
     const status_currentMiftsPublicSaved = mkNumberStat(await db.count("mifts-public"));
     const status_currentMiftsPrivateSaved = mkNumberStat(await db.count("mifts-private"));
@@ -218,13 +235,29 @@
 
 
 
-    const btn_snapsEnabled = el("input", { type: "checkbox", checked: false })
-    const btn_miftsEnabled = el("input", { type: "checkbox", checked: true })
-    const btn_collectionsEnabled = el("input", { type: "checkbox", checked: false })
-    const btn_creationsEnabled = el("input", { type: "checkbox", checked: true })
+    const progressSnaps = await getProgress(STATE_PROGRESS_SNAPS);
+    const progressCreations = await getProgress(STATE_PROGRESS_CREATIONS);
+    const progressCollections = await getProgress(STATE_PROGRESS_COLLECTIONS);
+
+    console.log({ progressSnaps, progressCreations, progressCollections })
+
+    const btn_snapsEnabled = el("input", { type: "checkbox", checked: progressSnaps.isDone === false })
+    const status_atPageSnaps = mkNumberStat(progressSnaps.lastIndex);
+    const btn_resetSnapAlbumProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_SNAPS, 0, false)}, "Restart from zero")
+
+    const btn_creationsEnabled = el("input", { type: "checkbox", checked: progressCreations.isDone === false })
+    const status_atPageCreations = mkNumberStat(progressCreations.lastIndex);
+    const btn_resetCreationsProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_CREATIONS, 0, false)}, "Restart from zero")
+
+    const btn_collectionsEnabled = el("input", { type: "checkbox", checked: progressCollections.isDone === false })
+    const status_atPageCollections = mkNumberStat(progressCollections.lastIndex);
+    const btn_resetCollectionsProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_COLLECTIONS, 0, false)}, "Restart from zero")
+
     const btn_binEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_miftsEnabled = el("input", { type: "checkbox", checked: true })
     const btn_queueEnabled = el("input", { type: "checkbox", checked: false })
     const btn_start = el("button.okButton", ["Start exporter"])
+
 
 
     const root = el("div.contentPart", [
@@ -232,32 +265,47 @@
             el("h1", "offlineland.io's exporter thingy"),
             el("div", "Note: it'll pick back where it left off, you can reload at any time to stop it"),
         ]),
-        el("div", [
-            el("ul", [
-                el("li", el("label", [ btn_snapsEnabled, "Snaps" ])),
-                el("li", el("label", [ btn_miftsEnabled, "Mifts" ])),
-                el("li", el("label", [ btn_collectionsEnabled, "Collections tab" ])),
-                el("li", el("label", [ btn_creationsEnabled, "Creations tab" ])),
-                el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)" ])),
-                el("li", el("label", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ])),
-            ])
-        ]),
 
-        el("div", { style: "padding: 1em; text-align: center;" }, [
-            btn_start,
-        ]),
-
-        el("div", { style: "padding-top: 1em;"}, [
-            el("p.text-left", ["status:", status ]),
-            el("ul", [
-                el("li", [ "Snaps: ", status_totalSnapsFound.el ]),
-                el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
-                el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
-                el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
-                el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
-                el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
-                el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
+        el("div", { style: "font-family: initial; font-size: initial; text-transform: initial; background-color: rgb(208,188,178); color: black; border-radius: 5px; padding: 30px;" }, [
+            el("div", [
+                el("ul", [
+                    el("li", [
+                        el("label", [ btn_snapsEnabled, "Update the snap album" ]),
+                        progressSnaps.isDone ? " Done! " : " (At page: ", status_atPageSnaps, ") ",
+                        btn_resetSnapAlbumProgress,
+                    ]),
+                    el("li", [
+                        el("label", [ btn_creationsEnabled, "Update the creations tab" ]),
+                        progressCreations.isDone ? " Done! " : " (At page: ", status_atPageCreations, ") ",
+                        btn_resetCreationsProgress,
+                    ]),
+                    el("li", [
+                        el("label", [ btn_collectionsEnabled, "Update the collections tab" ]),
+                        progressCollections.isDone ? " Done! " : " (At page: ", status_atPageCollections, ") ",
+                        btn_resetCollectionsProgress,
+                    ]),
+                    el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)" ])),
+                    el("li", el("label", [ btn_miftsEnabled, "Update mifts" ])),
+                    el("li", el("label", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ])),
+                ])
             ]),
+
+            el("div", { style: "padding: 1em; text-align: center;" }, [
+                btn_start,
+            ]),
+
+            el("div", { style: "padding-top: 1em;"}, [
+                el("p.text-left", ["status:", status ]),
+                el("ul", [
+                    el("li", [ "Snaps: ", status_totalSnapsFound.el ]),
+                    el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
+                    el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
+                    el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
+                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
+                    el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
+                    el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
+                ]),
+            ])
         ])
     ]);
 
@@ -532,9 +580,9 @@
     const MAX_COLLECTIONS_PAGE_SIZE = 20;
     const MAX_CREATIONS_PAGE_SIZE = 20;
     const MAX_SEARCH_PAGE_SIZE = 10;
-    const scanInventoryCollections = async () => {
+    const scanInventoryCollections = async (startAtPage = 0) => {
         status_totalCollectionsFound.update(() => 0); // Reset the counter
-        let page = 0;
+        let page = startAtPage;
 
         while (true) {
             log("scanInventoryCollections page", page)
@@ -551,7 +599,11 @@
                 await store_addCollectedId(item);
             }
 
-            if (end >= itemCount) break;
+            const reachedEnd = end >= itemCount;
+            await storeProgress(STATE_PROGRESS_COLLECTIONS, index, reachedEnd)
+            status_atPageCollections.update(() => index);
+
+            if (reachedEnd) break;
             page++;
             await sleep(SLEEP_INVENTORYPAGE_COLLECTIONS);
         }
@@ -573,9 +625,9 @@
             }
         }
     }
-    const scanInventoryCreations = async () => {
+    const scanInventoryCreations = async (startAtPage = 0) => {
         status_totalCreationsFound.update(() => 0); // Reset the counter
-        let page = 0;
+        let page = startAtPage;
 
         while (true) {
             log("scanInventoryCreations page", page)
@@ -592,7 +644,11 @@
                 await store_addCreatedId(item);
             }
 
-            if (end >= itemCount) break;
+            const reachedEnd = end >= itemCount;
+            await storeProgress(STATE_PROGRESS_CREATIONS, index, reachedEnd)
+            status_atPageCreations.update(() => index);
+
+            if (reachedEnd) break;
             page++;
             await sleep(SLEEP_INVENTORYPAGE_CREATIONS);
         }
@@ -692,7 +748,6 @@
 
     // SNAPSHOTS
     // #region snaps
-    const storeSnapsProgress = async (latestSnapIndex, isDone) => await db.put('misc-data', { latestSnapIndex, isDone }, "state-snapshots");
     const storeSnapData = async (snap) => await db.put('snapshots-data', snap, snap.shortCode);
     const getSnapData = async (shortCode) => await db.get('snapshots-data', shortCode);
     const getAllSnapShortCodes = async () => await db.getAllKeys('snapshots-data')
@@ -720,7 +775,8 @@
 
       while (true) {
         status.textContent = `Archiving snaps... (page ${ index })`;
-
+        status_atPageSnaps.update(() => index);
+        status_totalSnapsFound.update(v => v + 1); // This is off-by-one in case we reach the end, but having them not all update on the same tick is slightly aggravating
 
         const rawData = await getSnap(index++);
         const result = schema_snap.safeParse(rawData);
@@ -733,12 +789,11 @@
         const snap = result.data;
         
         log("storing state...")
-        await storeSnapsProgress(index, snap.moreResults === false)
+        await storeProgress(STATE_PROGRESS_SNAPS, index, snap.moreResults === false)
         if (snap.moreResults !== true) break;
     
         log("storing snap data...")
         await storeSnapData(snap.visitedLocation);
-        status_totalSnapsFound.update(v => v + 1);
 
         await sleep(SLEEP_SNAP_PAGE)
       }
@@ -962,7 +1017,8 @@
 
             if (btn_snapsEnabled.checked) {
                 status.textContent = "Finding snaps..."
-                await scanSnaps();
+                const progress = await getProgress(STATE_PROGRESS_SNAPS);
+                await scanSnaps(progress.lastIndex);
                 status.textContent = "Downloading snaps..."
             }
             await downloadAllStoredSnaps();
@@ -978,7 +1034,8 @@
 
             if (btn_creationsEnabled.checked) {
                 status.textContent = "Finding created creations..."
-                await scanInventoryCreations();
+                const progress = await getProgress(STATE_PROGRESS_CREATIONS);
+                await scanInventoryCreations(progress.lastIndex);
             }
 
             if (btn_binEnabled.checked) {
@@ -988,7 +1045,8 @@
 
             if (btn_collectionsEnabled.checked) {
                 status.textContent = "Finding collected creations..."
-                await scanInventoryCollections();
+                const progress = await getProgress(STATE_PROGRESS_COLLECTIONS);
+                await scanInventoryCollections(progress.lastIndex);
             }
 
 
