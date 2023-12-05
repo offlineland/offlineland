@@ -149,7 +149,7 @@
      * @returns { Promise<boolean> }
      */
     const isCreationPublic = async (creationId) => {
-        const PREFIX_LENGTH = 2;
+        const PREFIX_LENGTH = 3;
         const prefix = creationId.substring(0, PREFIX_LENGTH)
 
         // Download the json file if we don't have it yet
