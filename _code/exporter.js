@@ -770,14 +770,9 @@
     })
     const getSnap = async (index) => await (await fetch(`https://manyland.com/j/v/loc/${index}`, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const scanSnaps = async (startIndex = 0) => {
-        status_totalSnapsFound.update(() => 0);
         let index = startIndex;
 
         while (true) {
-            status.textContent = `Archiving snaps... (page ${index})`;
-            status_atPageSnaps.update(() => index);
-            status_totalSnapsFound.update(v => v + 1); // This is off-by-one in case we reach the end, but having them not all update on the same tick is slightly aggravating
-
             const rawData = await getSnap(index++);
             const result = schema_snap.safeParse(rawData);
 
@@ -791,6 +786,15 @@
             log("storing state...")
             await storeProgress(STATE_PROGRESS_SNAPS, index, snap.moreResults === false)
             if (snap.moreResults !== true) break;
+            if (!snap.visitedLocation) break;
+
+            if (await getSnapData(snap.visitedLocation.shortCode) === false) {
+                // Only increment this if it's a new snap
+                status_totalSnapsFound.update(v => v + 1);
+            }
+            // This is slightly late, but it's aggravating to not have them all update at the same time, and it's not like people will notice
+            status.textContent = `Archiving snaps... (page ${index})`;
+            status_atPageSnaps.update(() => index);
 
             log("storing snap data...")
             await storeSnapData(snap.visitedLocation);
