@@ -119,14 +119,17 @@
     log("creating db OK")
 
 
-    const SLEEP_CREATIONDL_CDN = 50;
-    const SLEEP_CREATIONDL_API = 500;
+    const SLEEP_CREATIONDL_API_SUBCONTENT = 700;
+    const SLEEP_CREATIONDL_API_STATS = 300;
+    const SLEEP_CREATIONDL_API_PAINTER_DATA = 700;
     const SLEEP_INVENTORYPAGE_COLLECTIONS = 500;
     const SLEEP_INVENTORYPAGE_CREATIONS = 800;
-    const SLEEP_INVENTORYPAGE_SEARCH = 500;
+    const SLEEP_INVENTORYPAGE_SEARCH = 800;
     const SLEEP_MIFT_PAGE = 500;
     const SLEEP_SNAP_PAGE = 300;
+    // These are off of a CDN
     const SLEEP_SNAP_DL = 50;
+    const SLEEP_CREATIONDL_CDN = 20;
 
     const api_getMyAreaList = async () => await api_getJSON(`https://manyland.com/j/a/mal/`);
 
@@ -374,7 +377,7 @@
                 }
 
                 await store_setHolderContent(def.id, data);
-                await sleep(SLEEP_CREATIONDL_API);
+                await sleep(SLEEP_CREATIONDL_API_SUBCONTENT);
                 log(`Creation "${def.name}" is a holder, fetching content done`);
             }
             if (def.base === "MULTITHING" && (await store_getMultiData(creationId)) == undefined) {
@@ -402,7 +405,7 @@
                 }
 
                 await store_setBodyMotions(def.id, data);
-                await sleep(SLEEP_CREATIONDL_API);
+                await sleep(SLEEP_CREATIONDL_API_SUBCONTENT);
                 log(`Creation "${def.name}" is a body, fetching motion bar done`);
             }
             // TODO: not all boards have settings. Is it really even useful to store this?
@@ -443,13 +446,15 @@
             if ((await store_getCreationStats(creationId)) == undefined) {
                 const stats = await retryOnThrow(() => api_getCreationStats(creationId));
                 await store_setCreationStats(creationId, stats);
+
+                await sleep(SLEEP_CREATIONDL_API_STATS)
             }
 
             if ((await store_getCreationPainterData(creationId)) == undefined) {
                 const data = await retryOnThrow(() => api_getCreationPainterData(creationId));
                 await store_setCreationPainterData(creationId, data);
 
-                await sleep(SLEEP_CREATIONDL_API);
+                await sleep(SLEEP_CREATIONDL_API_PAINTER_DATA);
             }
         }
     }
