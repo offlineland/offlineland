@@ -35,6 +35,29 @@
         })).json());
     const ourId = initData.rid;
 
+
+    /**
+     * Retries an async function until it returns without throwing, up until maxAttempts.
+     * @template T
+     * @param {() => T} fn 
+     * @param {number} sleepMs
+     * @param {number} maxAttempts 
+     * @returns {Promise<T>}
+     */
+    const retryOnThrow = async (fn, sleepMs = 1000, maxAttempts = 3) => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return await fn();
+            } catch(e) {
+                console.warn("retry: function failed! Attempts left:", maxAttempts - attempt)
+                await sleep(sleepMs);
+            }
+           
+        }
+
+
+    }
+
     // TODO migrate everything to these helpers
     const api_getJSON = async (url) => await (await fetch(url, { credentials: "include", mode: "cors", headers: { "X-CSRF": csrfToken } })).json();
     const api_postJSON = async (url, bodyStr) => await (await fetch(url, {
@@ -321,7 +344,7 @@
     }
     const saveCreation = async (creationId) => {
         if ((await store_getCreationDef(creationId)) == undefined) {
-            const res = await fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`).catch(e => {
+            const res = await retryOnThrow(() => fetch(`https://d2h9in11vauk68.cloudfront.net/${creationId}`)).catch(e => {
                 console.warn(`Network error while downloading creation data ${creationId}! Check that you're online. In the meantime, I'm going to stop here.`);
                 status.textContent += ` Network error! Are you online? Retry later!`
 
@@ -334,7 +357,7 @@
                 return;
             }
 
-            const def = await res.json().catch(e => {
+            const def = await retryOnThrow(() => res.json()).catch(e => {
                 console.warn("Unable to read creation data! It's likely the server sent us an HTML error instead. Is manyland down? In the meantime, I'm going to stop here.", e, creationId)
                 status.textContent += ` Unable to read creation data! Is manyland online? Retry later!`
 
@@ -344,7 +367,7 @@
 
             if (def.base === "HOLDER" && (await store_getHolderContent(creationId)) == undefined) {
                 log(`Creation "${def.name}" is a holder, fetching content`);
-                const data = await api_getHolderContent(def.id);
+                const data = await retryOnThrow(() => api_getHolderContent(def.id));
 
                 for (const content of data.contents) {
                     await store_addToQueue(content.itemId)
@@ -356,7 +379,7 @@
             }
             if (def.base === "MULTITHING" && (await store_getMultiData(creationId)) == undefined) {
                 log(`Creation "${def.name}" is a multi, fetching content`);
-                const data = await api_getMultiData(def.id);
+                const data = await retryOnThrow(() => api_getMultiData(def.id));
 
                 if (Array.isArray(data?.itemProps)) {
                     for (const { id } of data.itemProps) {
@@ -365,12 +388,12 @@
                 }
 
                 await store_setMultiData(def.id, data);
-                await sleep(SLEEP_CREATIONDL_API);
+                await sleep(SLEEP_CREATIONDL_API_SUBCONTENT);
                 log(`Creation "${def.name}" is a multi, fetching content done`);
             }
             else if (def.base === "STACKWEARB" && (await store_getBodyMotions(creationId)) == undefined) {
                 log(`Creation "${def.name}" is a body, fetching motion bar`);
-                const data = await api_getBodyMotions(def.id);
+                const data = await retryOnThrow(() => api_getBodyMotions(def.id));
 
                 if (Array.isArray(data.ids)) {
                     for (const id of data.ids) {
@@ -410,7 +433,7 @@
 
         if ((await store_getCreationImage(creationId)) == undefined) {
             // TODO: rotate through CDNs
-            const img = await (await fetch(`https://d3sru0o8c0d5ho.cloudfront.net/${creationId}`)).blob();
+            const img = await retryOnThrow(() => fetch(`https://d3sru0o8c0d5ho.cloudfront.net/${creationId}`).then(res => res.blob()));
             await store_addCreationImage(creationId, img);
         }
 
@@ -418,12 +441,12 @@
         const creatorId = (await store_getCreationDef(creationId)).creator;
         if (creatorId === ourId) {
             if ((await store_getCreationStats(creationId)) == undefined) {
-                const stats = await api_getCreationStats(creationId);
+                const stats = await retryOnThrow(() => api_getCreationStats(creationId));
                 await store_setCreationStats(creationId, stats);
             }
 
             if ((await store_getCreationPainterData(creationId)) == undefined) {
-                const data = await api_getCreationPainterData(creationId);
+                const data = await retryOnThrow(() => api_getCreationPainterData(creationId));
                 await store_setCreationPainterData(creationId, data);
 
                 await sleep(SLEEP_CREATIONDL_API);
