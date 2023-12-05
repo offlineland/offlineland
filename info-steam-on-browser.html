@@ -102,64 +102,55 @@
                 <div class="flex flex-col items-center gap-16 md:gap-8">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-8">
-                        <div class="flex items-center justify-center">
+                        <div class="flex flex-col items-center justify-center space-y-6">
                             <p class="max-w-md">
-                                Open the
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75a4.5 4.5 0 01-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 11-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 016.336-4.486l-3.276 3.276a3.004 3.004 0 002.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.867 19.125h.008v.008h-.008v-.008z" />
-                                </svg>
-                                Dev Tools on Steam by pressing <span><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">F12</kbd></span>.
+                                Open the Dev Tools on Steam by pressing <span><kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">F12</kbd></span>.
+
+                            </p>
+                            <p class="max-w-md">
+                                Click on the (1) Resource tab, then (2) Cookies, and copy the value of the <kbd class="kbd kbd-sm">s</kbd> cookie (double-click on the value, then ctrl+c or drag it to notepad.)
+                            </p>
+                            <p class="w-full max-w-md">
+                                The <kbd class="kbd kbd-sm">s</kbd> cookie starts with <kbd class="kbd kbd-sm">s%3A</kbd>.
                             </p>
                         </div>
 
                         <div>
-                            <img src="/static/offlineland/exporter-screenshot.png" class="h-60 rounded-xl">
+                            <img src="/static/offlineland/steam-devtools.png" class="max-h-fit rounded-xl">
                         </div>
                     </div>
 
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-8">
-                        <div class="flex items-center justify-center">
+                        <div class="flex flex-col items-center justify-center space-y-6">
                             <p class="max-w-md">
-                                Go to 
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 1.5v-1.5m0 0c0-.621.504-1.125 1.125-1.125m0 0h7.5" />
-                                </svg>
-                                Storage tab -> Cookies,
-                                and copy the values for <kbd class="kbd kbd-sm">act</kbd> and <kbd class="kbd kbd-sm">s</kbd>.
+                                On your browser, go to Manyland.com, then open the devtools again (<kbd class="kbd kbd-sm">F12</kbd>).
                             </p>
+                            <p class="max-w-md">
+                                Click on the (1) Storage tab, then (2) Cookies.
+                                This time, replace the value of the <kbd class="kbd kbd-sm">s</kbd> with the one you copied from Steam.
+                            </p>
+                            <p class="max-w-md">
+                                Refresh. If everything goes well, you'll be logged-in on your steam account! You can now continue with the <a href="/exporter#instructions" class="link link-secondary">exporter</a>.
+                            </p>
+
+                            <p class="w-full max-w-md">
+                                If it didn't work, try going over the steps again.
+                            </p>
+
+                            <div role="alert" class="alert alert-warning max-w-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                <span>
+                                    Note: do not share this cookie with anyone! If you do, they'll be able to do exactly as above and log into your account.
+                                </span>
+                            </div>
                         </div>
 
                         <div>
-                            <img src="/static/offlineland/exporter-screenshot.png" class="h-60 rounded-xl">
-                        </div>
-                    </div>
-                    
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-8">
-                        <div class="flex items-center justify-center">
-                            <p class="max-w-md">
-                                On your browser, go to Manyland, open the devtools (<kbd class="kbd kbd-sm">F12</kbd>), go to Storage -> Cookies.
-                                This time, paste the values from Steam, replacing what's already there.
-                            </p>
-                        </div>
-
-                        <div>
-                            <img src="/static/offlineland/exporter-screenshot.png" class="h-60 rounded-xl">
+                            <img src="/static/offlineland/browser-devtools.png" class="max-h-fit rounded-xl">
                         </div>
                     </div>
 
-
-
-                    <div class="border-b border-primary m-3 pt-3 w-1/3"></div>
-
-                    <div role="alert" class="alert alert-warning max-w-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                        <span>
-                            Note: do not share these cookies with anyone! If you do, they'll be able to do exactly as above and log into your account.
-                        </span>
-                    </div>
                 </div>
             </div>
 
