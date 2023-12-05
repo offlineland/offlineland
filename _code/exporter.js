@@ -271,17 +271,17 @@
                 el("ul", [
                     el("li", [
                         el("label", [ btn_snapsEnabled, "Update the snap album" ]),
-                        progressSnaps.isDone ? " Done! " : " (At page: ", status_atPageSnaps, ") ",
+                        progressSnaps.isDone ? " (Done! Page: " : " (At page: ", status_atPageSnaps, ") ",
                         btn_resetSnapAlbumProgress,
                     ]),
                     el("li", [
                         el("label", [ btn_creationsEnabled, "Update the creations tab" ]),
-                        progressCreations.isDone ? " Done! " : " (At page: ", status_atPageCreations, ") ",
+                        progressCreations.isDone ? " (Done! Page: " : " (At page: ", status_atPageCreations, ") ",
                         btn_resetCreationsProgress,
                     ]),
                     el("li", [
                         el("label", [ btn_collectionsEnabled, "Update the collections tab" ]),
-                        progressCollections.isDone ? " Done! " : " (At page: ", status_atPageCollections, ") ",
+                        progressCollections.isDone ? " (Done! Page: " : " (At page: ", status_atPageCollections, ") ",
                         btn_resetCollectionsProgress,
                     ]),
                     el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)" ])),
@@ -544,7 +544,9 @@
 
     // #region inventory
     const store_addCollectedId = async (creationId) => await db.put("inventory-collections", null, creationId);
+    const store_hasCollectedId = async (creationId) => await db.get("inventory-collections", creationId);
     const store_addCreatedId = async (creationId) => await db.put("inventory-creations", null, creationId);
+    const store_hasCreatedId = async (creationId) => await db.get("inventory-creations", creationId);
 
     /**
      * 
@@ -581,22 +583,25 @@
     const MAX_CREATIONS_PAGE_SIZE = 20;
     const MAX_SEARCH_PAGE_SIZE = 10;
     const scanInventoryCollections = async (startAtPage = 0) => {
-        status_totalCollectionsFound.update(() => 0); // Reset the counter
         let page = startAtPage;
 
         while (true) {
             log("scanInventoryCollections page", page)
-            status_currentPageCollections.update(() => page);
 
             const start = page * MAX_COLLECTIONS_PAGE_SIZE;
             const end = start + MAX_COLLECTIONS_PAGE_SIZE;
             const { items, itemCount } = await api_getInventoryCollectionsPage(start, end);
 
-            status_totalPageCollections.update(() => Math.floor(itemCount / MAX_COLLECTIONS_PAGE_SIZE));
-            status_totalCollectionsFound.update(v => v + items.length);
+            const lastPage = Math.floor(itemCount / MAX_COLLECTIONS_PAGE_SIZE);
+            status.textContent = `Scrolling through collection tab... (page ${page} / ${lastPage})`;
+            status_totalPageCollections.update(() => lastPage);
+            status_currentPageCollections.update(() => page);
 
             for (const item of items) {
-                await store_addCollectedId(item);
+                if (await store_hasCollectedId(item) === false) {
+                    await store_addCollectedId(item);
+                    status_totalCollectionsFound.update(v => v + 1);
+                }
             }
 
             const reachedEnd = end >= itemCount;
@@ -626,22 +631,25 @@
         }
     }
     const scanInventoryCreations = async (startAtPage = 0) => {
-        status_totalCreationsFound.update(() => 0); // Reset the counter
         let page = startAtPage;
 
         while (true) {
             log("scanInventoryCreations page", page)
-            status_currentPageCreations.update(() => page);
 
             const start = page * MAX_CREATIONS_PAGE_SIZE;
             const end = start + MAX_CREATIONS_PAGE_SIZE;
             const { items, itemCount} = await api_getInventoryCreationsPage(start, end);
 
-            status_totalPagesCreations.update(() => Math.floor(itemCount / MAX_CREATIONS_PAGE_SIZE));
-            status_totalCreationsFound.update(v => v + items.length);
+            const lastPage = Math.floor(itemCount / MAX_CREATIONS_PAGE_SIZE);
+            status.textContent = `Scrolling through creation tab... (page ${page} / ${lastPage})`;
+            status_totalPagesCreations.update(() => lastPage);
+            status_currentPageCreations.update(() => page);
 
             for (const item of items) {
-                await store_addCreatedId(item);
+                if (await store_hasCollectedId(item)) {
+                    status_totalCreationsFound.update(v => v + 1);
+                    await store_addCreatedId(item);
+                }
             }
 
             const reachedEnd = end >= itemCount;
@@ -1037,7 +1045,7 @@
             }
 
             if (btn_creationsEnabled.checked) {
-                status.textContent = "Finding created creations..."
+                status.textContent = "Scrolling through creation tab...";
                 const progress = await getProgress(STATE_PROGRESS_CREATIONS);
                 await scanInventoryCreations(progress.lastIndex);
             }
@@ -1048,7 +1056,7 @@
             }
 
             if (btn_collectionsEnabled.checked) {
-                status.textContent = "Finding collected creations..."
+                status.textContent = "Scrolling through collection tab...";
                 const progress = await getProgress(STATE_PROGRESS_COLLECTIONS);
                 await scanInventoryCollections(progress.lastIndex);
             }
