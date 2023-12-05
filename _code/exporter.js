@@ -814,6 +814,7 @@
             const res = await fetch(`https://snapshot.manyland.com/${shortCode}.png`);
             const blob = await res.blob();
             await storeSnapImage(shortCode, blob);
+            await sleep(SLEEP_SNAP_DL);
         }
     }
     const downloadAllStoredSnaps = async () => {
@@ -823,7 +824,6 @@
             const shortCode = allSnaps[i]
             status.textContent = "Downloading snaps... (" + i + ")"
             await downloadAndStoreSnap(shortCode)
-            await sleep(SLEEP_SNAP_DL)
         }
     }
     // #endregion snaps
