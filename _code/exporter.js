@@ -990,13 +990,14 @@
             status.textContent = "Downloading created creations..."
             await downloadAllCreatedCreations();
 
+
+            status.textContent = "Downloading collected creations..."
+            await downloadAllCollectedCreations();
+
             if (btn_queueEnabled.checked) {
                 status.textContent = "Downloading queued creations..."
                 await processCreationsInQueue();
             }
-
-            status.textContent = "Downloading collected creations..."
-            await downloadAllCollectedCreations();
 
 
 
