@@ -600,8 +600,8 @@
             }
 
             const reachedEnd = end >= itemCount;
-            await storeProgress(STATE_PROGRESS_COLLECTIONS, index, reachedEnd)
-            status_atPageCollections.update(() => index);
+            await storeProgress(STATE_PROGRESS_COLLECTIONS, page, reachedEnd)
+            status_atPageCollections.update(() => page);
 
             if (reachedEnd) break;
             page++;
@@ -645,8 +645,8 @@
             }
 
             const reachedEnd = end >= itemCount;
-            await storeProgress(STATE_PROGRESS_CREATIONS, index, reachedEnd)
-            status_atPageCreations.update(() => index);
+            await storeProgress(STATE_PROGRESS_CREATIONS, page, reachedEnd)
+            status_atPageCreations.update(() => page);
 
             if (reachedEnd) break;
             page++;
