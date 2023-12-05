@@ -184,6 +184,7 @@
     const STATE_PROGRESS_SNAPS = "snapAlbum";
     const STATE_PROGRESS_COLLECTIONS = "collectionsTab";
     const STATE_PROGRESS_CREATIONS = "creationsTab";
+    const STATE_PROGRESS_BIN = "creationsInBin";
     /**
      * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS} stateName 
      * @param {number} lastIndex
@@ -235,6 +236,7 @@
 
 
 
+    const progressBin = await getProgress(STATE_PROGRESS_BIN);
     const progressSnaps = await getProgress(STATE_PROGRESS_SNAPS);
     const progressCreations = await getProgress(STATE_PROGRESS_CREATIONS);
     const progressCollections = await getProgress(STATE_PROGRESS_COLLECTIONS);
@@ -253,7 +255,7 @@
     const status_atPageCollections = mkNumberStat(progressCollections.lastIndex);
     const btn_resetCollectionsProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_COLLECTIONS, 0, false)}, "Restart from zero")
 
-    const btn_binEnabled = el("input", { type: "checkbox", checked: true })
+    const btn_binEnabled = el("input", { type: "checkbox", checked: progressBin.isDone === false })
     const btn_miftsEnabled = el("input", { type: "checkbox", checked: true })
     const btn_queueEnabled = el("input", { type: "checkbox", checked: false })
     const btn_start = el("button.okButton", ["Start exporter"])
@@ -678,8 +680,11 @@
             for (const item of items) {
                 await store_addCreatedId(item);
             }
+            
+            const reachedEnd = more === false;
+            await storeProgress(STATE_PROGRESS_BIN, page, reachedEnd)
 
-            if (more == false) break;
+            if (reachedEnd) break;
             page++;
             await sleep(SLEEP_INVENTORYPAGE_SEARCH);
         }
