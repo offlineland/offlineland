@@ -11,6 +11,20 @@
 			window.location = "/info-rift";
 		}
 	}
+    if (!window.console) {
+        alert("You might have an ablocker that will break things! If things don't work, try disabling it (or switch to ublock origin, that one seems to work fine)")
+        // add stubs anyway
+        window.console = {
+            log: () => {},
+            info: () => {},
+            warn: () => {},
+            error: () => {},
+            debug: () => {},
+            time: () => {},
+            timeEnd: () => {},
+            timeLog: () => {},
+        }
+    }
 	
     // #region boilerplate
     eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
