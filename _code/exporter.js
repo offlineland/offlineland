@@ -549,7 +549,9 @@
 
             for (let i = 0; i < queue.length; i++) {
                 const id = queue[i];
-                status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil((queue.length - i) * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
+                // This ETA is a worst-case where all items are bodies/holders/motions, but it's probably better for it to complete faster than expected than shorter than expected
+                // ETAs are a lie anyway
+                status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil((queue.length - i) * SLEEP_CREATIONDL_API_SUBCONTENT / 1000 / 60)} mins)`
 
                 if (await isCreationPublic(id)) {
                     status_totalPublicCollectionsFound.update(v => v + 1);
