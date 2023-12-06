@@ -549,7 +549,7 @@
 
             for (let i = 0; i < queue.length; i++) {
                 const id = queue[i];
-                status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil(queue.length * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
+                status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil((queue.length - i) * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
 
                 if (await isCreationPublic(id)) {
                     status_totalPublicCollectionsFound.update(v => v + 1);
