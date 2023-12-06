@@ -204,7 +204,7 @@ const main = el("main", [
 
         el("div.p-4", [
             el("div", [
-                el("h2.text-2xl.text-center", "Data import"),
+                el("h2.text-2xl.text-center", "Import data locally"),
                 el("p", [
                     "You can import areas from ",
                     el("a.link.link-secondary", {href: "https://areabackup.com",target: "_blank"}, "areabackup.com"),
@@ -216,7 +216,7 @@ const main = el("main", [
             ]),
             el("div.border-b-1.border-black"),
             el("div.mt-6", [
-                el("h2.text-2xl.text-center", "Search worlds"),
+                el("h2.text-2xl.text-center", "Search worlds online"),
                 el("p", "Search for worlds shared on online.offlineland.io (Coming soon!)"),
                 el("div.p-4.join", [ 
                     el("input.input.input-bordered.w-full.max-w-xs.join-item", { type: "search", disabled: true } ),
