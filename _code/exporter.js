@@ -202,13 +202,13 @@
     const STATE_PROGRESS_CREATIONS = "creationsTab";
     const STATE_PROGRESS_BIN = "creationsInBin";
     /**
-     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS} stateName 
+     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS | STATE_PROGRESS_BIN} stateName 
      * @param {number} lastIndex
      * @param {boolean} isDone 
      */
     const storeProgress = async (stateName, lastIndex, isDone) => await db.put('misc-data', { lastIndex, isDone }, `state2-${stateName}`);
     /**
-     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS} stateName 
+     * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS | STATE_PROGRESS_BIN} stateName 
      * @returns { Promise<{ lastIndex: number, isDone: boolean }>}
      */
     const getProgress = async (stateName) => (await db.get('misc-data', `state2-${stateName}`)) || { lastIndex: 0, isDone: false };
@@ -303,7 +303,7 @@
                         progressCollections.isDone ? " (Done! Page: " : " (At page: ", status_atPageCollections, ") ",
                         btn_resetCollectionsProgress,
                     ]),
-                    el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)" ])),
+                    el("li", el("label", [ btn_binEnabled, "Creations in bin (search tab)", progressCollections.isDone ? "Done!" : "" ])),
                     el("li", el("label", [ btn_miftsEnabled, "Update mifts" ])),
                     el("li", el("label", [ btn_queueEnabled, "Things in multis, holders, and body motions (this can take a very long time!)" ])),
                 ])
@@ -320,7 +320,7 @@
                     el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
                     el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
                     el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
-                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el, "( skipped public creations: ", status_totalPublicCollectionsFound, " )" ]),
+                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el, "( skipped public creations: ", status_totalPublicCollectionsFound.el, " )" ]),
                     el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
                     el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
                 ]),
@@ -554,7 +554,7 @@
                 status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil(queue.length * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
 
                 if (await isCreationPublic(id)) {
-                    status_totalPublicCollectionsFound(v => v + 1);
+                    status_totalPublicCollectionsFound.update(v => v + 1);
                     console.debug("skipping creation", id, "as it is available from universe search");
                 }
                 else {
@@ -651,7 +651,7 @@
             const id = allIds[i];
 
             if (await isCreationPublic(id)) {
-                status_totalPublicCollectionsFound(v => v + 1);
+                status_totalPublicCollectionsFound.update(v => v + 1);
                 console.debug("skipping creation", id, "as it is available from universe search");
             }
             else {
