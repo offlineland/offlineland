@@ -626,9 +626,9 @@
             status_currentPageCollections.update(() => page);
 
             for (const item of items) {
-                if (await store_hasCollectedId(item) === false) {
-                    await store_addCollectedId(item);
+                if ((await store_hasCollectedId(item)) === false) {
                     status_totalCollectionsFound.update(v => v + 1);
+                    await store_addCollectedId(item);
                 }
             }
 
@@ -675,7 +675,7 @@
             status_currentPageCreations.update(() => page);
 
             for (const item of items) {
-                if (await store_hasCollectedId(item)) {
+                if ((await store_hasCreatedId(item)) === false) {
                     status_totalCreationsFound.update(v => v + 1);
                     await store_addCreatedId(item);
                 }
