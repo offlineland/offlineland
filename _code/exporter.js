@@ -1,5 +1,5 @@
 (async () => {
-    const version = "3";
+    const version = "4";
 
 	if(window.location.protocol === "http:"){
 		if(confirm("Redirecting to secure context...")){
@@ -40,6 +40,7 @@
     const { el, text, mount, setAttr } = redom;
     const z = Zod;
     const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
+
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)").pop();
     const initData = (await (await fetch(`https://manyland.com/j/i/`, {
             method: "POST",
@@ -1055,7 +1056,7 @@
         setAttr(btn_start, { disabled: true });
 
         try {
-            log("starting!")
+            log("starting! version:", version)
             status.textContent = "Archiving profile..."
             await scanProfile()
 
