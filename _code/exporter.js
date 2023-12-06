@@ -198,7 +198,7 @@
 
     const STATE_PROGRESS_SNAPS = "snapAlbum";
     const STATE_PROGRESS_COLLECTIONS = "collectionsTab";
-    const STATE_PROGRESS_CREATIONS = "creationsTab";
+    const STATE_PROGRESS_CREATIONS = "creationsTab2";
     const STATE_PROGRESS_BIN = "creationsInBin";
     /**
      * @param {STATE_PROGRESS_SNAPS | STATE_PROGRESS_COLLECTIONS | STATE_PROGRESS_CREATIONS | STATE_PROGRESS_BIN} stateName 
