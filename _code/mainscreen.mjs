@@ -198,7 +198,7 @@ const importInput = el("input#fileInput", { type: "file", accept: "application/z
 const main = el("main", [
     el("div.grid.md:grid-cols-5", [
         el("div.md:col-span-4", [
-            el("h2.text-2xl.text-center", "Available areas"),
+            el("h2.text-2xl.text-center", "Local areas"),
             mainInterface,
         ]),
 
