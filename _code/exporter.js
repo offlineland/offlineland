@@ -14,7 +14,7 @@
 		}
 	}
     if (!window.console) {
-        alert("You might have an ablocker that will break things! If things don't work, try disabling it (or switch to ublock origin, that one seems to work fine)")
+        alert("You might have an ablocker that will break things! If you see an error, try disabling it (or switch to ublock origin, that one seems to work fine)")
         // add stubs anyway
         window.console = {
             log: () => {},
@@ -180,8 +180,6 @@
             console.timeEnd(`Downloading creation Ids ${prefix}`)
 
 
-            status.textContent = prevStatusText +  ` (saving public creations ${prefix}...)`;
-
             console.time(`Storing creation Ids ${prefix}`)
             const tx = db.transaction('public-creations', "readwrite");
             await Promise.all(ids.map(id => tx.store.put(true, id)))
@@ -320,7 +318,7 @@
                     el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
                     el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
                     el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
-                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el, "( skipped public creations: ", status_totalPublicCollectionsFound.el, " )" ]),
+                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el, " (skipped public creations: ", status_totalPublicCollectionsFound.el, " )" ]),
                     el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
                     el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
                 ]),
