@@ -277,6 +277,7 @@ class ImportMgr {
             else if (msg.m === "IMPORT_COMPLETE") {
                 const callbacks = this.files.get(msg.data.key);
                 callbacks?.load("ok");
+                clearInterval(callbacks?.keepAliveInterval);
                 toastSuccess(msg.data.message);
 
                 if (msg.data.type === "AREA") {
@@ -286,12 +287,18 @@ class ImportMgr {
             else if (msg.m === "IMPORT_ERROR") {
                 const callbacks = this.files.get(msg.data.key);
                 callbacks?.error(msg.data.error);
+                clearInterval(callbacks?.keepAliveInterval);
                 toastError( msg.data.error );
             }
         })
     }
 
+    // TODO rename "callbacks"
     addFile(file, callbacks) {
+        // TODO deduplicate in case we're importing multiple files at once
+        // TODO: actually only upload one file at once... but still allow queuing multiple of them in filepond!
+        callbacks.keepAliveInterval = setInterval(() => { fetch(`/_mlspinternal_/keepalive`) }, 1000)
+
         const key = Date.now();
         this.files.set(key, callbacks);
         navigator.serviceWorker.controller.postMessage({ m: "DATA_IMPORT", data: { file, key: key } });
@@ -313,7 +320,7 @@ const updateAreaList = () => {
 document.addEventListener("DOMContentLoaded", async () => {
     mount(document.getElementById("app"), main);
     mount(document.getElementById("swVersion"), versionText);
-    mount(document.getElementById("pageVersion"), text(3));
+    mount(document.getElementById("pageVersion"), text(4));
 
     if ('serviceWorker' in navigator === false) {
         noServiceWorkerModal.showModal()
