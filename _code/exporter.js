@@ -1,4 +1,6 @@
 (async () => {
+    const version = "3";
+
 	if(window.location.protocol === "http:"){
 		if(confirm("Redirecting to secure context...")){
 			window.location.href = `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -241,6 +243,7 @@
     const status_creationsInQueue = mkNumberStat(await db.count("creations-queue"));
 
     const status_totalCollectionsFound = mkNumberStat(await db.count("inventory-collections"));
+    const status_totalPublicCollectionsFound = mkNumberStat(0);
     const status_currentPageCollections = mkNumberStat(0);
     const status_totalPageCollections = mkNumberStat(0);
 
@@ -317,10 +320,18 @@
                     el("li", [ "Mifts (public): ", status_currentMiftsPublicSaved.el ]),
                     el("li", [ "Mifts (private): ", status_currentMiftsPrivateSaved.el ]),
                     el("li", [ "Inventory (creations): ", status_totalCreationsFound.el ]),
-                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el ]),
+                    el("li", [ "Inventory (collects): ", status_totalCollectionsFound.el, "( skipped public creations: ", status_totalPublicCollectionsFound, " )" ]),
                     el("li", [ "Total saved items: ", status_totalSavedCreations.el ]),
                     el("li", [ "Remaining items in multis/holders/bodies to download: ", status_creationsInQueue.el ]),
                 ]),
+            ]),
+
+
+            el("div", { style: "padding-top: 2em; font-size: 12px;"}, [
+                el("p", [
+                    "Note: this can take a while! To speed up things, collected public creations (those in the universe search) are not downloaded. They'll appear in your inventory on offlineland.io though!"
+                ])
+
             ])
         ])
     ]);
@@ -543,6 +554,7 @@
                 status.textContent = `Downloading queued creations... (${i} / ${queue.length}) (ETA: ${Math.ceil(queue.length * SLEEP_CREATIONDL_CDN / 1000 / 60)} mins)`
 
                 if (await isCreationPublic(id)) {
+                    status_totalPublicCollectionsFound(v => v + 1);
                     console.debug("skipping creation", id, "as it is available from universe search");
                 }
                 else {
@@ -639,6 +651,7 @@
             const id = allIds[i];
 
             if (await isCreationPublic(id)) {
+                status_totalPublicCollectionsFound(v => v + 1);
                 console.debug("skipping creation", id, "as it is available from universe search");
             }
             else {
