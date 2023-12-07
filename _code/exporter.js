@@ -1,5 +1,5 @@
 (async () => {
-    const version = "4";
+    const version = "5";
 
 	if(window.location.protocol === "http:"){
 		if(confirm("Redirecting to secure context...")){
@@ -343,8 +343,11 @@
 
 
             el("div", { style: "padding-top: 2em; font-size: 12px;"}, [
-                el("p", [
+                el("p", {style: "margin-bottom: 0px"}, [
                     "Note: this can take a while! To speed up things, collected public creations (those in the universe search) are not downloaded. They'll appear in your inventory on offlineland.io though!"
+                ]),
+                el("p", {style: "margin-top: 0px"}, [
+                    "(version: ", version, ")"
                 ])
 
             ])
