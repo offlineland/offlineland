@@ -586,9 +586,9 @@
 
     // #region inventory
     const store_addCollectedId = async (creationId) => await db.put("inventory-collections", null, creationId);
-    const store_hasCollectedId = async (creationId) => await db.get("inventory-collections", creationId);
+    const store_hasCollectedId = async (creationId) => await db.get("inventory-collections", creationId) !== undefined;
     const store_addCreatedId = async (creationId) => await db.put("inventory-creations", null, creationId);
-    const store_hasCreatedId = async (creationId) => await db.get("inventory-creations", creationId);
+    const store_hasCreatedId = async (creationId) => await db.get("inventory-creations", creationId) !== undefined;
 
     /**
      * 
