@@ -1,5 +1,5 @@
 (async () => {
-    const version = "5";
+    const version = "6";
     if (window.location.protocol === "http:") {
         if (confirm("Redirecting to secure context...")) {
             window.location.href = `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`;
