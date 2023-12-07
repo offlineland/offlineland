@@ -264,6 +264,7 @@
         onclick: () => {
             storeProgress(STATE_PROGRESS_SNAPS, 0, false);
             setAttr(btn_snapsEnabled, { checked: true });
+            status_atPageSnaps.update(() => 0);
         }}, "Restart from zero")
 
     const btn_creationsEnabled = el("input", { type: "checkbox", checked: progressCreations.isDone === false })
@@ -272,6 +273,7 @@
         onclick: () => {
             storeProgress(STATE_PROGRESS_CREATIONS, 0, false);
             setAttr(btn_creationsEnabled, { checked: true });
+            status_atPageCreations.update(() => 0);
         }},
         "Restart from zero")
 
@@ -281,6 +283,7 @@
         onclick: () => {
             storeProgress(STATE_PROGRESS_COLLECTIONS, 0, false);
             setAttr(btn_collectionsEnabled, { checked: true });
+            status_atPageCollections.update(() => 0);
     }
     }, "Restart from zero")
 
