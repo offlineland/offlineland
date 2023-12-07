@@ -27,7 +27,7 @@
             timeLog: () => {},
         }
     }
-	
+
     // #region boilerplate
     eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js", { cache: "force-cache" })).text());
@@ -139,7 +139,6 @@
                 db.createObjectStore('public-creations-downloaded-prefixes');
                 db.createObjectStore('public-creations');
             }
-
         }
     });
     log("creating db OK")
@@ -261,15 +260,29 @@
 
     const btn_snapsEnabled = el("input", { type: "checkbox", checked: progressSnaps.isDone === false })
     const status_atPageSnaps = mkNumberStat(progressSnaps.lastIndex);
-    const btn_resetSnapAlbumProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_SNAPS, 0, false)}, "Restart from zero")
+    const btn_resetSnapAlbumProgress = el("button", {
+        onclick: () => {
+            storeProgress(STATE_PROGRESS_SNAPS, 0, false);
+            setAttr(btn_snapsEnabled, { checked: true });
+        }}, "Restart from zero")
 
     const btn_creationsEnabled = el("input", { type: "checkbox", checked: progressCreations.isDone === false })
     const status_atPageCreations = mkNumberStat(progressCreations.lastIndex);
-    const btn_resetCreationsProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_CREATIONS, 0, false)}, "Restart from zero")
+    const btn_resetCreationsProgress = el( "button", {
+        onclick: () => {
+            storeProgress(STATE_PROGRESS_CREATIONS, 0, false);
+            setAttr(btn_creationsEnabled, { checked: true });
+        }},
+        "Restart from zero")
 
     const btn_collectionsEnabled = el("input", { type: "checkbox", checked: progressCollections.isDone === false })
     const status_atPageCollections = mkNumberStat(progressCollections.lastIndex);
-    const btn_resetCollectionsProgress = el("button", { onclick: () => storeProgress(STATE_PROGRESS_COLLECTIONS, 0, false)}, "Restart from zero")
+    const btn_resetCollectionsProgress = el("button", {
+        onclick: () => {
+            storeProgress(STATE_PROGRESS_COLLECTIONS, 0, false);
+            setAttr(btn_collectionsEnabled, { checked: true });
+    }
+    }, "Restart from zero")
 
     const btn_binEnabled = el("input", { type: "checkbox", checked: progressBin.isDone === false })
     const btn_miftsEnabled = el("input", { type: "checkbox", checked: true })
