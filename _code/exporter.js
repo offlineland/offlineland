@@ -1,5 +1,5 @@
 (async () => {
-    const version = "6";
+    const version = "7";
     if (window.location.protocol === "http:") {
         if (confirm("Redirecting to secure context...")) {
             window.location.href = `https://${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -29,6 +29,8 @@
         };
     }
     // #region boilerplate
+    const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
+    log("loading... (this can take around 30 seconds if you're on slow internet!)");
     eval(await (await fetch("https://redom.js.org/redom.min.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://unpkg.com/zod@3.22.0/lib/index.umd.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/idb@7/build/umd.js", { cache: "force-cache" })).text());
@@ -36,9 +38,9 @@
     // https://csv.js.org/stringify/api/sync/
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/csv-stringify@6.4.4/dist/iife/sync.js", { cache: "force-cache" })).text());
     eval(await (await fetch("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js", { cache: "force-cache" })).text());
+    log("loading... done!");
     const { el, text, mount, setAttr } = redom;
     const z = Zod;
-    const log = typeof consoleref !== 'undefined' ? consoleref.log : console.log;
     const csrfToken = document.cookie.match("(^|;)\\s*" + "act" + "\\s*=\\s*([^;]+)")?.pop();
     if (!csrfToken) {
         console.warn("It seems you are not logged in on manyland!");
@@ -141,7 +143,17 @@
             const prevStatusText = status.textContent;
             status.textContent = prevStatusText + ` (checking public creations ${prefix}...)`;
             console.time(`Downloading creation Ids ${prefix}`);
-            const ids = await fetch(`https://offlineland.io/static/offlineland/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`).then(res => res.json());
+            const ids = await fetch(`https://offlineland.io/static/offlineland/public-creations/by-prefix/${PREFIX_LENGTH}/${prefix}.json`)
+                .then(res => {
+                if (res.ok)
+                    return res.json();
+                else
+                    throw new Error(`Request error ${res.status} ${res.statusText}.`);
+            })
+                .catch(e => {
+                console.warn("Error while downloading the list public creations! Skipping...", e);
+                return [];
+            });
             console.timeEnd(`Downloading creation Ids ${prefix}`);
             console.time(`Storing creation Ids ${prefix}`);
             const tx = db.transaction('public-creations', "readwrite");
@@ -562,8 +574,8 @@
             for (const item of items) {
                 if ((await store_hasCollectedId(item)) === false) {
                     status_totalCollectionsFound.update(v => v + 1);
-                    await store_addCollectedId(item);
                 }
+                await store_addCollectedId(item);
             }
             const reachedEnd = end >= itemCount;
             await storeProgress(STATE_PROGRESS_COLLECTIONS, page, reachedEnd);
@@ -603,8 +615,8 @@
             for (const item of items) {
                 if ((await store_hasCreatedId(item)) === false) {
                     status_totalCreationsFound.update(v => v + 1);
-                    await store_addCreatedId(item);
                 }
+                await store_addCreatedId(item);
             }
             const reachedEnd = end >= itemCount;
             await storeProgress(STATE_PROGRESS_CREATIONS, page, reachedEnd);
