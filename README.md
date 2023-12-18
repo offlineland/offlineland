@@ -1,4 +1,43 @@
-## Dev setup:
+# [Offlineland.io](https://offlineland.io)
+An interactive monument to [Manyland](https://manyland.com)
+
+
+## Features
+Offlineland allows you to:
+- Play Manyland areas entirely offline
+- Import your account's data or an area as a .zip
+- Create things locally
+
+Eventually, the goal is to also allow:
+- Building existing and new areas
+- Sharing areas and creations on the companion site [online.offlineland.io](https://online.offlineland.io)
+- And more!!
+
+
+
+## Contributing
+Contributions are welcome! However, please first check through the [issues](https://github.com/offlineland/OfflineLand/issues) for what we want to priorize.
+If you have an idea for something that you don't see in the issues, you can also discuss it with us on the #archive-effort channel of the [Anyland discord server](https://discord.gg/ahAs7U3)!
+
+By contributing, you must also abide by the Code of Conduct.
+
+
+### How Offlineland works
+TODO reformat the post I wrote on the board about it
+
+### What happens where:
+- `manyland.js` is v3568, completely untouched
+- `index.html` is the "main page" with area selection and all
+- `game.html` is the game
+    - it overrides `window.WebSocket` with a class that pretends to be a WS but actually sends and receives messages to/from the Service Worker
+- `service-worker.ts` is where everything else is. There are 3 interesting places:
+    - the `handleFetchEvent` function, which does top-level "routing"
+    - the `FakeAPI` class which implements a basic express-like router and pretend to be ML's `/j/` endpoint
+    - the `ArchivedAreaManager` class which handles all the area data (loads data from zip, serves sector data, replies to WS messages)
+- `_code/service-worker/` is where the rest of the service worker lives. I might split the above 3 places into their own files eventually
+- `_code/libs/` is for bundled-in third-party libs as UMD modules like it's 2012.
+
+### Dev setup
 - Run a webserver that serves this folder (eg., `python -m http.server`)
 - `bun install`
 - `bun run tsc:w` and `bun run tailwind:w` in two terminals
@@ -6,63 +45,3 @@
     - your devserver does https (Caddy!),
     - you use `127.0.0.1` or `localhost`,
     - or you configure your browser to assume your dev host is a safe origin.
-
-
-## What happens where:
-- `index.html` is the "loading screen"
-- `game.html` is the game
-    - it overrides `window.WebSocket` with a class that pretends to be a WS but actually sends and receives messages to/from the Service Worker
-- `service-worker.ts` is where everything else is. There are 3 interesting places:
-    - the `handleFetchEvent` function, which does top-level "routing"
-    - the `FakeAPI` class which implements a basic express-like router and pretend to be ML's `/j/` endpoint
-    - the `ArchivedAreaManager` class which handles all the area data (loads data from zip, serves sector data, replies to WS messages)
-- `_code/service-worker/` is where the rest of the service worker lives. I might split the above 3 places into their own files, but for now it's mostly boilerplate.
-
-
-## TODO:
-- Wrap most http calls into a retry helper
-### Service Worker:
-- make the service worker registration/update asynchronous, display a little loading spinner and auto-refresh on update
-- do proper caching and update of static assets
-- make all the where-does-data-comes-from logic more explicit and configurable (CDN, origin's server, another url...)
-
-### Game:
-- store numbers (figure out how they are saved, then do the same thing as possessions)
-
-### Further features:
-- Main screen:
-    - also list snaps for an area? And buttons to teleport to it. The SW can handle placing people anywhere
-        - hand-picked snaps?
-        - same thing for placenames?
-    - list subareas? only subareas that one has visited?
-    - allow to join as explorer, non-editor and editor? (set config to url query, send to SW on open event?)
-    - display the area thumbnail on the card, and also the area's creator (get avatar from boards), manyunity-style
-
-- Room-based multiplayer via libfabric?
-    - Allow to "copy" an area and use it as a LocalArea, then save all changes as a CRDT log or something
-
-- Bundle as an Electron app? -> Steam store?
-
-### Museum:
-- different "exhibits" that showcase one specific content, that you can deeplink (eg. offlineland.io/snaps/shortcode, offlineland.io/creations/id...)
-- ideas:
-    - mifts
-        - mift graph?
-    - snap
-    - snaps in an area
-- if we have a "central database node" in multiplayer mode, maybe the "museum" can display the new content too? (eg. people making new mifts, new creations...)
-
-### Data Reification (Tanako's worlds):
-- a world with all of your creations
-- a world with all of your collections
-
-### online.offlineland.io:
-- Do like manyunity: allow people to register with username+password, ask them to post a token on a board, link account to poster account
-- figure out what to do with it later (offlineland forums? Meh?)
-
-### For later: Monetization
-- If Philipp hosts it on the same domain or another he controls, adds back the yolla ads?
-    - How to handle ads if used offline? Simply disable them? Only allow "offline install" if you've bought minfinity? (is this possible?)
-- Integrate with Patreon's API to allow players to still buy minfinity? Potentially also gate more features (max 10 players in a room? custom room code à la Discord?)
-- libfabric node or actual HTTP server acting as the "mifts server" where people can list their mifts, and add new ones (if they pay, or if they have minfinity)
-
