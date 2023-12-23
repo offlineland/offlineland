@@ -10,8 +10,7 @@ type Zip = typeof JSZip;
 
 /*
 Firefox does not handle ES import/export syntax in service workers (see https://bugzilla.mozilla.org/show_bug.cgi?id=1360870).
-The only thing available is `importScripts`, which syncronously runs a separate script.
-I could make classes in separate files and use them here, but then my editor would lose track of them and their types.
+The only thing available is `importScripts`, which syncronously runs a separate script in the current context.
 */
 
 importScripts("/_code/libs/path-to-regexp.js");
@@ -25,16 +24,17 @@ importScripts("/_code/libs/idb-keyval.umd.js");
 
 
 try {
-importScripts("/_code/service-worker/boilerplate/basicrouter.js");
-importScripts("/_code/service-worker/boilerplate/cache.js");
-importScripts("/_code/service-worker/boilerplate/mongoId.js");
-importScripts("/_code/service-worker/boilerplate/ws.js");
-importScripts("/_code/service-worker/localCreations.js");
-importScripts("/_code/service-worker/localMinimap.js");
-importScripts("/_code/service-worker/PlayerDataManager.js");
-importScripts("/_code/service-worker/Storage.js");
-importScripts("/_code/service-worker/DataImport_Profile.js");
-importScripts("/_code/service-worker/DataImport_Area.js");
+    // When creating a new file, don't forget to add it here!
+    importScripts("/_code/service-worker/boilerplate/basicrouter.js");
+    importScripts("/_code/service-worker/boilerplate/cache.js");
+    importScripts("/_code/service-worker/boilerplate/mongoId.js");
+    importScripts("/_code/service-worker/boilerplate/ws.js");
+    importScripts("/_code/service-worker/localCreations.js");
+    importScripts("/_code/service-worker/localMinimap.js");
+    importScripts("/_code/service-worker/PlayerDataManager.js");
+    importScripts("/_code/service-worker/Storage.js");
+    importScripts("/_code/service-worker/DataImport_Profile.js");
+    importScripts("/_code/service-worker/DataImport_Area.js");
 } catch(e) {
     console.log("error while trying to import a module. Are you sure the paths are correct?", e)
 }
@@ -242,8 +242,6 @@ const getAreaIdForAreaName = (areaUrlName) => {
 // #region areazips_cache
 
 // TODO: use these helpers everywhere
-// TODO: should I use a non-existent path?? Or should I store blobs in idb?
-const getURLForArea = (areaId: string) => new URL(self.origin + `/static/data/v2/${areaId}.zip`)
 const getAreaIdFromUrl = (url: URL) => {
     const MONGOID_LENGTH = 24;
     const start = "/static/data/v2/".length
@@ -339,7 +337,6 @@ const makeBundledAreaAvailableOffline = async (areaName: string, onProgress = (a
         return Response.json({ ok: false });
     }
 }
-
 // #endregion areazips_cache
 
 
@@ -375,6 +372,7 @@ const schema_aps_s = Zod.object({
 
 
 // #region typedefs
+// TODO convert to types
 
 /**
  * @typedef {Object} MinimapPlacenameData
@@ -407,9 +405,6 @@ type PositionPixels = {
 
 
 // #endregion typedefs
-
-
-
 // #endregion boilerplate
 
 
@@ -1085,17 +1080,11 @@ class AreaManagerManager {
     wssCount = 0;
     areaManagerByWSSUrl = new Map();
     areaManagerByAreaId = new Map();
-    areaPossessionsMgr: any;
 
-    /**
-     * 
-     * @param {AreaPossessionsManager} areaPossessionsMgr
-     */
-    constructor(areaPossessionsMgr) {
-        this.areaPossessionsMgr = areaPossessionsMgr;
+    constructor(private areaPossessionsMgr: AreaPossessionsManager) {
     }
 
-    async makeAreaManager(/** @type { string } */ areaId) {
+    async makeAreaManager(areaId: string) {
         console.log("AreaManagerManager: makeAreaManager()", areaId)
         const wssUrl = `ws191919x${String(this.wssCount++)}.ws.manyland.local`;
 
@@ -1108,7 +1097,7 @@ class AreaManagerManager {
         return am;
     }
 
-    async getByWSSUrl(/** @type { string } */ wssUrl) {
+    async getByWSSUrl(wssUrl: string) {
         console.warn("amm: getByWssUrl", wssUrl)
 
         const am = this.areaManagerByWSSUrl.get(wssUrl);
@@ -1141,13 +1130,6 @@ class AreaManagerManager {
         return await this.getByAreaId(currentAreaId)
     }
 }
-
-
-
-
-
-
-
 
 
 // #endregion State
@@ -1183,6 +1165,8 @@ class AreaManagerManager {
 //  ██   ██  ██████   ██████     ██    ███████ ███████ 
 
 
+// This uses our makeshift express-like router from `boilerplate/basicrouter.ts` to fake the entire Manyland API.
+// It's 700 lines long so I recommend abusing the folds on #region blocks! Splitting this into controllers and whatnot would just be a pain shuffling the context around.
 const makeFakeAPI = async (
     areaManagerMgr: AreaManagerManager,
     areaPossessionsMgr: AreaPossessionsManager,
@@ -1193,744 +1177,707 @@ const makeFakeAPI = async (
 
     // #region routes
 
-
-        // Area init
-        router.post("/j/i/", async ({ player, json, request, }) => {
-            const data: any = await readRequestBody(request)
-            
-            console.log("getting area manager for area", data)
-
-            // TODO fix player handling
-            const areaManager = await areaManagerMgr.getByAreaName(player, data.urlName);
-            const areaData = await areaManager.getInitData(player, data.urlName);
-
-            //clientIdToAreas.set(clientId, data.urlName)
-
-            console.log("sending area data", { areaData, areaManager })
-            
-            return json(areaData)
-        });
-
-        // item data
-        router.get("/j/i/def/:creationId", async ({ params }) => {
-            const { creationId } = params;
-
-            return await cache.getCreationDefRes(creationId)
-        })
-
-
-
-
-        // #region User
-        // Friends And Blocked
-        router.get("/j/u/fab/", ({ json }) => json({ "friends":[],"blocked":[] }) );
-        // GetFreshRank
-        router.post("/j/u/gfr/", ({ json }) => json( 10 ) );
-        // Achievement
-        router.post("/j/u/a/", async ({ json, request, clientId }) => {
-            const schema = z.object({ id: z.string() })
-            const { id } = schema.parse(await readRequestBody(request))
-
-            return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
-            const achievements = {
-              MOVED: 0,
-              OPENED_CHNG_BODY: 4,
-              OPENED_PEOPLE: 5,
-              PASSED_CTEST: 6,
-              ISSUED_CTEST: 7,
-              ADDED_SNAPSHOT: 8,
-              TELEPORTED: 9,
-              DID_INWORLD_BUILD: 10,
-              DID_INWORLD_REMOVE: 11,
-              USED_MEET: 12,
-              TRIGGERED_WELCOME_INVITATION: 13,
-              SAVED_CREATION: 14,
-              CREATED_AREA_SNAPSHOT: 15,
-              USED_FILL_BUILD: 16,
-              SAVED_CLONED_CREATION: 17,
-              SAW_FRIEND_ON_FRIENDS_LIST: 18,
-              SAVED_SPECIFIC_INTERACTING: 19,
-              CHANGED_BODY: 20,
-              SAVED_WRITABLE_COMMENT: 21,
-              SAVED_SPECIFIC_FLYING_MOUNT: 22,
-              USED_MOVE_BACKWARDS_BOOST: 23,
-              USED_ALTERNATIVE_COLORS_VIEW: 24,
-              SEARCHED_IN_BIN: 25,
-              CONSUMED_HOT_EDIBLE: 26,
-              CAUGHT_ITEM_FROM_ITEM_THROWER: 27,
-              PLAYED_CHORD_WITH_KEYS: 28,
-              PLACED_FILL_LIGHT: 29,
-              ATTACHED_MOTION: 30,
-              SAT_DOWN_IN_BUSY_CREATED_AREA: 31,
-              PLACED_SOMETHING_IN_GRID_HOLDER: 32,
-              TELEPORTED_HOME: 33,
-              SOLVED_BASE_POST_KEY: 34,
-              DID_CREATE_AREA: 35,
-              BLOCKED_AD: 36,
-              SAW_DIALOG_REVIEW_MOBILE: 37,
-              SAW_DIALOG_REVIEW_STEAM: 38,
-              SAW_DIALOG_MOBILE_VERSION_AVAILABLE: 39
-            }
-          console.log("Achievement registered: " + Object.keys(achievements).find(key => achievements[key] === parseInt(id)));
-          return json(true);
-        })
-        // PlayerInfo
-        router.post("/j/u/pi/", async ({ json, request, player }) => {
-            const { id, planeId, areaId } = await readRequestBody(request)
-
-            console.log("aaa", id, await player.getProfileData())
-            if (player.rid === id) {
-                return json( await player.getProfileData() );
-            } else {
-                return json({
-                    isFullAccount: true,
-                    hasMinfinity: true,
-                    isBacker: true,
-                    screenName: "todo",
-                    rank: 10,
-                    stat_ItemsPlaced: 191919,
-                    unfindable: true,
-                    ageDays: 191919,
-                    profileItemIds: [],
-                    profileColor: null,
-                    profileBackId: null,
-                    profileDynaId: null,
-                    online: false,
-                    flagged: false,
-                    isEditorHere: true,
-                });
-            }
-        })
-        // Get Icon (Writable Icon)
-        // Loaded from /image/541b03cf44aff03338610fce.png for some reason?
-        router.get("/j/u/gi/:userId", async ({ params, json }) => {
-          return json({
-            "iconId": "541b03cf44aff03338610fce"
-          });
-        })
-        // Player Status
-        router.get("/j/u/ps/:userId", async ({ params, json }) => {
-          return json({
-            hideInFriendsList: false,
-            unfindable: true,
-            status: "test test test",
-            crAreaUrlName: "stockpile"
-          });
-        })
-        // Ordered Our Friends?
-        router.get("/j/u/oof/", async ({ params, json }) => {
-          return json([]);
-        })
-        // Toggle Unfindable
-        router.post("/j/u/tu/", async ({ json, request, clientId }) => {
-          // toggles whatever state the server has the player in
-          // does not receive true/false from client
-          return json({ unfindable: false });
-        })
-        // Total Online Count
-        router.get("/j/u/toc/", async ({ params, json }) => {
-          return json({
-            "core": [
-              {
-                "p": "1",
-                "a": "1",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "2",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "3",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "4",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "5",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "6",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "7",
-                "n": 0
-              },
-              {
-                "p": "1",
-                "a": "8",
-                "n": 0
-              },
-              {
-                "p": "2",
-                "a": "1",
-                "n": 0
-              }
-            ],
-            "all": 1
-          });
-        })
-        // RandomAvatarVariations
-        router.get("/j/u/rav/:count", async ({ params, json }) => {
-          // return random count of explorer bodies
-          // this is the complete list
-          const randomAvatars = ["00000000000000000000056e","00000000000000000000087f","00000000000000000000074e","00000000000000000000105e","00000000000000000000023e","00000000000000000000007e","00000000000000000000052e","00000000000000000000101e","00000000000000000000029e","00000000000000000000022e","00000000000000000000141e","00000000000000000000084e","00000000000000000000097e","00000000000000000000053e","00000000000000000000119e","00000000000000000000106e","00000000000000000000043e","00000000000000000000002f","00000000000000000000003e","00000000000000000000117f","00000000000000000000092f","00000000000000000000111e","00000000000000000000042e","00000000000000000000065e","00000000000000000000046e","00000000000000000000018f","00000000000000000000029f","00000000000000000000010f","00000000000000000000058e","00000000000000000000048f","00000000000000000000034e","00000000000000000000048e","00000000000000000000054e","00000000000000000000118e","00000000000000000000098e","00000000000000000000138e","00000000000000000000089e","00000000000000000000055f","00000000000000000000130f","00000000000000000000025f","00000000000000000000047f","00000000000000000000098f","00000000000000000000087e","00000000000000000000130e","00000000000000000000043f","00000000000000000000065f","00000000000000000000006e","00000000000000000000124f","00000000000000000000139f","00000000000000000000054f","00000000000000000000127f","00000000000000000000131e","00000000000000000000066e","00000000000000000000026f","00000000000000000000097f","00000000000000000000090e","00000000000000000000059f","00000000000000000000131f","00000000000000000000089f","00000000000000000000135f","00000000000000000000035f","00000000000000000000107e","00000000000000000000134f","00000000000000000000076e","00000000000000000000027e","00000000000000000000133f","00000000000000000000114e","00000000000000000000100e","00000000000000000000109e","00000000000000000000129e","00000000000000000000135e","00000000000000000000009e","00000000000000000000068f","00000000000000000000041e","00000000000000000000033e","00000000000000000000080e","00000000000000000000034f","00000000000000000000139e","00000000000000000000122e","00000000000000000000075e","00000000000000000000031e","00000000000000000000116e","00000000000000000000002e","00000000000000000000080f","00000000000000000000005e","00000000000000000000108e","00000000000000000000104f","00000000000000000000050e","00000000000000000000071f","00000000000000000000031f","00000000000000000000078e","00000000000000000000083e","00000000000000000000024f","00000000000000000000113e","00000000000000000000137e","00000000000000000000021e","00000000000000000000108f","00000000000000000000063e","00000000000000000000057e","00000000000000000000125e","00000000000000000000025e","00000000000000000000112f","00000000000000000000076f","00000000000000000000115f","00000000000000000000045f","00000000000000000000007f","00000000000000000000049f","00000000000000000000016e","00000000000000000000004f","00000000000000000000000e","00000000000000000000132f","00000000000000000000099e","00000000000000000000075f","00000000000000000000030f","00000000000000000000069e","00000000000000000000024e","00000000000000000000014f","00000000000000000000060f","00000000000000000000085e","00000000000000000000066f","00000000000000000000124e","00000000000000000000058f","00000000000000000000128e","00000000000000000000114f","00000000000000000000094e","00000000000000000000035e","00000000000000000000073f","00000000000000000000067e","00000000000000000000020e","00000000000000000000078f","00000000000000000000057f","00000000000000000000040f","00000000000000000000141f","00000000000000000000001f","00000000000000000000028e","00000000000000000000095f","00000000000000000000127e","00000000000000000000047e","00000000000000000000013e","00000000000000000000074f","00000000000000000000004e","00000000000000000000011f","00000000000000000000119f","00000000000000000000095e","00000000000000000000070f","00000000000000000000042f","00000000000000000000133e","00000000000000000000019f","00000000000000000000052f","00000000000000000000070e","00000000000000000000137f","00000000000000000000067f","00000000000000000000053f","00000000000000000000110e","00000000000000000000117e","00000000000000000000104e","00000000000000000000006f","00000000000000000000001e","00000000000000000000022f","00000000000000000000113f","00000000000000000000106f","00000000000000000000032e","00000000000000000000060e","00000000000000000000100f","00000000000000000000096e","00000000000000000000009f","00000000000000000000061e","00000000000000000000129f","00000000000000000000086e","00000000000000000000103e","00000000000000000000091f","00000000000000000000134e","00000000000000000000010e","00000000000000000000033f","00000000000000000000102f","00000000000000000000073e","00000000000000000000041f","00000000000000000000044f","00000000000000000000055e","00000000000000000000084f","00000000000000000000120f","00000000000000000000110f","00000000000000000000101f","00000000000000000000013f","00000000000000000000091e","00000000000000000000094f","00000000000000000000136f","00000000000000000000044e","00000000000000000000079f","00000000000000000000062f","00000000000000000000059e","00000000000000000000079e","00000000000000000000028f","00000000000000000000077e","00000000000000000000128f","00000000000000000000093e","00000000000000000000088f","00000000000000000000105f","00000000000000000000069f","00000000000000000000088e","00000000000000000000023f","00000000000000000000107f","00000000000000000000138f","00000000000000000000123e","00000000000000000000017e","00000000000000000000083f","00000000000000000000068e","00000000000000000000012f","00000000000000000000000f","00000000000000000000056f","00000000000000000000071e","00000000000000000000118f","00000000000000000000021f","00000000000000000000026e","00000000000000000000121e","00000000000000000000008f","00000000000000000000093f","00000000000000000000077f","00000000000000000000049e","00000000000000000000050f","00000000000000000000140f","00000000000000000000122f","00000000000000000000037f","00000000000000000000011e","00000000000000000000111f","00000000000000000000064f","00000000000000000000064e","00000000000000000000039e","00000000000000000000036f","00000000000000000000115e","00000000000000000000096f","00000000000000000000017f","00000000000000000000012e","00000000000000000000109f","00000000000000000000019e","00000000000000000000085f","00000000000000000000140e","00000000000000000000125f","00000000000000000000046f","00000000000000000000132e","00000000000000000000120e","00000000000000000000036e","00000000000000000000103f","00000000000000000000082e","00000000000000000000051f","00000000000000000000003f","00000000000000000000020f","00000000000000000000040e","00000000000000000000123f","00000000000000000000015e","00000000000000000000018e","00000000000000000000016f","00000000000000000000039f","00000000000000000000121f","00000000000000000000008e","00000000000000000000051e","00000000000000000000027f","00000000000000000000061f","00000000000000000000030e","00000000000000000000045e","00000000000000000000063f","00000000000000000000092e","00000000000000000000099f","00000000000000000000090f","00000000000000000000102e","00000000000000000000081e","00000000000000000000136e","00000000000000000000072f","00000000000000000000038e","00000000000000000000014e","00000000000000000000082f","00000000000000000000037e","00000000000000000000015f","00000000000000000000126f","00000000000000000000126e","00000000000000000000062e","00000000000000000000032f","00000000000000000000081f","00000000000000000000072e","00000000000000000000005f","00000000000000000000086f","00000000000000000000038f","00000000000000000000116f","00000000000000000000112e"].sort(() => Math.random() - 0.5).slice(0, params.count);
-          
-          return json(randomAvatars);
-        })
-
-        // TopCreatedR
-        router.get("/j/i/tcr/:playerId", async ({ params, json }) => {
-            return json([]);
-        });
-
-        // SetUserSetting this is a amogus refernece
-        router.post("/j/u/sus/", async ({ json, request, player }) => {
-            const settingNamesEnum = z.enum([
-                "doPlaySound",
-                "showMainUI",
-                "fullscreen",
-                "alwaysOnTop",
-                "travelHolderId",
-                "shortcutWritableId",
-                "shortcutWearableId",
-                "panelColor",
-                "collectedTabItemId",
-                "createdTabItemId",
-                "searchTabItemId",
-                "hideInFriendsList",
-                "onlyFriendsCanPingUs",
-                "blockImagePastes",
-                "blockVideoPastes",
-                "keyboardCountry",
-                "disallowSandboxItemsByOthers",
-                "hidePainterBack",
-                "usePanelColorForOtherDialogs",
-                "showBlockedPeopleSpeech",
-                "photosensitiveGuard",
-                "guardToTeleports",
-                "glueWearable",
-                "glueHoldable",
-                "glueMountable",
-                "wearablePlusFollows",
-            ]);
-            const schema = z.object({ name: settingNamesEnum, value: z.string(), }).required();
-            const data = schema.parse(await readRequestBody(request));
-
-
-            await db.player_setSetting(player.rid, data.name, data.value)
-
-            return json({ ok: true });
-        })
-
-        // #endregion User
-
-
-        // #region Writable
+    // Area init
+    router.post("/j/i/", async ({ player, json, request, }) => {
+        const data: any = await readRequestBody(request)
         
-        router.post("/j/f/ge", async ({ request, json }) => {
-          const { forumId, startDate, endDate } = await readRequestBody(request)
-          return json({ events: [] });
-        });
+        console.log("getting area manager for area", data)
+
+        // TODO fix player handling
+        const areaManager = await areaManagerMgr.getByAreaName(player, data.urlName);
+        const areaData = await areaManager.getInitData(player, data.urlName);
+
+        //clientIdToAreas.set(clientId, data.urlName)
+
+        console.log("sending area data", { areaData, areaManager })
         
-        // Get Settings (for Forum)
-        router.post("/j/f/gs", async ({ request, json }) => {
-          const { id } = await readRequestBody(request)
-          const writableConfig = {
-            name: "Todo Writable",
-            areaGroupId: "544fe6976e52f57f4d85702b", // stockpile
-            rgbBackground: "6,85,53",
-            rgbText: "176,176,176",
-            onlyEditorsCanRead: false,
-            onlyEditorsCanAddComments: false,
-            onlyEditorsCanAddThreads: false,
-            isBannedFromAssociatedArea: false,
-            isEditorOfAssociatedArea: false,
-            postKeyRequired: false
-          }
-          return json(writableConfig);
-        });
-        // Get Forum
-        router.post("/j/f/gf", async ({ request, json }) => {
-          const { id } = await readRequestBody(request)
-          const threads = {
-            threads: [
-              {
-                _id: "651a84b50fa36061e9e6b488",
-                userId: "5003d713a0b60c386b0000a1",
-                userName: "philipp",
-                title: "STATUS UPDATE: BUDGET ISSUES",
-                firstCommentId: "651a84b50fa36061e9e6b489",
-                sticky: true,
-                locked: false,
-                hasEvent: false,
-                lastComment: {
-                  content: null,
-                  userName: "username",
-                  userId: generateObjectId(),
-                  ts: "2023-11-01T06:44:47.796Z",
-                  id: "6541f3df633fc2043f3dd143"
-                },
-                ts: "2023-10-02T08:52:05.814Z"
-              },
-              {
-                _id: generateObjectId(),
-                userId: "000000000000000000000000",
-                userName: "ToDo",
-                title: "ToDo",
-                firstCommentId: generateObjectId(),
-                sticky: false,
-                locked: false,
-                hasEvent: false,
-                lastComment: {
-                  content: null,
-                  userName: "Todo",
-                  userId: "000000000000000000000000",
-                  ts: new Date().toISOString(),
-                  id: generateObjectId()
-                },
-                ts: new Date().toISOString()
-              }
-            ],
-            time: new Date().toISOString()
-          }
-          return json(threads);
-        });
-        // Get Contents
-        router.post("/j/f/gc", async ({ request, json }) => {
-          const { id } = await readRequestBody(request)
-          const contents = {
-            comments: [
-              {
-                _id: "651a84b50fa36061e9e6b489",
-                userId: "5003d713a0b60c386b0000a1",
-                userName: "philipp",
-                content: "Hi all! This is just a recap that we're facing budget issues. It's been a longstanding issue, but this year, our server provider Linode upped the prices quite a bit again. So at the moment, we're deep in the minus every month.\n\nThe main revenue stream right now are ad views, which depend on how many people there are, mostly. Minfinity does not make up a relevant portion of revenues, and we don't believe we can grow that part much at the current situation (though thanks to those who get Minfinity).\n\nWhile we had many discussions in the past of how to resolve the revenues issue, this post was mainly meant as a status update so you are all informed. Thanks everyone and much love!",
-                newestLikes: [
-                  {
-                    n: "todo",
-                    id: "000000000000000000000000",
-                  }
-                ],
-                oldestLikes: [
-                  {
-                    n: "Another Player",
-                    id: generateObjectId()
-                  }
-                ],
-                totalLikes: 1,
-                items: [
-                  ""
-                ],
-                ts: "2023-10-02T08:52:05.822Z"
-              },
-              {
-                _id: generateObjectId(),
-                userId: "000000000000000000000000",
-                userName: "todo",
-                content: "hello, world!",
-                newestLikes: [],
-                oldestLikes: [
-                  {
-                    n: "philipp",
-                    id: "5003d713a0b60c386b0000a1"
-                  }
-                ],
-                totalLikes: 3,
-                items: [],
-                ts: "2023-10-02T09:36:31.764Z"
-              }
-            ],
-            time: "2023-11-12T02:31:00.506Z"
-          }
-          return json(contents);
-        });
-        
-        // #endregion Writable
+        return json(areaData)
+    });
+
+    // item data
+    router.get("/j/i/def/:creationId", async ({ params }) => {
+        const { creationId } = params;
+
+        return await cache.getCreationDefRes(creationId)
+    })
 
 
-        // #region Items
-        // ItemDef
-        const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
-        router.get("/j/i/def/:creationId", ({ params, json }) => {
-            if (typeof params.creationId === "string" && params.creationId.length === 24) {
-                return fetch("https://" + itemDefRoot_CDN + params.creationId);
-            }
-            else return Response.error();
-        });
 
-        // Create
-        router.post("/j/i/c/", async ({ player, request, json }) => {
-            const { itemData } = await readRequestBody(request)
-            const { itemId } = await saveCreation(player, itemData, db, cache)
 
-            return json( { itemId: itemId });
-        });
+    // #region User
+    // Friends And Blocked
+    router.get("/j/u/fab/", ({ json }) => json({ "friends":[],"blocked":[] }) );
+    // GetFreshRank
+    router.post("/j/u/gfr/", ({ json }) => json( 10 ) );
+    // Achievement
+    router.post("/j/u/a/", async ({ json, request, clientId }) => {
+        const schema = z.object({ id: z.string() })
+        const { id } = schema.parse(await readRequestBody(request))
 
-        // Delete
-        router.post("/j/i/d/", async ({ player, request, json }) => {
-            const { itemId } = await readRequestBody(request)
+        return json({ ok: true, message: "I don't know how the real server answers but the client looks for a 200 so this is fine"});
+        const achievements = {
+            MOVED: 0,
+            OPENED_CHNG_BODY: 4,
+            OPENED_PEOPLE: 5,
+            PASSED_CTEST: 6,
+            ISSUED_CTEST: 7,
+            ADDED_SNAPSHOT: 8,
+            TELEPORTED: 9,
+            DID_INWORLD_BUILD: 10,
+            DID_INWORLD_REMOVE: 11,
+            USED_MEET: 12,
+            TRIGGERED_WELCOME_INVITATION: 13,
+            SAVED_CREATION: 14,
+            CREATED_AREA_SNAPSHOT: 15,
+            USED_FILL_BUILD: 16,
+            SAVED_CLONED_CREATION: 17,
+            SAW_FRIEND_ON_FRIENDS_LIST: 18,
+            SAVED_SPECIFIC_INTERACTING: 19,
+            CHANGED_BODY: 20,
+            SAVED_WRITABLE_COMMENT: 21,
+            SAVED_SPECIFIC_FLYING_MOUNT: 22,
+            USED_MOVE_BACKWARDS_BOOST: 23,
+            USED_ALTERNATIVE_COLORS_VIEW: 24,
+            SEARCHED_IN_BIN: 25,
+            CONSUMED_HOT_EDIBLE: 26,
+            CAUGHT_ITEM_FROM_ITEM_THROWER: 27,
+            PLAYED_CHORD_WITH_KEYS: 28,
+            PLACED_FILL_LIGHT: 29,
+            ATTACHED_MOTION: 30,
+            SAT_DOWN_IN_BUSY_CREATED_AREA: 31,
+            PLACED_SOMETHING_IN_GRID_HOLDER: 32,
+            TELEPORTED_HOME: 33,
+            SOLVED_BASE_POST_KEY: 34,
+            DID_CREATE_AREA: 35,
+            BLOCKED_AD: 36,
+            SAW_DIALOG_REVIEW_MOBILE: 37,
+            SAW_DIALOG_REVIEW_STEAM: 38,
+            SAW_DIALOG_MOBILE_VERSION_AVAILABLE: 39
+        }
+        console.log("Achievement registered: " + Object.keys(achievements).find(key => achievements[key] === parseInt(id)));
+        return json(true);
+    })
+    // PlayerInfo
+    router.post("/j/u/pi/", async ({ json, request, player }) => {
+        const { id, planeId, areaId } = await readRequestBody(request)
 
-            await player.inv_delCreated(itemId);
-
-            return json( { ok: true } );
-        });
-
-        // Motions
-        router.get("/j/i/mo/:creationId", async ({ params, json }) => {
-            const { creationId } = params;
-            const inDb = await db.creation_getMotionData(creationId)
-
-            if (inDb) { return json(inDb); }
-            else { return json({ ids: [], midpoint: 0 }); }
-        });
-
-        // Statistics
-        router.get("/j/i/st/:creationId", async ({ params, json }) => {
-            const { creationId } = params;
-            const inDb = await db.creation_getStats(creationId)
-
-            if (inDb) { return json(inDb); }
-            else { return json({ timesCd: 19, timesPd: 19 }); }
-        });
-
-        // Report Missing Item
-        router.post("/j/i/rmi/", async ({ request, json }) => {
-          const data = await readRequestBody(request)
-          console.warn("client reported missing item!", data)
-
-          return json({ ok: true });
-        });
-
-        // CreatorInfoName
-        router.get("/j/i/cin/:creationId", async ({ params, json }) => {
-            const creatorId = generateObjectId();
-            return json({ id: creatorId, name: "todo" });
-        });
-
-        // Collectors
-        router.get("/j/i/cols/:creationId", async ({ params, json }) => {
+        console.log("aaa", id, await player.getProfileData())
+        if (player.rid === id) {
+            return json( await player.getProfileData() );
+        } else {
             return json({
-                collectors: [
-                    { _id: generateObjectId(), name: "todo" },
-                    { _id: generateObjectId(), name: "todo" },
-                    { _id: generateObjectId(), name: "todo" },
-                ],
-                lastCollector: { _id: generateObjectId(), name: "todo" },
+                isFullAccount: true,
+                hasMinfinity: true,
+                isBacker: true,
+                screenName: "todo",
+                rank: 10,
+                stat_ItemsPlaced: 191919,
+                unfindable: true,
+                ageDays: 191919,
+                profileItemIds: [],
+                profileColor: null,
+                profileBackId: null,
+                profileDynaId: null,
+                online: false,
+                flagged: false,
+                isEditorHere: true,
             });
+        }
+    })
+    // Get Icon (Writable Icon)
+    // Loaded from /image/541b03cf44aff03338610fce.png for some reason?
+    router.get("/j/u/gi/:userId", async ({ params, json }) => {
+        return json({
+        "iconId": "541b03cf44aff03338610fce"
         });
-
-        router.post("/j/i/gu/", async ({ request, json }) => {
-            const { id } = await readRequestBody(request)
-            return json({ unlisted: false });
+    })
+    // Player Status
+    router.get("/j/u/ps/:userId", async ({ params, json }) => {
+        return json({
+        hideInFriendsList: false,
+        unfindable: true,
+        status: "test test test",
+        crAreaUrlName: "stockpile"
         });
-
-        // Painter data
-        router.get("/j/i/datp/:creationId", async ({ params, json }) => {
-            const { creationId } = params;
-            const inDb = await db.creation_getPainterData(creationId)
-
-            if (inDb) { return json(inDb); }
-            else { return Response.error(); }
+    })
+    // Ordered Our Friends?
+    router.get("/j/u/oof/", async ({ params, json }) => {
+        return json([]);
+    })
+    // Toggle Unfindable
+    router.post("/j/u/tu/", async ({ json, request, clientId }) => {
+        // toggles whatever state the server has the player in
+        // does not receive true/false from client
+        return json({ unfindable: false });
+    })
+    // Total Online Count
+    router.get("/j/u/toc/", async ({ params, json }) => {
+        return json({
+        "core": [
+            { "p": "1", "a": "1", "n": 0 },
+            { "p": "1", "a": "2", "n": 0 },
+            { "p": "1", "a": "3", "n": 0 },
+            { "p": "1", "a": "4", "n": 0 },
+            { "p": "1", "a": "5", "n": 0 },
+            { "p": "1", "a": "6", "n": 0 },
+            { "p": "1", "a": "7", "n": 0 },
+            { "p": "1", "a": "8", "n": 0 },
+            { "p": "2", "a": "1", "n": 0 }
+        ],
+        "all": 1
         });
-        // #endregion Items
-
-        // #region holders
-        // Get Content
-        router.get("/j/h/gc/:creationId", async ({ params, json }) => {
-            const { creationId } = params;
-            const inDb = await db.creation_getHolderContent(creationId)
-
-            if (inDb) { return json(inDb); }
-            else {
-                const placeholderData: HolderData = {
-                    isCreator: false,
-                    contents: [ {_id: groundId, itemId: groundId, x: 0, y: 0, z: 0, flip: 0, rot: 0, pageNo: 0} ]
-                }
-                return json(placeholderData)
-            }
-        });
-
-        // Set Content
-        // calls to this endpoint are batched per-page, and the entire page is sent at once for both add and delete
-        router.get("/j/h/sc/", async ({ request, player, json }) => {
-            const schema = z.object({
-                holderId: z.string(),
-                pageNo: z.coerce.number(),
-                contents: z.object({
-                    itemId: z.string(),
-                    x: z.coerce.number(),
-                    y: z.coerce.number(),
-                    z: z.coerce.number(),
-                    pageNo: z.coerce.number(),
-                }).array()
-            }).required();
-
-            const data = schema.parse(await readRequestBody(request))
-
-            const content = await db.creation_getHolderContent(data.holderId);
-
-            // TODO
-            return Response.error();
-        });
-        // #endregion holders
-
-        // #region multis
-        router.get("/j/t/gt/:creationId", async ({ params, json }) => {
-            const { creationId } = params;
-            const inDb = await db.creation_getMultiData(creationId)
-
-            if (inDb) { return json(inDb); }
-            else { return Response.error(); }
-        });
-        // #endregion holders
-
-
-
-        // #region Collections
-        // Get collected
-        router.get("/j/c/r/:start/:end", async ({ player, params, json }) => {
-            const data = await player.inv_getCollectedPage(Number(params.start), Number(params.end))
-            return json(data)
-        });
-
-        // Collect
-        router.post("/j/c/c", async ({ player, request, json }) => {
-            const data = await readRequestBody(request)
-
-            const { alreadyExisted } = await player.inv_collect(data.itemId, data.index)
-
-            return json({
-                alreadyExisted: alreadyExisted,
-                actionWasBlocked: false,
-            });
-        });
-
-        // Delete
-        router.post("/j/c/d", async ({ player, request, json }) => {
-            const { itemId } = await readRequestBody(request)
-
-            await player.inv_delCollect(itemId)
-
-            // TODO: what does the server actually returns?
-            return json( true );
-        });
-
-        // Check if Collected
-        router.get("/j/c/check/:itemId/", async ({ player, params, json }) => {
-            return json( (await player.inv_getAllCollects()).includes(params.itemId) )
-        });
-
-        // Check if I Flagged Item (always returns false for now)
-        router.get("/j/i/chkf/:itemId", ({ json }) => json( false ));
-
-
-        // Get Created
-        router.get("/j/i/gcr/:start/:end", async ({ player, params, json }) => {
-            const data = await player.inv_getCreatedPage(Number(params.start), Number(params.end))
-            return json(data)
-        });
-        // #endregion Collections
-
-
-
-        // #region Search
-        // Search Item
-        router.post("/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
-        // #endregion Search
-
-
-
-        // #region News
-        // GetUnreadCount
-        router.get("/j/n/guc/", ({ json }) => json( 319 ) );
-        // GetLatestNews
-        router.get("/j/n/gln/", ({ json }) => json( [
-            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-            { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-        ] ) );
-        // #endregion News
-
-
-
-        // #region Mifts
-        // GetUnseenMifts
-        router.get("/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
+    })
+    // RandomAvatarVariations
+    router.get("/j/u/rav/:count", async ({ params, json }) => {
+        // return random count of explorer bodies
+        // this is the complete list
+        const randomAvatars = ["00000000000000000000056e","00000000000000000000087f","00000000000000000000074e","00000000000000000000105e","00000000000000000000023e","00000000000000000000007e","00000000000000000000052e","00000000000000000000101e","00000000000000000000029e","00000000000000000000022e","00000000000000000000141e","00000000000000000000084e","00000000000000000000097e","00000000000000000000053e","00000000000000000000119e","00000000000000000000106e","00000000000000000000043e","00000000000000000000002f","00000000000000000000003e","00000000000000000000117f","00000000000000000000092f","00000000000000000000111e","00000000000000000000042e","00000000000000000000065e","00000000000000000000046e","00000000000000000000018f","00000000000000000000029f","00000000000000000000010f","00000000000000000000058e","00000000000000000000048f","00000000000000000000034e","00000000000000000000048e","00000000000000000000054e","00000000000000000000118e","00000000000000000000098e","00000000000000000000138e","00000000000000000000089e","00000000000000000000055f","00000000000000000000130f","00000000000000000000025f","00000000000000000000047f","00000000000000000000098f","00000000000000000000087e","00000000000000000000130e","00000000000000000000043f","00000000000000000000065f","00000000000000000000006e","00000000000000000000124f","00000000000000000000139f","00000000000000000000054f","00000000000000000000127f","00000000000000000000131e","00000000000000000000066e","00000000000000000000026f","00000000000000000000097f","00000000000000000000090e","00000000000000000000059f","00000000000000000000131f","00000000000000000000089f","00000000000000000000135f","00000000000000000000035f","00000000000000000000107e","00000000000000000000134f","00000000000000000000076e","00000000000000000000027e","00000000000000000000133f","00000000000000000000114e","00000000000000000000100e","00000000000000000000109e","00000000000000000000129e","00000000000000000000135e","00000000000000000000009e","00000000000000000000068f","00000000000000000000041e","00000000000000000000033e","00000000000000000000080e","00000000000000000000034f","00000000000000000000139e","00000000000000000000122e","00000000000000000000075e","00000000000000000000031e","00000000000000000000116e","00000000000000000000002e","00000000000000000000080f","00000000000000000000005e","00000000000000000000108e","00000000000000000000104f","00000000000000000000050e","00000000000000000000071f","00000000000000000000031f","00000000000000000000078e","00000000000000000000083e","00000000000000000000024f","00000000000000000000113e","00000000000000000000137e","00000000000000000000021e","00000000000000000000108f","00000000000000000000063e","00000000000000000000057e","00000000000000000000125e","00000000000000000000025e","00000000000000000000112f","00000000000000000000076f","00000000000000000000115f","00000000000000000000045f","00000000000000000000007f","00000000000000000000049f","00000000000000000000016e","00000000000000000000004f","00000000000000000000000e","00000000000000000000132f","00000000000000000000099e","00000000000000000000075f","00000000000000000000030f","00000000000000000000069e","00000000000000000000024e","00000000000000000000014f","00000000000000000000060f","00000000000000000000085e","00000000000000000000066f","00000000000000000000124e","00000000000000000000058f","00000000000000000000128e","00000000000000000000114f","00000000000000000000094e","00000000000000000000035e","00000000000000000000073f","00000000000000000000067e","00000000000000000000020e","00000000000000000000078f","00000000000000000000057f","00000000000000000000040f","00000000000000000000141f","00000000000000000000001f","00000000000000000000028e","00000000000000000000095f","00000000000000000000127e","00000000000000000000047e","00000000000000000000013e","00000000000000000000074f","00000000000000000000004e","00000000000000000000011f","00000000000000000000119f","00000000000000000000095e","00000000000000000000070f","00000000000000000000042f","00000000000000000000133e","00000000000000000000019f","00000000000000000000052f","00000000000000000000070e","00000000000000000000137f","00000000000000000000067f","00000000000000000000053f","00000000000000000000110e","00000000000000000000117e","00000000000000000000104e","00000000000000000000006f","00000000000000000000001e","00000000000000000000022f","00000000000000000000113f","00000000000000000000106f","00000000000000000000032e","00000000000000000000060e","00000000000000000000100f","00000000000000000000096e","00000000000000000000009f","00000000000000000000061e","00000000000000000000129f","00000000000000000000086e","00000000000000000000103e","00000000000000000000091f","00000000000000000000134e","00000000000000000000010e","00000000000000000000033f","00000000000000000000102f","00000000000000000000073e","00000000000000000000041f","00000000000000000000044f","00000000000000000000055e","00000000000000000000084f","00000000000000000000120f","00000000000000000000110f","00000000000000000000101f","00000000000000000000013f","00000000000000000000091e","00000000000000000000094f","00000000000000000000136f","00000000000000000000044e","00000000000000000000079f","00000000000000000000062f","00000000000000000000059e","00000000000000000000079e","00000000000000000000028f","00000000000000000000077e","00000000000000000000128f","00000000000000000000093e","00000000000000000000088f","00000000000000000000105f","00000000000000000000069f","00000000000000000000088e","00000000000000000000023f","00000000000000000000107f","00000000000000000000138f","00000000000000000000123e","00000000000000000000017e","00000000000000000000083f","00000000000000000000068e","00000000000000000000012f","00000000000000000000000f","00000000000000000000056f","00000000000000000000071e","00000000000000000000118f","00000000000000000000021f","00000000000000000000026e","00000000000000000000121e","00000000000000000000008f","00000000000000000000093f","00000000000000000000077f","00000000000000000000049e","00000000000000000000050f","00000000000000000000140f","00000000000000000000122f","00000000000000000000037f","00000000000000000000011e","00000000000000000000111f","00000000000000000000064f","00000000000000000000064e","00000000000000000000039e","00000000000000000000036f","00000000000000000000115e","00000000000000000000096f","00000000000000000000017f","00000000000000000000012e","00000000000000000000109f","00000000000000000000019e","00000000000000000000085f","00000000000000000000140e","00000000000000000000125f","00000000000000000000046f","00000000000000000000132e","00000000000000000000120e","00000000000000000000036e","00000000000000000000103f","00000000000000000000082e","00000000000000000000051f","00000000000000000000003f","00000000000000000000020f","00000000000000000000040e","00000000000000000000123f","00000000000000000000015e","00000000000000000000018e","00000000000000000000016f","00000000000000000000039f","00000000000000000000121f","00000000000000000000008e","00000000000000000000051e","00000000000000000000027f","00000000000000000000061f","00000000000000000000030e","00000000000000000000045e","00000000000000000000063f","00000000000000000000092e","00000000000000000000099f","00000000000000000000090f","00000000000000000000102e","00000000000000000000081e","00000000000000000000136e","00000000000000000000072f","00000000000000000000038e","00000000000000000000014e","00000000000000000000082f","00000000000000000000037e","00000000000000000000015f","00000000000000000000126f","00000000000000000000126e","00000000000000000000062e","00000000000000000000032f","00000000000000000000081f","00000000000000000000072e","00000000000000000000005f","00000000000000000000086f","00000000000000000000038f","00000000000000000000116f","00000000000000000000112e"].sort(() => Math.random() - 0.5).slice(0, params.count);
         
-        router.post("/j/mf/grm/", async ({ player, request, json }) => {
-          const body = await readRequestBody(request)
-          
-          var miftData = {
-            results: [{
-              _id: generateObjectId(),
-              fromId: generateObjectId(),
-              fromName: "TODO",
-              toId: player.rid,
-              itemId: "57286c91b19fff08136aa4a5",
-              text: "TODO",
-              deliverySeenByRecipient: false,
-              ts: new Date().toISOString()
-            }]
-          }
-          if(body.priv == "true"){
-            // we'll never have their private mifts
-            miftData = {"results": []};
-          }
-  
-          return json(miftData)
-        })
-        // #endregion Mifts
+        return json(randomAvatars);
+    })
+
+    // TopCreatedR
+    router.get("/j/i/tcr/:playerId", async ({ params, json }) => {
+        return json([]);
+    });
+
+    // SetUserSetting this is a amogus refernece
+    router.post("/j/u/sus/", async ({ json, request, player }) => {
+        const settingNamesEnum = z.enum([
+            "doPlaySound",
+            "showMainUI",
+            "fullscreen",
+            "alwaysOnTop",
+            "travelHolderId",
+            "shortcutWritableId",
+            "shortcutWearableId",
+            "panelColor",
+            "collectedTabItemId",
+            "createdTabItemId",
+            "searchTabItemId",
+            "hideInFriendsList",
+            "onlyFriendsCanPingUs",
+            "blockImagePastes",
+            "blockVideoPastes",
+            "keyboardCountry",
+            "disallowSandboxItemsByOthers",
+            "hidePainterBack",
+            "usePanelColorForOtherDialogs",
+            "showBlockedPeopleSpeech",
+            "photosensitiveGuard",
+            "guardToTeleports",
+            "glueWearable",
+            "glueHoldable",
+            "glueMountable",
+            "wearablePlusFollows",
+        ]);
+        const schema = z.object({ name: settingNamesEnum, value: z.string(), }).required();
+        const data = schema.parse(await readRequestBody(request));
 
 
+        await db.player_setSetting(player.rid, data.name, data.value)
 
-        // #region Map
-        // CreatedMapVersion(?) TODO
-        router.post("/j/m/cmv/", ({ json }) => json({ v: 1 }) );
-        // SectorPlus
-        router.get("/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
-            const am = await areaManagerMgr.getByAreaId(params.aid)
-            const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+        return json({ ok: true });
+    })
 
-            const sectors = await Promise.all([
-                s(-1, -1), s(-1, 0), s(-1, 1),
-                s( 0, -1), s( 0, 0), s( 0, 1),
-                s( 1, -1), s( 1, 0), s( 1, 1),
-            ])
-
-            return json(sectors.filter(e => !!e))
-        });
-        // SectorPlusLoading (not exactly sure what's different)
-        router.get("/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
-            console.log("TESTDEBUG sectorPlusLoading params:", params)
-
-            const am = await areaManagerMgr.getByAreaId(params.aid)
-            const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
-
-            const sectors = await Promise.all([
-                s(-1, -1), s(-1, 0), s(-1, 1),
-                s( 0, -1), s( 0, 0), s( 0, 1),
-                s( 1, -1), s( 1, 0), s( 1, 1),
-            ])
-            console.log("sectors,", sectors)
-
-            return json(sectors.filter(e => !!e))
-        });
-        router.post("/j/m/s/", async ({ request, json }) => {
-            const schema = z.object({ s: z.string(), a: z.coerce.string(), p: z.coerce.number() })
-            const body = schema.parse(await readRequestBody(request))
-
-            const areaId = body.a;
-            const areaPane = body.p;
-            const requestedSectors = JSON.parse(body.s);
-
-            const sectorData = [];
-            const am = await areaManagerMgr.getByAreaId(areaId)
-
-            for (const [x, y] of requestedSectors) {
-                const temp = await am.getDataForSector(x, y)
-                if (!temp) continue;
-
-                sectorData.push(temp)
-            }
+    // #endregion User
 
 
-
-            return json(sectorData)
-        });
-        // DeletionMarkerForSectors
-        router.post("/j/m/dmss/", async ({ json, request }) => {
-            console.log("TESTDEBUG deletionmarker request body:", await readRequestBody(request))
-
-            return json([]);
-        })
-        // placer
-        router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
-            const placerId = generateObjectId();
-            return json({
-                id: placerId,
-                name: "todo",
+    // #region Writable
+    
+    router.post("/j/f/ge", async ({ request, json }) => {
+        const { forumId, startDate, endDate } = await readRequestBody(request)
+        return json({ events: [] });
+    });
+    
+    // Get Settings (for Forum)
+    router.post("/j/f/gs", async ({ request, json }) => {
+        const { id } = await readRequestBody(request)
+        const writableConfig = {
+        name: "Todo Writable",
+        areaGroupId: "544fe6976e52f57f4d85702b", // stockpile
+        rgbBackground: "6,85,53",
+        rgbText: "176,176,176",
+        onlyEditorsCanRead: false,
+        onlyEditorsCanAddComments: false,
+        onlyEditorsCanAddThreads: false,
+        isBannedFromAssociatedArea: false,
+        isEditorOfAssociatedArea: false,
+        postKeyRequired: false
+        }
+        return json(writableConfig);
+    });
+    // Get Forum
+    router.post("/j/f/gf", async ({ request, json }) => {
+        const { id } = await readRequestBody(request)
+        const threads = {
+        threads: [
+            {
+            _id: "651a84b50fa36061e9e6b488",
+            userId: "5003d713a0b60c386b0000a1",
+            userName: "philipp",
+            title: "STATUS UPDATE: BUDGET ISSUES",
+            firstCommentId: "651a84b50fa36061e9e6b489",
+            sticky: true,
+            locked: false,
+            hasEvent: false,
+            lastComment: {
+                content: null,
+                userName: "username",
+                userId: generateObjectId(),
+                ts: "2023-11-01T06:44:47.796Z",
+                id: "6541f3df633fc2043f3dd143"
+            },
+            ts: "2023-10-02T08:52:05.814Z"
+            },
+            {
+            _id: generateObjectId(),
+            userId: "000000000000000000000000",
+            userName: "ToDo",
+            title: "ToDo",
+            firstCommentId: generateObjectId(),
+            sticky: false,
+            locked: false,
+            hasEvent: false,
+            lastComment: {
+                content: null,
+                userName: "Todo",
+                userId: "000000000000000000000000",
                 ts: new Date().toISOString(),
-            })
+                id: generateObjectId()
+            },
+            ts: new Date().toISOString()
+            }
+        ],
+        time: new Date().toISOString()
+        }
+        return json(threads);
+    });
+    // Get Contents
+    router.post("/j/f/gc", async ({ request, json }) => {
+        const { id } = await readRequestBody(request)
+        const contents = {
+        comments: [
+            {
+            _id: "651a84b50fa36061e9e6b489",
+            userId: "5003d713a0b60c386b0000a1",
+            userName: "philipp",
+            content: "Hi all! This is just a recap that we're facing budget issues. It's been a longstanding issue, but this year, our server provider Linode upped the prices quite a bit again. So at the moment, we're deep in the minus every month.\n\nThe main revenue stream right now are ad views, which depend on how many people there are, mostly. Minfinity does not make up a relevant portion of revenues, and we don't believe we can grow that part much at the current situation (though thanks to those who get Minfinity).\n\nWhile we had many discussions in the past of how to resolve the revenues issue, this post was mainly meant as a status update so you are all informed. Thanks everyone and much love!",
+            newestLikes: [
+                {
+                n: "todo",
+                id: "000000000000000000000000",
+                }
+            ],
+            oldestLikes: [
+                {
+                n: "Another Player",
+                id: generateObjectId()
+                }
+            ],
+            totalLikes: 1,
+            items: [
+                ""
+            ],
+            ts: "2023-10-02T08:52:05.822Z"
+            },
+            {
+            _id: generateObjectId(),
+            userId: "000000000000000000000000",
+            userName: "todo",
+            content: "hello, world!",
+            newestLikes: [],
+            oldestLikes: [
+                {
+                n: "philipp",
+                id: "5003d713a0b60c386b0000a1"
+                }
+            ],
+            totalLikes: 3,
+            items: [],
+            ts: "2023-10-02T09:36:31.764Z"
+            }
+        ],
+        time: "2023-11-12T02:31:00.506Z"
+        }
+        return json(contents);
+    });
+    
+    // #endregion Writable
+
+
+    // #region Items
+    // ItemDef
+    const itemDefRoot_CDN  = "d2h9in11vauk68.cloudfront.net/"
+    router.get("/j/i/def/:creationId", ({ params, json }) => {
+        if (typeof params.creationId === "string" && params.creationId.length === 24) {
+            return fetch("https://" + itemDefRoot_CDN + params.creationId);
+        }
+        else return Response.error();
+    });
+
+    // Create
+    router.post("/j/i/c/", async ({ player, request, json }) => {
+        const { itemData } = await readRequestBody(request)
+        const { itemId } = await saveCreation(player, itemData, db, cache)
+
+        return json( { itemId: itemId });
+    });
+
+    // Delete
+    router.post("/j/i/d/", async ({ player, request, json }) => {
+        const { itemId } = await readRequestBody(request)
+
+        await player.inv_delCreated(itemId);
+
+        return json( { ok: true } );
+    });
+
+    // Motions
+    router.get("/j/i/mo/:creationId", async ({ params, json }) => {
+        const { creationId } = params;
+        const inDb = await db.creation_getMotionData(creationId)
+
+        if (inDb) { return json(inDb); }
+        else { return json({ ids: [], midpoint: 0 }); }
+    });
+
+    // Statistics
+    router.get("/j/i/st/:creationId", async ({ params, json }) => {
+        const { creationId } = params;
+        const inDb = await db.creation_getStats(creationId)
+
+        if (inDb) { return json(inDb); }
+        else { return json({ timesCd: 19, timesPd: 19 }); }
+    });
+
+    // Report Missing Item
+    router.post("/j/i/rmi/", async ({ request, json }) => {
+        const data = await readRequestBody(request)
+        console.warn("client reported missing item!", data)
+
+        return json({ ok: true });
+    });
+
+    // CreatorInfoName
+    router.get("/j/i/cin/:creationId", async ({ params, json }) => {
+        const creatorId = generateObjectId();
+        return json({ id: creatorId, name: "todo" });
+    });
+
+    // Collectors
+    router.get("/j/i/cols/:creationId", async ({ params, json }) => {
+        return json({
+            collectors: [
+                { _id: generateObjectId(), name: "todo" },
+                { _id: generateObjectId(), name: "todo" },
+                { _id: generateObjectId(), name: "todo" },
+            ],
+            lastCollector: { _id: generateObjectId(), name: "todo" },
+        });
+    });
+
+    router.post("/j/i/gu/", async ({ request, json }) => {
+        const { id } = await readRequestBody(request)
+        return json({ unlisted: false });
+    });
+
+    // Painter data
+    router.get("/j/i/datp/:creationId", async ({ params, json }) => {
+        const { creationId } = params;
+        const inDb = await db.creation_getPainterData(creationId)
+
+        if (inDb) { return json(inDb); }
+        else { return Response.error(); }
+    });
+    // #endregion Items
+
+    // #region holders
+    // Get Content
+    router.get("/j/h/gc/:creationId", async ({ params, json }) => {
+        const { creationId } = params;
+        const inDb = await db.creation_getHolderContent(creationId)
+
+        if (inDb) { return json(inDb); }
+        else {
+            const placeholderData: HolderData = {
+                isCreator: false,
+                contents: [ {_id: groundId, itemId: groundId, x: 0, y: 0, z: 0, flip: 0, rot: 0, pageNo: 0} ]
+            }
+            return json(placeholderData)
+        }
+    });
+
+    // Set Content
+    // calls to this endpoint are batched per-page, and the entire page is sent at once for both add and delete
+    router.get("/j/h/sc/", async ({ request, player, json }) => {
+        const schema = z.object({
+            holderId: z.string(),
+            pageNo: z.coerce.number(),
+            contents: z.object({
+                itemId: z.string(),
+                x: z.coerce.number(),
+                y: z.coerce.number(),
+                z: z.coerce.number(),
+                pageNo: z.coerce.number(),
+            }).array()
+        }).required();
+
+        const data = schema.parse(await readRequestBody(request))
+
+        const content = await db.creation_getHolderContent(data.holderId);
+
+        // TODO
+        return Response.error();
+    });
+    // #endregion holders
+
+    // #region multis
+    router.get("/j/t/gt/:creationId", async ({ params, json }) => {
+        const { creationId } = params;
+        const inDb = await db.creation_getMultiData(creationId)
+
+        if (inDb) { return json(inDb); }
+        else { return Response.error(); }
+    });
+    // #endregion holders
+
+
+
+    // #region Collections
+    // Get collected
+    router.get("/j/c/r/:start/:end", async ({ player, params, json }) => {
+        const data = await player.inv_getCollectedPage(Number(params.start), Number(params.end))
+        return json(data)
+    });
+
+    // Collect
+    router.post("/j/c/c", async ({ player, request, json }) => {
+        const data = await readRequestBody(request)
+
+        const { alreadyExisted } = await player.inv_collect(data.itemId, data.index)
+
+        return json({
+            alreadyExisted: alreadyExisted,
+            actionWasBlocked: false,
+        });
+    });
+
+    // Delete
+    router.post("/j/c/d", async ({ player, request, json }) => {
+        const { itemId } = await readRequestBody(request)
+
+        await player.inv_delCollect(itemId)
+
+        // TODO: what does the server actually returns?
+        return json( true );
+    });
+
+    // Check if Collected
+    router.get("/j/c/check/:itemId/", async ({ player, params, json }) => {
+        return json( (await player.inv_getAllCollects()).includes(params.itemId) )
+    });
+
+    // Check if I Flagged Item (always returns false for now)
+    router.get("/j/i/chkf/:itemId", ({ json }) => json( false ));
+
+
+    // Get Created
+    router.get("/j/i/gcr/:start/:end", async ({ player, params, json }) => {
+        const data = await player.inv_getCreatedPage(Number(params.start), Number(params.end))
+        return json(data)
+    });
+    // #endregion Collections
+
+
+
+    // #region Search
+    // Search Item
+    router.post("/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
+    // #endregion Search
+
+
+
+    // #region News
+    // GetUnreadCount
+    router.get("/j/n/guc/", ({ json }) => json( 319 ) );
+    // GetLatestNews
+    router.get("/j/n/gln/", ({ json }) => json( [
+        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
+    ] ) );
+    // #endregion News
+
+
+
+    // #region Mifts
+    // GetUnseenMifts
+    router.get("/j/mf/umc/", ({ json }) => json( { count: 0 } ) );
+    
+    router.post("/j/mf/grm/", async ({ player, request, json }) => {
+        const body = await readRequestBody(request)
+        
+        var miftData = {
+        results: [{
+            _id: generateObjectId(),
+            fromId: generateObjectId(),
+            fromName: "TODO",
+            toId: player.rid,
+            itemId: "57286c91b19fff08136aa4a5",
+            text: "TODO",
+            deliverySeenByRecipient: false,
+            ts: new Date().toISOString()
+        }]
+        }
+        if(body.priv == "true"){
+        // we'll never have their private mifts
+        miftData = {"results": []};
+        }
+
+        return json(miftData)
+    })
+    // #endregion Mifts
+
+
+
+    // #region Map
+    // CreatedMapVersion(?) TODO
+    router.post("/j/m/cmv/", ({ json }) => json({ v: 1 }) );
+    // SectorPlus
+    router.get("/j/m/sp/:x/:y/:ap/:aid", async ({ params, json }) => {
+        const am = await areaManagerMgr.getByAreaId(params.aid)
+        const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+        const sectors = await Promise.all([
+            s(-1, -1), s(-1, 0), s(-1, 1),
+            s( 0, -1), s( 0, 0), s( 0, 1),
+            s( 1, -1), s( 1, 0), s( 1, 1),
+        ])
+
+        return json(sectors.filter(e => !!e))
+    });
+    // SectorPlusLoading (not exactly sure what's different)
+    router.get("/j/m/spl/:x/:y/:ap/:aid", async ({ params, json }) => {
+        console.log("TESTDEBUG sectorPlusLoading params:", params)
+
+        const am = await areaManagerMgr.getByAreaId(params.aid)
+        const s = (x, y) => am.getDataForSector(Number(params.x) + x, Number(params.y) + y)
+
+        const sectors = await Promise.all([
+            s(-1, -1), s(-1, 0), s(-1, 1),
+            s( 0, -1), s( 0, 0), s( 0, 1),
+            s( 1, -1), s( 1, 0), s( 1, 1),
+        ])
+        console.log("sectors,", sectors)
+
+        return json(sectors.filter(e => !!e))
+    });
+    router.post("/j/m/s/", async ({ request, json }) => {
+        const schema = z.object({ s: z.string(), a: z.coerce.string(), p: z.coerce.number() })
+        const body = schema.parse(await readRequestBody(request))
+
+        const areaId = body.a;
+        const areaPane = body.p;
+        const requestedSectors = JSON.parse(body.s);
+
+        const sectorData = [];
+        const am = await areaManagerMgr.getByAreaId(areaId)
+
+        for (const [x, y] of requestedSectors) {
+            const temp = await am.getDataForSector(x, y)
+            if (!temp) continue;
+
+            sectorData.push(temp)
+        }
+
+
+
+        return json(sectorData)
+    });
+    // DeletionMarkerForSectors
+    router.post("/j/m/dmss/", async ({ json, request }) => {
+        console.log("TESTDEBUG deletionmarker request body:", await readRequestBody(request))
+
+        return json([]);
+    })
+    // placer
+    router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
+        const placerId = generateObjectId();
+        return json({
+            id: placerId,
+            name: "todo",
+            ts: new Date().toISOString(),
         })
+    })
 
 
-        // AreaPossessions
-        router.post("/j/aps/s/", async ({ request, json }) => {
-            const body = await readRequestBody(request)
+    // AreaPossessions
+    router.post("/j/aps/s/", async ({ request, json }) => {
+        const body = await readRequestBody(request)
 
-            const { areaGroupId, ids } = schema_aps_s.parse(body);
-            areaPossessionsMgr.setPossessions(areaGroupId, ids)
+        const { areaGroupId, ids } = schema_aps_s.parse(body);
+        areaPossessionsMgr.setPossessions(areaGroupId, ids)
 
-            return json({ ok: true })
-        });
-        // #endregion Map
-
-
-        // #region Minimap
-
-        router.get("/j/a/mal/:areaid", async ({ params, json }) => {
-            // TODO
-            return json([])
-        })
-        // ExploredSectorIndividual? Info?
-        router.get("/j/e/esi/:x/:y/:ap/:aid", async ({ params, json }) => {
-            const am = await areaManagerMgr.getByAreaId(params.aid)
-
-            const data = await am.getMinimapData_Tile(Number(params.x), Number(params.y))
-            /** @type { MinimapTileData } */
-            //const data = { x: Number(params.x), y: Number(params.y), id: null, pn: [ { x: 0, y: 0, n: "test"} ] }
-
-            return json(data)
-        });
-        // ExploredSectorRegion?
-        router.get("/j/e/esr/:x1/:y1/:x2/:y2/:ap/:aid", async ({ params, json }) => {
-            const am = await areaManagerMgr.getByAreaId(params.aid)
-
-            const data = await am.getMinimapData_Region(Number(params.x1), Number(params.y1), Number(params.x2), Number(params.y2))
-
-            return json({ sectors: data })
-        });
-        // #endregion Minimap
-
-        // #region boosts
-        // Get Association
-        router.post("/j/bo/ga/", async ({ json, player }) => {
-            return json({ associations: await db.player_getBoostAssociations(player.rid) })
-        });
-        // Set Association
-        router.post("/j/bo/sa/", async ({ json, player, request }) => {
-            const schema = z.object({ name: z.string(), id: z.string(), }).required();
-            const data = schema.parse(await readRequestBody(request));
-
-            await db.player_setBoostAssociation(player.rid, data.name, data.id);
-
-            return json({ ok: true })
-        });
-        // #endregion boosts
+        return json({ ok: true })
+    });
+    // #endregion Map
 
 
-        // Catch-all
-        router.get("/j/:splat+", ({ event }) => {
-            console.log("FETCH no match for", event.request.url)
-            return new Response("Not found or not implemented", { status: 404 })
-        })
-        router.post("/j/:splat+", ({ event }) => {
-            console.log("FETCH no match for", event.request.url)
-            return new Response("Not found or not implemented", { status: 404 })
-        })
+    // #region Minimap
+
+    router.get("/j/a/mal/:areaid", async ({ params, json }) => {
+        // TODO
+        return json([])
+    })
+    // ExploredSectorIndividual? Info?
+    router.get("/j/e/esi/:x/:y/:ap/:aid", async ({ params, json }) => {
+        const am = await areaManagerMgr.getByAreaId(params.aid)
+
+        const data = await am.getMinimapData_Tile(Number(params.x), Number(params.y))
+        /** @type { MinimapTileData } */
+        //const data = { x: Number(params.x), y: Number(params.y), id: null, pn: [ { x: 0, y: 0, n: "test"} ] }
+
+        return json(data)
+    });
+    // ExploredSectorRegion?
+    router.get("/j/e/esr/:x1/:y1/:x2/:y2/:ap/:aid", async ({ params, json }) => {
+        const am = await areaManagerMgr.getByAreaId(params.aid)
+
+        const data = await am.getMinimapData_Region(Number(params.x1), Number(params.y1), Number(params.x2), Number(params.y2))
+
+        return json({ sectors: data })
+    });
+    // #endregion Minimap
+
+    // #region boosts
+    // Get Association
+    router.post("/j/bo/ga/", async ({ json, player }) => {
+        return json({ associations: await db.player_getBoostAssociations(player.rid) })
+    });
+    // Set Association
+    router.post("/j/bo/sa/", async ({ json, player, request }) => {
+        const schema = z.object({ name: z.string(), id: z.string(), }).required();
+        const data = schema.parse(await readRequestBody(request));
+
+        await db.player_setBoostAssociation(player.rid, data.name, data.id);
+
+        return json({ ok: true })
+    });
+    // #endregion boosts
+
+
+    // Catch-all
+    router.get("/j/:splat+", ({ event }) => {
+        console.log("FETCH no match for", event.request.url)
+        return new Response("Not found or not implemented", { status: 404 })
+    })
+    router.post("/j/:splat+", ({ event }) => {
+        console.log("FETCH no match for", event.request.url)
+        return new Response("Not found or not implemented", { status: 404 })
+    })
 
     // #endregion routes
 
@@ -1941,7 +1888,6 @@ const makeFakeAPI = async (
 
     return handle;
 }
-
 // #endregion HTTP routes
 
 
@@ -1972,6 +1918,7 @@ const fakeAPIPromise = makeFakeAPI(areaManagerMgr, areaPossessionsMgr);
  */
 //#region main_routing
 
+// This is where we intercept all fetch requests and reply with whatever we want.
 const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
     try {
         const url = new URL(event.request.url);
@@ -1981,6 +1928,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             // TODO: properly handle cache, following best practices. Cache the .html pages, and set up a mechanism to properly update them when they change + reload the client
             // TODO: a better system would be a "online-first" strategy: (1) try to fetch (with cachebust) (2) on success, cache and serve (3) on error, serve from cache
 
+            // Offlineland internal pages and content
             if (url.pathname === "/") {
                 // TODO: why is this cached??
                 const res = await fetch("/index.html?cachebust=" + Date.now());
@@ -1998,9 +1946,11 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
                 const res = await fetch("/static/offlineland/style.css?cachebust=" + Date.now());
                 return res;
             }
-            if (url.pathname === "/exporter.js") return fetch("/exporter.js");
             if (url.pathname === "/manifest.json") return fetch("/manifest.json");
             if (url.pathname.startsWith("/_code/")) return fetch(event.request);
+
+
+            // Manyland static assets
             // TODO: rename this, since there's an area named "static" lol
             if (url.pathname.startsWith("/static/data/area-thumbnails/")) return cache.getAreaThumbRes(event.request);
             if (url.pathname.startsWith("/static/data/v2/")) return fetch(event.request);
@@ -2010,12 +1960,13 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
               const creationId = url.pathname.slice(1)
               return await cache.getCreationSpriteRes(creationId)
             }
-            // Why is the painter fetched at /media/painter/spritesheet.png instead of using window.staticroot...?
-            // Oops, my fault, if the mlenv is set to test, it tries to load the painter from /media/painter instead of //static.manyland.com!
+            // If the mlenv is set to test, the game tries to load the painter from /media/painter instead of window.staticroot
             if (url.pathname === "/media/painter/spritesheet.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/spritesheet.png"));
             if (url.pathname === "/media/painter/cursor_floodFill.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_floodFill.png"));
             if (url.pathname === "/media/painter/cursor_pickColor.png") return cache.getOrSetFromCache(CACHE_NAME, new Request(self.origin + "/static/media/painter/cursor_pickColor.png"));
 
+
+            // Manyland API
             if (url.pathname.startsWith("/j/")) {
                 const db = await dbPromise;
                 const fakeAPI_handle = await fakeAPIPromise;
@@ -2026,6 +1977,8 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
                 return await fakeAPI_handle(method, url.pathname, event, player)
             }
 
+            // Manyland minimap tiles
+            // (We generate them on API calls)
             if (url.pathname.startsWith("/sct/")) {
                 const maptilesCache = await caches.open("MAP_TILES_V1");
                 return await maptilesCache.match(url);
@@ -2035,6 +1988,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 
 
 
+            // Offlineland internal API
             // TODO get this from a file (and update it)
             // TODO: the file should be "curated areas" and all these areas are static files on a CDN.
             // For online.offlineland.io, the list of areas would come from the server so that the creator can update it?
@@ -2051,7 +2005,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
 
 
 
-            // Special pages
+            // Special pages (TODO)
             if ( url.pathname.startsWith("/info")
             || url.pathname.startsWith("/support")
             || url.pathname.startsWith("/intermission")
@@ -2070,11 +2024,12 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             return fetch("/game.html")
         }
 
+        // Cloudfront creation sprites CDN
         if (cloudfrontHosts.includes(url.hostname)) {
-
             const creationId = url.pathname.slice(1)
             return await cache.getCreationSpriteRes(creationId)
         }
+        // Cloudfront creation def CDN
         // With the current settings, the game should query /def instead of the CDN
         if (url.hostname === cache.CLOUDFRONT_ROOT_ITEMDEFS) {
             const creationId = url.pathname.slice(1);
@@ -2082,13 +2037,12 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
             return await cache.getCreationDefRes(creationId)
         }
 
-        return new Response("No rules match this request!", { status: 404 })
+        return new Response("No rules match this request!", { status: 500 })
     } catch(e) {
         console.error("Error handling request", e)
         return Response.error()
     }
 };
-
 //#endregion main_routing
 
 
@@ -2239,7 +2193,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
 // #region boilerplate
 
 
-const onInstall = async (/** @type {ExtendableEvent} */ event) => {
+const onInstall = async (event: ExtendableEvent) => {
     try {
         console.log("service worker install event")
         console.log("waiting for db")
@@ -2300,6 +2254,7 @@ self.addEventListener('message', handleClientMessage)
 
 self.addEventListener("error", (event) => console.error("error event", event))
 self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
+
 
 // Now we call main() with everything in global scope while telling tsc to squint
 main(

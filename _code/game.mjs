@@ -1,7 +1,11 @@
 import { registerServiceWorker } from "/_code/register-service-worker.js"
 // Noop until replaced in main()
 let postMessage_ = () => {}
-/** @type { FakeWebSocket | null } */
+
+/**
+ * The game likes to switch out websockets every now, so we relay messages through the latest created instance
+ * @type { FakeWebSocket | null }
+ */
 let lastWsInstance = null;
 
 // Relay messages from Service Worker to the FakeWebSocket instance

@@ -90,17 +90,17 @@ const expand = (mapping, str) => {
     if (str[0] === "{") {
         return JSON.parse(str);
     }
-    else {
-        let expanded = str;
 
-        for (const short in mapping) {
-            const long = mapping[short];
-            expanded = replaceAll(expanded, short, long);
-        }
 
-        console.log("expanded: {" + expanded)
-        return JSON.parse("{" + expanded);
+    let expanded = str;
+
+    for (const short in mapping) {
+        const long = mapping[short];
+        expanded = replaceAll(expanded, short, long);
     }
+
+    console.log("expanded: {" + expanded)
+    return JSON.parse("{" + expanded);
 }
 
 /**
@@ -112,11 +112,12 @@ const expand = (mapping, str) => {
 const minify = (mapping, data) => {
     const str = JSON.stringify(data);
 
-    const strHasCharFromMapping = Object.keys(mapping).some(short => str.includes(short))
 
+    const strHasCharFromMapping = Object.keys(mapping).some(short => str.includes(short))
     if (strHasCharFromMapping) {
         return str;
     }
+
  
     if (str[0] === "{") {
         let minified = str.slice(1);
