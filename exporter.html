@@ -12,14 +12,6 @@
             const toastError =   (msg) => Toastify({ ...TOAST_SETTINGS, style: { background: "linear-gradient(to right, #e46161, #d32424)" }, text: msg }).showToast();
             const toastSuccess = (msg) => Toastify({ ...TOAST_SETTINGS, style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }, text: msg }).showToast();
 
-            document.addEventListener("DOMContentLoaded", async () => {
-                const cb = document.getElementById("codeBlock_full");
-
-                const res = await fetch("/_code/exporter.js");
-                const text = await res.text();
-
-                cb.textContent = text;
-            })
 
 
             function copyToClipboard(elementId) {
@@ -236,7 +228,7 @@
                 <button onclick="copyToClipboard('codeBlock')" class="join-item bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                     Copy to Clipboard
                 </button>
-                <pre id="codeBlock" class="join-item p-4 bg-gray-100 rounded-md overflow-auto">fetch("https://offlineland.io/_code/exporter.js?7").then(res => res.text()).then(txt => eval(txt));</pre>
+                <pre id="codeBlock" class="join-item p-4 bg-gray-100 rounded-md overflow-auto">fetch("https://raw.githubusercontent.com/offlineland/exporter/main/exporter.js").then(res => res.text()).then(txt => eval(txt));</pre>
             </div>
 
 
@@ -250,25 +242,9 @@
                         <li>Data is saved locally between runs. You can re-run the archiver at any point and it'll pick back up where it left off.</li>
                         <li>Downloading collected creations will take a little while.</li>
                         <li>As usual, you shouldn't run code from sources you do not trust, yadda yadda</li>
+                        <li>The code is also available <a class="link link-secondary" href="https://github.com/offlineland/exporter">on Github</a>.</li>
                     </ul>
                 </p>
-            </div>
-
-
-            <div class="border-b border-primary m-3 pt-3"></div>
-
-
-            <div class="flex flex-col space-y-2 p-4">
-                If you're curious, here's the full code:
-                <details>
-                    <summary class="cursor-pointer">Show</summary>
-                    <div class="flex flex-col p-4 join join-vertical">
-                        <button onclick="copyToClipboard('codeBlock_full')" class="join-item bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                            Copy full code to Clipboard
-                        </button>
-                        <pre id="codeBlock_full" class="join-item p-4 bg-gray-100 rounded-md overflow-auto"></pre>
-                    </div>
-                </details>
             </div>
         </main>
 
