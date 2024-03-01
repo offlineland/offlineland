@@ -15,8 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: oven-sh/setup-bun@v1
-    - run: sudo apt-get install brotli
-    - run: sudo apt-get install gzip
 
     - run: bun install
     - run: bun run build
