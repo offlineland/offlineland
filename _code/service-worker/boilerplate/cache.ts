@@ -1,7 +1,7 @@
 const CACHE_NAME = 'cache-v1';
 const CACHE_THUMBS = "cache_thumbs_v2"
 
-const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {Request} */ request) => {
+const getOrSetFromCache = async (cacheName: string, request: Request) => {
     const cache = await self.caches.open(cacheName);
 
     const cacheMatch = await cache.match(request)
@@ -12,7 +12,14 @@ const getOrSetFromCache = async (/** @type { string } */ cacheName, /** @type {R
 
     const fetchRes = await fetch(request.clone());
     if (fetchRes.ok) {
-        cache.put(request, fetchRes.clone())
+        if (fetchRes.status === 206) {
+            // Throwing in a timeout so that it's sent to the client but doesn't break the request
+            // Ideally I'd have a better setup for sending errors/notices back to clients, but this is what I get for supporting firefox
+            setTimeout(() => { throw new Error(`Received a status 206 for url "${request.url}" (cache ${cacheName})!`) }, 50)
+        }
+        else {
+            cache.put(request, fetchRes.clone())
+        }
     }
 
     return fetchRes;
