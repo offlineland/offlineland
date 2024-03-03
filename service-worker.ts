@@ -692,7 +692,7 @@ class ArchivedAreaManager {
             "wsh": this.wssUrl,
             "wsp": 80,
 
-            "ieh": false, // isEditorHere
+            "ieh": true, // isEditorHere
             "ish": false, // isSuperHere
 
             "sha": false,  // ShowAdvertisment, unused
@@ -832,7 +832,7 @@ class ArchivedAreaManager {
 
                 "ach":"[0,4,10,11,12,8,39,5,35,9]",
                 "neo":true, // ?
-                "ieh":false,
+                "ieh":true,
 
                 "map":{
                     "p":0,
@@ -894,18 +894,18 @@ class ArchivedAreaManager {
                     // TODO: figure out what was there before
                     const prevBlock = def ? null : groundId;
 
-                    client.postMessage({
-                        m: "WS_MSG",
-                        data: toClient({
-                            m: msgTypes.MAP_EDIT_REJECTED,
-                            data: {
-                                def: prevBlock,
-                                x: x,
-                                y: y,
-                                rsn: mapRejectionReasons.THROTTLED
-                            }
-                        })
-                    });
+                    // client.postMessage({
+                    //     m: "WS_MSG",
+                    //     data: toClient({
+                    //         m: msgTypes.MAP_EDIT_REJECTED,
+                    //         data: {
+                    //             def: prevBlock,
+                    //             x: x,
+                    //             y: y,
+                    //             rsn: mapRejectionReasons.THROTTLED
+                    //         }
+                    //     })
+                    // });
 
                     break;
                 }
