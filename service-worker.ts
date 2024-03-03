@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 23;
+const SW_VERSION = 24;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -2244,6 +2244,24 @@ self.addEventListener('message', handleClientMessage)
 
 
 
+self.addEventListener("error", (event) => {
+    console.error("error event", event)
+
+    self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ m: "SW_ERROR", data: {
+        name: event.error?.name,
+        message: event.error?.message,
+        stack: event.error?.stack,
+    }})))
+})
+
+self.addEventListener("unhandledrejection", (event) => {
+    console.error("unhandledrejection event", event)
+
+    self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ m: "SW_UNHANDLEDREJECTION", data: {
+        reason: event.reason,
+    }})))
+})
+
 
 
 } catch(e) {
@@ -2253,8 +2271,13 @@ self.addEventListener('message', handleClientMessage)
 
 }; //main() ends here
 
-self.addEventListener("error", (event) => console.error("error event", event))
-self.addEventListener("unhandledrejection", (event) => console.error("unhandledrejection event", event))
+self.addEventListener("error", (event) => {
+    console.error("error event", event)
+
+})
+self.addEventListener("unhandledrejection", (event) => {
+    console.error("unhandledrejection event", event)
+})
 
 
 // Now we call main() with everything in global scope while telling tsc to squint

@@ -11,7 +11,7 @@ let lastWsInstance = null;
 // Relay messages from Service Worker to the FakeWebSocket instance
 navigator.serviceWorker?.addEventListener("message", (ev) => {
     const msg = ev.data;
-    console.log("SW msg:", msg, lastWsInstance)
+    console.log("SW msg:", msg)
 
     if (msg.m === "WS_MSG") {
         if (!lastWsInstance) {
@@ -35,6 +35,13 @@ navigator.serviceWorker?.addEventListener("message", (ev) => {
     }
     else if (msg.m === "NAVIGATE_TO_MAINSCREEN") {
         window.location = "/";
+    }
+    else if (msg.m === "SW_ERROR") {
+        console.error("Oops, something broke!", msg.data)
+        ig.game.errorManager.O7973(`${msg.data.name}: "${msg.data.message}" | at ${msg.data.stack.toString()}`)
+    }
+    else if (msg.m === "SW_UNHANDLEDREJECTION") {
+        throw new Error(msg.data.reason)
     }
 })
 

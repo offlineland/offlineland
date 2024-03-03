@@ -348,6 +348,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             else if (msg.m === "GENERIC_SUCCESS") {
                 toastSuccess(msg.data.message)
             }
+            else if (msg.m === "SW_ERROR") {
+                toastError(`Oops, something broke! ${msg.data.name}: ${msg.data.message}`)
+            }
+            else if (msg.m === "SW_UNHANDLEDREJECTION") {
+                toastError(`Oops, something broke! ${msg.data.reason}`)
+            }
     })
 
     const importMgr = new ImportMgr();
