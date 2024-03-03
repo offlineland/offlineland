@@ -14,7 +14,14 @@ const dataURLtoBlob = (dataUrl: string): Blob => {
 
 const readRequestBody = async (request: Request): Promise<any> => {
     const text = await request.text();
-    const data = Qs.parse(text);
+    // By default, qs will not parse arrays using index notation (`a[19]=test`) beyond 20, to avoid cases where someone sends eg. `a[999]`.
+    // See https://www.npmjs.com/package/qs#parsing-arrays
+    // This might be why ML sends cells as an encoded string?
+    const data = Qs.parse(text, {
+        parameterLimit: 1000, // Default: 1000
+        arrayLimit: 100, // Default: 20
+        depth: 10, // Default: 5
+    });
 
     return data;
 }
