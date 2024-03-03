@@ -72,6 +72,7 @@ const { saveCreation } = makeLocalCreations(idbKeyval)
 
 const cloudfrontHosts = "d3t4ge0nw63pin d3sru0o8c0d5ho d39pmjr4vi5228 djaii3xne87ak d1qx0qjm5p9x4n d1ow0r77w7e182 d12j1ps7u12kjc dzc91kz5kvpo5 d3jldpr15f31k5 d2r3yza02m5b0q dxye1tpo9csvz"
     .split(" ").map(s => s + ".cloudfront.net")
+const cloudfrontHost_defs = "d2h9in11vauk68.cloudfront.net"
 
 const ringAreas = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
 
@@ -2031,7 +2032,7 @@ const handleFetchEvent = async (event: FetchEvent): Promise<Response> => {
         }
         // Cloudfront creation def CDN
         // With the current settings, the game should query /def instead of the CDN
-        if (url.hostname === cache.CLOUDFRONT_ROOT_ITEMDEFS) {
+        if (url.hostname === cloudfrontHost_defs) {
             const creationId = url.pathname.slice(1);
 
             return await cache.getCreationDefRes(creationId)

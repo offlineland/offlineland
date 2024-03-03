@@ -58,9 +58,11 @@ const getCreationSprite = async (creationId) => {
 }
 
 
+// TODO: option to "use online.offlineland data"
 const FETCH_MISSING_SPRITES_FROM_LIVE_CDN = true;
 const FETCH_MISSING_DEFS_FROM_LIVE_CDN = true;
-const CLOUDFRONT_ROOT_ITEMDEFS = "d2h9in11vauk68.cloudfront.net"
+const ROOT_ITEMSPRITES = "https://archival.offlineland.io/creations/sprite/"
+const ROOT_ITEMDEFS = "https://archival.offlineland.io/creations/def/"
 
 /** @param {string} creationId */
 const getCreationSpriteRes = async (creationId) => {
@@ -75,8 +77,7 @@ const getCreationSpriteRes = async (creationId) => {
 
 
     if (FETCH_MISSING_SPRITES_FROM_LIVE_CDN) {
-        // TODO: the game actually shards over multiple CDNs in a deterministic manner
-        const url = "https://d3sru0o8c0d5ho.cloudfront.net/" + creationId;
+        const url = ROOT_ITEMSPRITES + creationId;
 
         try {
             const res = await fetch(url);
@@ -133,7 +134,7 @@ const getCreationDefRes = async (creationId) => {
 
 
     if (FETCH_MISSING_DEFS_FROM_LIVE_CDN) {
-        const url = originUrl.protocol + "//" + CLOUDFRONT_ROOT_ITEMDEFS + "/" + creationId;
+        const url = ROOT_ITEMDEFS + creationId;
 
         try {
             const res = await fetch(url);
@@ -188,7 +189,6 @@ const getAreaThumbRes = async (req: Request) => {
 }
 
 return {
-    CLOUDFRONT_ROOT_ITEMDEFS,
     getOrSetFromCache,
     getCreationDef,
     getCreationDefRes,
