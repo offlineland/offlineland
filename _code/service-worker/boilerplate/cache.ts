@@ -13,9 +13,14 @@ const getOrSetFromCache = async (cacheName: string, request: Request) => {
     const fetchRes = await fetch(request.clone());
     if (fetchRes.ok) {
         if (fetchRes.status === 206) {
-            // Throwing in a timeout so that it's sent to the client but doesn't break the request
-            // Ideally I'd have a better setup for sending errors/notices back to clients, but this is what I get for supporting firefox
-            setTimeout(() => { throw new Error(`Received a status 206 for url "${request.url}" (cache ${cacheName})!`) }, 50)
+            if (request.url.includes(".ogg")) {
+
+            }
+            else {
+                // Throwing in a timeout so that it's sent to the client but doesn't break the request
+                // Ideally I'd have a better setup for sending errors/notices back to clients, but this is what I get for supporting firefox
+                setTimeout(() => { throw new Error(`Received a status 206 for url "${request.url}" (cache ${cacheName})!`) }, 50)
+            }
         }
         else {
             cache.put(request, fetchRes.clone())
