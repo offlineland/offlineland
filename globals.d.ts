@@ -7,6 +7,7 @@ declare global {
     var idb: typeof import('idb/build/index.d.ts');
     type DBSchema = import('idb/build/index.d.ts').DBSchema;
     type IDBPDatabase = import('idb/build/index.d.ts').IDBPDatabase;
+    type IDBPTransaction = import('idb/build/index.d.ts').IDBPTransaction;
 
     var matchPath: (path: string) => (path: string) => boolean;
 }

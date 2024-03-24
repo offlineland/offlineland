@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 26;
+const SW_VERSION = 28;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -625,9 +625,10 @@ const findSubareaFor = async (areaUrlName: string, areaGroupId: string, subareaN
 
 class ArchivedAreaManager {
     clients = new Set();
-    db: LocalMLDatabase;
     wssUrl: string;
     areaId: string;
+    db: LocalMLDatabase;
+    storageMgr: AreaSectorManager;
     possessionsMgr: AreaPossessionsManager;
     isRingArea: boolean;
     isSubarea: boolean;
@@ -646,12 +647,14 @@ class ArchivedAreaManager {
     explorerChatAllowed: boolean;
     mpv: number;
 
+
     constructor(wssUrl: string, areaId: string, data: AreaData, db: LocalMLDatabase, possessionsMgr: AreaPossessionsManager) {
         console.log("ArchivedAreaManager constructor", wssUrl, areaId, data)
         this.db = db;
         this.wssUrl = wssUrl;
         this.areaId = areaId;
         this.possessionsMgr = possessionsMgr;
+        this.storageMgr = new AreaSectorManager_raw(this.areaId, db);
 
         this.isRingArea = areaId === "" || ringAreas.includes(areaId)
 
@@ -875,6 +878,7 @@ class ArchivedAreaManager {
                     break;
                 }
                 case msgTypes.MAP_EDIT: {
+                    const start = Date.now()
                     const mapRejectionReasons = {
                         OK: 0,
                         BAD: 1,
@@ -886,26 +890,44 @@ class ArchivedAreaManager {
                         R5OUTERPROTECT: 7
                     };
 
+                    // TODO: how should we handle placenames?
 
-                    // TODO: properly handle storing map edits
 
                     const { x, y, def } = parsedMsg.data;
 
-                    // TODO: figure out what was there before
-                    const prevBlock = def ? null : groundId;
+                    if (def) {
+                        const { tid, flip, rotation } = def; // TODO validate this
+                        const placer = parsedMsg.data.rId; // TODO: when we do multiplayer, make sure that this is the right one AND that it has permissions to place
+                        const placedAt = new Date();
 
-                    // client.postMessage({
-                    //     m: "WS_MSG",
-                    //     data: toClient({
-                    //         m: msgTypes.MAP_EDIT_REJECTED,
-                    //         data: {
-                    //             def: prevBlock,
-                    //             x: x,
-                    //             y: y,
-                    //             rsn: mapRejectionReasons.THROTTLED
-                    //         }
-                    //     })
-                    // });
+                        const creation = await cache.getCreationDefRes(tid).then(r => r.json())
+
+                        if (!creation) {
+                            // This shouldn't happen - if the player can access a creation, it should be in the DB
+                            throw new Error("Error saving placement: unknown creation")
+                        }
+
+                        // TODO: handle errors
+                        this.storageMgr.addPlacement(
+                            x, y, tid, rotation, flip,
+                            placedAt,
+                            placer,
+                            {
+                                base: creation.base || "SOLID",
+                                direction: creation.dr || 0,
+                                name: creation.name || "",
+                                props: creation.prop || null,
+                            }
+                        )
+                    }
+                    else {
+                        // TODO: handle errors
+                        await this.storageMgr.removePlacement(x, y)
+                    }
+
+
+                    const end = Date.now();
+                    console.log("processing map edit took", end - start, "ms")
 
                     break;
                 }

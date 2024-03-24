@@ -1,4 +1,3 @@
-
 // TODO: move stuff from cache in here
 class LocalMLCDN {
 
@@ -75,9 +74,9 @@ type SectorData = {
     ps: [number, number, number, number, number][];
     i: {
         b: string[];
-        p: CreationProps[];
+        p: (CreationProps | null)[];
         n: string[];
-        dr: string[];
+        dr: number[];
     };
 
     v: number;
@@ -179,6 +178,7 @@ class LocalMLDatabase {
 
 
 
+    // #region player
     async player_setTopCreations(playerId, topCreations) {
         await idbKeyval.set(`playertopcreations-p${playerId}`, topCreations);
     }
@@ -225,8 +225,11 @@ class LocalMLDatabase {
     async player_setBoostAssociations(playerId, associations) {
         await idbKeyval.set(`playerboostassociations-p${playerId}`, associations);
     }
+    // #endregion player
 
 
+
+    // #region creation
     async creation_setMotionData(bodyId: string, data: MotionsOfBody | null) {
         await this.db.put("motions-of-body", data, bodyId);
     }
@@ -272,7 +275,12 @@ class LocalMLDatabase {
     async creation_getMinimapColor(creationId: string) {
         return await this.db.get("minimap-colors", creationId);
     }
+    // #endregion creation
 
+
+
+    // #region area
+    // #region minimap
     async minimap_getTile(areaId: string, x: number, y: number) {
         const key = `${areaId}_${x}_${y}`;
 
@@ -283,17 +291,18 @@ class LocalMLDatabase {
 
         return await this.db.put("minimap-area-tile-ids", tileId, key);
     }
+    // #endregion minimap
 
 
-    async area_getSector(areaId: string, x: number, y: number) {
+    async area_getSector(areaId: string, x: number, y: number, tx?: import('idb/build/index.d.ts').IDBPTransaction<OfflinelandIDBSchema, ["area-sectors"], "readwrite">) {
         const key = `${areaId}_${x}_${y}`;
 
-        return await this.db.get("area-sectors", key);
+        return await (tx ? tx.store.get(key) : this.db.get("area-sectors", key));
     }
-    async area_setSector(areaId: string, x: number, y: number, sectorData: SectorData) {
+    async area_setSector(areaId: string, x: number, y: number, sectorData: SectorData, tx = this.db.transaction("area-sectors", "readwrite")) {
         const key = `${areaId}_${x}_${y}`;
 
-        return await this.db.put("area-sectors", sectorData, key);
+        return await tx.store.put(sectorData, key);
     }
     async area_delAllAreaSectors(id: string) {
         const keys = await this.db.getAllKeys("area-sectors")
@@ -330,5 +339,122 @@ class LocalMLDatabase {
         const areas = await this.db.getAllFromIndex("area-data", "by-gid", gid);
 
         return areas.filter(area => area.sub)
+    }
+    // #endregion area
+}
+
+
+
+const SECTOR_SIZE_FOR_COORDS_MATH = 32;
+const SECTOR_SIZE_FOR_LOOPS = 31;
+
+const worldCoordsToSectorPlusOffset = (worldX: number, worldY: number) => {
+    const sector = {
+        x: Math.floor(worldX / SECTOR_SIZE_FOR_COORDS_MATH),
+        y: Math.floor(worldY / SECTOR_SIZE_FOR_COORDS_MATH)
+    };
+    return {
+        sector: sector,
+        offset: {
+            x: worldX - sector.x * SECTOR_SIZE_FOR_COORDS_MATH,
+            y: worldY - sector.y * SECTOR_SIZE_FOR_COORDS_MATH
+        },
+    }
+}
+
+
+
+interface AreaSectorManager {
+    removePlacement(worldX: number, worldY: number): Promise<void>;
+    addPlacement(
+        worldX: number,
+        worldY: number,
+        creationId: string,
+        rotation: number,
+        flip: number,
+        placedAt: Date,
+        placedBy: string,
+        creationData: { base: string, direction: number, name: string, props: CreationProps }
+    ): Promise<void>;
+}
+
+
+// This directly manipulates the compact sector data
+// TODO: decide if it's fine to re-query the DB on each request, or if we should
+// keep a local copy and enfoce one single instance of this class managing the area.
+// How long does it take to read-write a map edit? Is idb fast enough? How much does it vary between browsers/computers?
+class AreaSectorManager_raw implements AreaSectorManager {
+    constructor(
+        private areaId: string,
+        private db: LocalMLDatabase
+    ) {
+    }
+
+    async removePlacement(worldX: number, worldY: number) {
+        // Leaky abstraction, oh well
+        const tx = this.db.db.transaction("area-sectors", "readwrite")
+
+
+        const { sector, offset } = worldCoordsToSectorPlusOffset(worldX, worldY)
+
+        const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y, tx)
+
+        const targetPsIndex = sectorData.ps.findIndex(([x, y]) => x === offset.x && y === offset.y)
+
+        if (!targetPsIndex) {
+            // TODO: how to reply that there's already nothing here? Send a Result type
+        }
+        else {
+            const [ targetPs ] = sectorData.ps.splice(targetPsIndex, 1);
+            const targetCreationIndex = targetPs[2];
+            
+            const moreOfThisCreation = sectorData.ps.some((p) => p[2] === targetCreationIndex)
+
+            if (!moreOfThisCreation) {
+                sectorData.iix.splice(targetCreationIndex, 1)
+
+                sectorData.i.b.splice(targetCreationIndex, 1)
+                sectorData.i.dr.splice(targetCreationIndex, 1)
+                sectorData.i.n.splice(targetCreationIndex, 1)
+                sectorData.i.p.splice(targetCreationIndex, 1)
+            }
+
+            await this.db.area_setSector(this.areaId, sector.x, sector.y, sectorData, tx)
+        }
+
+        await tx.done;
+    }
+
+    async addPlacement(worldX: number, worldY: number, creationId: string, rotation: number, flip: number, placedAt: Date, placedBy: string, creationData: { base: string, direction: number, name: string, props: CreationProps }) {
+        const { sector, offset } = worldCoordsToSectorPlusOffset(worldX, worldY)
+
+        // LocalMLDatabase is now a Leaky Abstraction, oh well
+        const tx = this.db.db.transaction("area-sectors", "readwrite")
+        const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y, tx)
+
+        const hasPlacementAtThisPosition = sectorData.ps.some(([x, y]) => x === offset.x && y === offset.y)
+        if (hasPlacementAtThisPosition) {
+            // TODO: how to reply that there's already something here? Send a Result type
+            // TODO: should we enforce other things here?
+        }
+        else {
+            const index = sectorData.iix.indexOf(creationId)
+
+            if (index > -1) {
+                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip ])
+            }
+            else {
+                const index = sectorData.iix.push(creationId) - 1;
+                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip ])
+
+                sectorData.i.b.push(creationData.base)
+                sectorData.i.dr.push(creationData.direction)
+                sectorData.i.n.push(creationData.name)
+                sectorData.i.p.push(creationData.props)
+            }
+
+            await this.db.area_setSector(this.areaId, sector.x, sector.y, sectorData, tx)
+            await tx.done;
+        }
     }
 }
