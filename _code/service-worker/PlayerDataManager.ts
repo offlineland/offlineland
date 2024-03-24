@@ -94,6 +94,7 @@ class PlayerDataManager {
         this.profileBackId = profile.profileBackId;
         this.profileDynaId = profile.profileDynaId;
 
+        // Create default object for attachments
         idbKeyval.update(`attachments-p${this.rid}`, (/** @type {Attachments | undefined} */ value) => {
             if (value) return value
             else return {
@@ -111,6 +112,12 @@ class PlayerDataManager {
 
         const playerProfile: ProfileData  = await idbKeyval.get(`playerData-p${playerId}`) || DEFAULT_PROFILE;
         const playerData: PlayerExtraData = DEFAULT_PLAYER_DATA; // TODO: load these from settings somehow?
+
+        // Create default object for profile (TODO: this is lame, make a proper "profiles" or "local players" concept)
+        idbKeyval.update(`playerData-p${playerId}`, (value) => {
+            if (value) return value
+            else return DEFAULT_PROFILE
+        })
 
         return new PlayerDataManager(idbKeyval, db, playerId, playerProfile, playerData)
     }
@@ -149,6 +156,16 @@ class PlayerDataManager {
             profileDynaId: this.profileDynaId,
         }
     }
+
+    async setName(newName: string) {
+        await this.idbKeyval.update(`playerData-p${this.rid}`, (value) => {
+            value.screenName = newName;
+            return value;
+        })
+
+        this.name = newName;
+    }
+
 
     async setAttachment(slot, id) {
         await this.idbKeyval.update(`attachments-p${this.rid}`, (value) => {
@@ -272,10 +289,6 @@ class PlayerDataManager {
     }
 
 
-
-    async import_setProfile(itemIds: string[]) {
-        await this.idbKeyval.set(`playerinventory-collected-p${this.rid}`, itemIds);
-    }
 
     async import_setCollected(itemIds: string[]) {
         await this.idbKeyval.set(`playerinventory-collected-p${this.rid}`, itemIds);

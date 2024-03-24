@@ -360,6 +360,7 @@ const ws_change_attachment = Zod.object({
     ats: Zod.string(),
     ati: Zod.string().nullable(),
 }).required()
+const ws_change_name = z.object({ n: z.string() }).required()
 // #endregion ws
 
 
@@ -1099,6 +1100,10 @@ class ArchivedAreaManager {
 
 
                     break;
+                }
+                case msgTypes.CHANGE_NAME: {
+                    const data = ws_change_name.parse(parsedMsg.data);
+                    player.setName(data.n)
                 }
 
                 default: {
