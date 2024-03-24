@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 28;
+const SW_VERSION = 29;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -907,22 +907,51 @@ class ArchivedAreaManager {
                             throw new Error("Error saving placement: unknown creation")
                         }
 
-                        // TODO: handle errors
-                        this.storageMgr.addPlacement(
-                            x, y, tid, rotation, flip,
-                            placedAt,
-                            placer,
+                        const res = await this.storageMgr.addPlacement(
+                            x, y, 
+                            { tid, rotation, flip },
                             {
                                 base: creation.base || "SOLID",
                                 direction: creation.dr || 0,
                                 name: creation.name || "",
                                 props: creation.prop || null,
-                            }
+                            },
+                            placedAt,
+                            placer,
                         )
+
+                        if (res.ok === false) {
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.MAP_EDIT_REJECTED,
+                                    data: {
+                                        def: res.revertTo,
+                                        x: x,
+                                        y: y,
+                                        rsn: res.reasonCode
+                                    }
+                                })
+                            });
+                        }
                     }
                     else {
-                        // TODO: handle errors
-                        await this.storageMgr.removePlacement(x, y)
+                        const res = await this.storageMgr.removePlacement(x, y);
+
+                        if (res.ok === false) {
+                            client.postMessage({
+                                m: "WS_MSG",
+                                data: toClient({
+                                    m: msgTypes.MAP_EDIT_REJECTED,
+                                    data: {
+                                        def: res.revertTo,
+                                        x: x,
+                                        y: y,
+                                        rsn: res.reasonCode
+                                    }
+                                })
+                            });
+                        }
                     }
 
 

@@ -364,18 +364,18 @@ const worldCoordsToSectorPlusOffset = (worldX: number, worldY: number) => {
 
 
 
+type Placement = { tid: string, rotation?: number, flip?: number }
+type MapEditResult = { ok: true } | { ok: false, reasonCode: number, revertTo?: Placement };
 interface AreaSectorManager {
-    removePlacement(worldX: number, worldY: number): Promise<void>;
+    removePlacement(worldX: number, worldY: number): Promise<MapEditResult>;
     addPlacement(
         worldX: number,
         worldY: number,
-        creationId: string,
-        rotation: number,
-        flip: number,
+        placement: Placement,
+        creationData: { base: string, direction: number, name: string, props: CreationProps },
         placedAt: Date,
         placedBy: string,
-        creationData: { base: string, direction: number, name: string, props: CreationProps }
-    ): Promise<void>;
+    ): Promise<MapEditResult>;
 }
 
 
@@ -396,13 +396,15 @@ class AreaSectorManager_raw implements AreaSectorManager {
 
 
         const { sector, offset } = worldCoordsToSectorPlusOffset(worldX, worldY)
-
         const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y, tx)
-
         const targetPsIndex = sectorData.ps.findIndex(([x, y]) => x === offset.x && y === offset.y)
 
-        if (!targetPsIndex) {
-            // TODO: how to reply that there's already nothing here? Send a Result type
+        if (!targetPsIndex) { // There's no placement here to delete
+            await tx.done;
+            return {
+                ok: false as const,
+                reasonCode: 9,
+            };
         }
         else {
             const [ targetPs ] = sectorData.ps.splice(targetPsIndex, 1);
@@ -423,19 +425,32 @@ class AreaSectorManager_raw implements AreaSectorManager {
         }
 
         await tx.done;
+        return { ok: true as const };
     }
 
-    async addPlacement(worldX: number, worldY: number, creationId: string, rotation: number, flip: number, placedAt: Date, placedBy: string, creationData: { base: string, direction: number, name: string, props: CreationProps }) {
+    async addPlacement(worldX: number, worldY: number, placement: Placement, creationData: { base: string, direction: number, name: string, props: CreationProps }, placedAt: Date, placedBy: string) {
+        const { tid: creationId, rotation, flip } = placement;
         const { sector, offset } = worldCoordsToSectorPlusOffset(worldX, worldY)
 
         // LocalMLDatabase is now a Leaky Abstraction, oh well
         const tx = this.db.db.transaction("area-sectors", "readwrite")
         const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y, tx)
+        const targetPsIndex = sectorData.ps.findIndex(([x, y]) => x === offset.x && y === offset.y)
 
-        const hasPlacementAtThisPosition = sectorData.ps.some(([x, y]) => x === offset.x && y === offset.y)
-        if (hasPlacementAtThisPosition) {
-            // TODO: how to reply that there's already something here? Send a Result type
-            // TODO: should we enforce other things here?
+        if (targetPsIndex !== -1) { // There's already a placement here
+            console.log("already a creation there", targetPsIndex, sectorData.ps[targetPsIndex])
+            await tx.done;
+
+            const target = sectorData.ps[targetPsIndex];
+            return {
+                ok: false as const,
+                reasonCode: 10, // BLOCK_EXISTS // TODO: define error codes as consts somewhere
+                revertTo: {
+                    tid: sectorData.iix[targetPsIndex],
+                    rotation: target[3],
+                    flip: target[4],
+                }
+            }
         }
         else {
             const index = sectorData.iix.indexOf(creationId)
@@ -455,6 +470,8 @@ class AreaSectorManager_raw implements AreaSectorManager {
 
             await this.db.area_setSector(this.areaId, sector.x, sector.y, sectorData, tx)
             await tx.done;
+
+            return { ok: true as const }
         }
     }
 }
