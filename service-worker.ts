@@ -1317,7 +1317,6 @@ const makeFakeAPI = async (
     router.post("/j/u/pi/", async ({ json, request, player }) => {
         const { id, planeId, areaId } = await readRequestBody(request)
 
-        console.log("aaa", id, await player.getProfileData())
         if (player.rid === id) {
             return json( await player.getProfileData() );
         } else {
@@ -1325,7 +1324,7 @@ const makeFakeAPI = async (
                 isFullAccount: true,
                 hasMinfinity: true,
                 isBacker: true,
-                screenName: "todo",
+                screenName: "todo name in profile",
                 rank: 10,
                 stat_ItemsPlaced: 191919,
                 unfindable: true,
@@ -1616,9 +1615,16 @@ const makeFakeAPI = async (
     });
 
     // CreatorInfoName
-    router.get("/j/i/cin/:creationId", async ({ params, json }) => {
-        const creatorId = generateObjectId();
-        return json({ id: creatorId, name: "todo creator name" });
+    router.get("/j/i/cin/:creationId", async ({ params, json, player }) => {
+        const creation = await cache.getCreationDefRes(params.creationId).then(r => r.json())
+
+        // TODO
+        let creatorName = "todo creator name";
+        if (creation.creator === player.rid) {
+            creatorName = player.name;
+        }
+
+        return json({ id: creation.creator, name: creatorName });
     });
 
     // Collectors
@@ -1860,20 +1866,23 @@ const makeFakeAPI = async (
         return json([]);
     })
     // placer
-    router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", async ({ params, json }) => {
+    router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", async ({ params, json, player }) => {
         const am = await areaManagerMgr.getByAreaId(params.areaId)
         const placement = await am.storageMgr.getPlacement(params.x, params.y);
 
 
         if (placement) {
-            const placerName = "todo placer name" // TODO
+            // TODO
+            let placerName = "todo placer name";
+            if (placement.placedBy === player.rid) {
+                placerName = player.name;
+            }
 
             return json({
                 id: placement.placedBy,
                 name: placerName,
                 ts: placement.placedAt,
             })
-
         }
         else {
             return json({
