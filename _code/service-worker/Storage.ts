@@ -71,7 +71,8 @@ type PainterData = {
 
 type SectorData = {
     iix: string[];
-    ps: [number, number, number, number, number][];
+    // [x, y, iix, rot, flip, placedAt, placer] (note that placer is an offlineland addition, it doesn't exist in base ML data)
+    ps: [number, number, number, number, number, number | null, string | undefined][];
     i: {
         b: string[];
         p: (CreationProps | null)[];
@@ -365,6 +366,7 @@ const worldCoordsToSectorPlusOffset = (worldX: number, worldY: number) => {
 
 
 type Placement = { tid: string, rotation?: number, flip?: number }
+type PlacementData = { tid: string, rotation?: number, flip?: number, placedAt?: number, placedBy?: string } | null;
 type MapEditResult = { ok: true } | { ok: false, reasonCode: number, revertTo?: Placement };
 interface AreaSectorManager {
     removePlacement(worldX: number, worldY: number): Promise<MapEditResult>;
@@ -376,6 +378,7 @@ interface AreaSectorManager {
         placedAt: Date,
         placedBy: string,
     ): Promise<MapEditResult>;
+    getPlacement(worldX: number, worldY: number): Promise<PlacementData>;
 }
 
 
@@ -388,6 +391,21 @@ class AreaSectorManager_raw implements AreaSectorManager {
         private areaId: string,
         private db: LocalMLDatabase
     ) {
+    }
+
+    async getPlacement(worldX: number, worldY: number) {
+        const { sector, offset } = worldCoordsToSectorPlusOffset(worldX, worldY)
+        const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y)
+        const placement = sectorData.ps.find(([x, y]) => x === offset.x && y === offset.y)
+        if (placement) {
+            return {
+                tid: sectorData.iix[placement[0]],
+                rotation: placement[3],
+                flip: placement[4],
+                placedAt: placement[5],
+                placedBy: placement[6],
+            }
+        }
     }
 
     async removePlacement(worldX: number, worldY: number) {
@@ -456,11 +474,11 @@ class AreaSectorManager_raw implements AreaSectorManager {
             const index = sectorData.iix.indexOf(creationId)
 
             if (index > -1) {
-                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip ])
+                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip, placedAt.valueOf(), placedBy ])
             }
             else {
                 const index = sectorData.iix.push(creationId) - 1;
-                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip ])
+                sectorData.ps.push([ offset.x, offset.y, index, rotation, flip, placedAt.valueOf(), placedBy ])
 
                 sectorData.i.b.push(creationData.base)
                 sectorData.i.dr.push(creationData.direction)

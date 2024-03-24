@@ -897,7 +897,10 @@ class ArchivedAreaManager {
 
                     if (def) {
                         const { tid, flip, rotation } = def; // TODO validate this
-                        const placer = parsedMsg.data.rId; // TODO: when we do multiplayer, make sure that this is the right one AND that it has permissions to place
+
+                        // TODO: when we do multiplayer, make sure that this is the right one AND that it has permissions to place
+                        // TODO: we'll need a more robust handling of local user "profiles"
+                        const placer = parsedMsg.data.rId;
                         const placedAt = new Date();
 
                         const creation = await cache.getCreationDefRes(tid).then(r => r.json())
@@ -1157,11 +1160,12 @@ class AreaManagerManager {
         else return await this.makeAreaManager("shouldnthappen_" + String(Date.now()));
     }
 
-    async getByAreaId(areaId: string) {
+    async getByAreaId(areaId: string): Promise<ArchivedAreaManager> {
         console.log("AreaManagerManager: getByAreaId()", areaId)
 
         const am = this.areaManagerByAreaId.get(areaId);
         if (am) return am;
+        // @ts-ignore let's pretend the other one doesn't exist, I'll delete it soon
         else return await this.makeAreaManager(areaId);
     }
 
@@ -1614,7 +1618,7 @@ const makeFakeAPI = async (
     // CreatorInfoName
     router.get("/j/i/cin/:creationId", async ({ params, json }) => {
         const creatorId = generateObjectId();
-        return json({ id: creatorId, name: "todo" });
+        return json({ id: creatorId, name: "todo creator name" });
     });
 
     // Collectors
@@ -1856,13 +1860,28 @@ const makeFakeAPI = async (
         return json([]);
     })
     // placer
-    router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", ({ params, json }) => {
-        const placerId = generateObjectId();
-        return json({
-            id: placerId,
-            name: "todo",
-            ts: new Date().toISOString(),
-        })
+    router.get("/j/m/placer/:x/:y/:areaPlane/:areaId", async ({ params, json }) => {
+        const am = await areaManagerMgr.getByAreaId(params.areaId)
+        const placement = await am.storageMgr.getPlacement(params.x, params.y);
+
+
+        if (placement) {
+            const placerName = "todo placer name" // TODO
+
+            return json({
+                id: placement.placedBy,
+                name: placerName,
+                ts: placement.placedAt,
+            })
+
+        }
+        else {
+            return json({
+                id: null,
+                name: null,
+                ts: null,
+            })
+        }
     })
 
 
