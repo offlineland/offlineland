@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 29;
+const SW_VERSION = 31;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
