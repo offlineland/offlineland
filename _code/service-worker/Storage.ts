@@ -437,6 +437,13 @@ class AreaSectorManager_raw implements AreaSectorManager {
                 sectorData.i.dr.splice(targetCreationIndex, 1)
                 sectorData.i.n.splice(targetCreationIndex, 1)
                 sectorData.i.p.splice(targetCreationIndex, 1)
+                sectorData.ps = sectorData.ps.map(psArr => {
+                    if (psArr[2] > targetCreationIndex) {
+                        psArr[2] = psArr[2] - 1;
+                    }
+
+                    return psArr;
+                })
             }
 
             await this.db.area_setSector(this.areaId, sector.x, sector.y, sectorData, tx)
