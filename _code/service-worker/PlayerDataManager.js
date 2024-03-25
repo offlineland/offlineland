@@ -1,0 +1,231 @@
+// Note: Loading one big array to/from indexedDB will probably trash a lot if people start collecting everything they see. Not really a design goal though
+const dateFromObjectId = (objectId) => new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
+const daysSinceDate = (date) => Math.floor((Date.now() - date.valueOf()) / (1000 * 60 * 60 * 24));
+const DEFAULT_PROFILE = {
+    isFullAccount: true,
+    hasMinfinity: true,
+    isBacker: true,
+    screenName: "explorer 123",
+    rank: 10,
+    stat_ItemsPlaced: 19,
+    unfindable: true,
+    ageDays: 191919,
+};
+const DEFAULT_PLAYER_DATA = {
+    leftMinfinityAmount: 19191919,
+    boostsLeft: 19191919,
+};
+class PlayerDataManager {
+    idbKeyval;
+    db;
+    rid;
+    name;
+    age;
+    isFullAccount;
+    leftMinfinityAmount;
+    isBacker;
+    boostsLeft;
+    hasMinfinity;
+    rank;
+    stat_ItemsPlaced;
+    unfindable;
+    profileItemIds;
+    profileColor;
+    profileBackId;
+    profileDynaId;
+    constructor(idbKeyval, db, rid, profile, data) {
+        this.idbKeyval = idbKeyval;
+        this.db = db;
+        const { isFullAccount, isBacker, screenName, rank, stat_ItemsPlaced, unfindable, hasMinfinity, ageDays } = profile;
+        const { leftMinfinityAmount, boostsLeft } = data;
+        this.name = screenName;
+        this.rid = rid;
+        this.rank = rank;
+        this.stat_ItemsPlaced = stat_ItemsPlaced;
+        this.unfindable = unfindable;
+        this.age = rid === "000000000000000000000000" ? 191919 : daysSinceDate(dateFromObjectId(rid));
+        this.isFullAccount = isFullAccount;
+        this.isBacker = isBacker;
+        //this.leftMinfinityAmount = leftMinfinityAmount;
+        //this.boostsLeft = boostsLeft;
+        //this.hasMinfinity = hasMinfinity;
+        // Give free minfinity
+        this.leftMinfinityAmount = 191919;
+        this.boostsLeft = 191919;
+        this.hasMinfinity = true;
+        this.profileItemIds = profile.profileItemIds;
+        this.profileColor = profile.profileColor;
+        this.profileBackId = profile.profileBackId;
+        this.profileDynaId = profile.profileDynaId;
+        // Create default object for attachments
+        idbKeyval.update(`attachments-p${this.rid}`, (/** @type {Attachments | undefined} */ value) => {
+            if (value)
+                return value;
+            else
+                return {
+                    // TODO: pick a random base body
+                    "b": "00000000000000000000074f",
+                    "w": null,
+                    "m": null,
+                    "h": null,
+                    "br": null
+                };
+        });
+    }
+    static async make(idbKeyval, db) {
+        const playerId = (await idbKeyval.get(`our-player-id`)) || "000000000000000000000000";
+        const playerProfile = await idbKeyval.get(`playerData-p${playerId}`) || DEFAULT_PROFILE;
+        const playerData = DEFAULT_PLAYER_DATA; // TODO: load these from settings somehow?
+        // Create default object for profile (TODO: this is lame, make a proper "profiles" or "local players" concept)
+        idbKeyval.update(`playerData-p${playerId}`, (value) => {
+            if (value)
+                return value;
+            else
+                return DEFAULT_PROFILE;
+        });
+        return new PlayerDataManager(idbKeyval, db, playerId, playerProfile, playerData);
+    }
+    static async import_setProfile(idbKeyval, rid, playerData) {
+        await idbKeyval.set(`our-player-id`, rid);
+        await idbKeyval.set(`playerData-p${rid}`, playerData);
+    }
+    async getInitData_http() {
+        return {
+            "rid": this.rid,
+            "age": this.age,
+            "ifa": this.isFullAccount,
+            "lma": this.leftMinfinityAmount,
+            "isb": this.isBacker,
+            "bbl": this.boostsLeft,
+            "hmf": this.hasMinfinity,
+            "stn": await this.db.player_getSettings(this.rid),
+        };
+    }
+    getProfileData() {
+        return {
+            isFullAccount: this.isFullAccount,
+            hasMinfinity: this.hasMinfinity,
+            isBacker: this.isBacker,
+            screenName: this.name,
+            rank: this.rank,
+            stat_ItemsPlaced: this.stat_ItemsPlaced,
+            unfindable: this.unfindable,
+            ageDays: this.age,
+            profileItemIds: this.profileItemIds,
+            profileColor: this.profileColor,
+            profileBackId: this.profileBackId,
+            profileDynaId: this.profileDynaId,
+        };
+    }
+    async setName(newName) {
+        await this.idbKeyval.update(`playerData-p${this.rid}`, (value) => {
+            value.screenName = newName;
+            return value;
+        });
+        this.name = newName;
+    }
+    async setAttachment(slot, id) {
+        await this.idbKeyval.update(`attachments-p${this.rid}`, (value) => {
+            const atts = (value || {});
+            atts[slot] = id;
+            return atts;
+        });
+    }
+    async getAttachments() {
+        return await this.idbKeyval.get(`attachments-p${this.rid}`);
+    }
+    async getInitData_ws() {
+        return {
+            "ifa": this.isFullAccount,
+            "rid": this.rid,
+            "snm": this.name,
+            "aid": "80-1-1-f",
+            "att": await this.getAttachments(),
+            "r": 10,
+            "ani": "idle",
+            "flp": false,
+            "wof": {
+                "w": { "x": 0, "y": 0 }, "h": { "x": 0, "y": 0 }, "wp": { "x": 0, "y": 0 }
+            },
+            "shs": {},
+            "vce": await this.db.player_getVoice(this.rid),
+        };
+    }
+    async inv_collect(itemId, atIndex) {
+        let alreadyExisted = false;
+        await this.idbKeyval.update(`playerinventory-collected-p${this.rid}`, (val) => {
+            const inventory = (val || []);
+            const indexIfAlreadyCollected = inventory.indexOf(itemId);
+            if (indexIfAlreadyCollected > -1) {
+                alreadyExisted = true;
+                inventory.splice(indexIfAlreadyCollected, 1);
+            }
+            inventory.splice(atIndex, 0, itemId);
+            return inventory;
+        });
+        return { alreadyExisted };
+    }
+    async inv_getAllCollects() {
+        return await this.idbKeyval.get(`playerinventory-collected-p${this.rid}`) || [];
+    }
+    async inv_getCollectedPage(start, end) {
+        const fullInventory = await this.inv_getAllCollects();
+        return {
+            items: fullInventory.slice(start, end + 1),
+            itemCount: fullInventory.length
+        };
+    }
+    async inv_delCollect(itemId) {
+        await this.idbKeyval.update(`playerinventory-collected-p${this.rid}`, (val) => {
+            const inventory = (val || []);
+            const indexIfAlreadyCollected = inventory.indexOf(itemId);
+            if (indexIfAlreadyCollected > -1) {
+                inventory.splice(indexIfAlreadyCollected, 1);
+            }
+            return inventory;
+        });
+    }
+    // NOTE: local creations are saved under another key and merged with the "real" imported data so that we don't risk overwriting local creations.
+    async addLocalCreation(itemId) {
+        await this.idbKeyval.update(`playerinventory-created-LOCAL`, (val) => {
+            const inventory = (val || []);
+            inventory.unshift(itemId);
+            return inventory;
+        });
+    }
+    async inv_getAllCreated() {
+        const localCreations = await this.idbKeyval.get(`playerinventory-created-LOCAL`) || [];
+        const playerCreations = await this.idbKeyval.get(`playerinventory-created-p${this.rid}`) || [];
+        return localCreations.concat(playerCreations);
+    }
+    async inv_getCreatedPage(start, end) {
+        const fullInventory = await this.inv_getAllCreated();
+        return {
+            items: fullInventory.slice(start, end + 1),
+            itemCount: fullInventory.length
+        };
+    }
+    async inv_delCreated(itemId) {
+        await this.idbKeyval.update(`playerinventory-created-p${this.rid}`, (val) => {
+            const inventory = (val || []);
+            const indexIfAlreadyCollected = inventory.indexOf(itemId);
+            if (indexIfAlreadyCollected > -1) {
+                inventory.splice(indexIfAlreadyCollected, 1);
+            }
+            return inventory;
+        });
+    }
+    async import_setCollected(itemIds) {
+        await this.idbKeyval.set(`playerinventory-collected-p${this.rid}`, itemIds);
+    }
+    async import_setCreated(itemIds) {
+        await this.idbKeyval.set(`playerinventory-created-p${this.rid}`, itemIds);
+    }
+    async import_setSnaps(snaps) {
+        await this.idbKeyval.set(`playersnaps-p${this.rid}`, snaps);
+    }
+    async import_setMifts(miftsPub, miftsPriv) {
+        await this.idbKeyval.set(`playermifts-public-p${this.rid}`, miftsPub);
+        await this.idbKeyval.set(`playermifts-private-p${this.rid}`, miftsPriv);
+    }
+}
