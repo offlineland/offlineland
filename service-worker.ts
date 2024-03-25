@@ -1672,13 +1672,39 @@ const makeFakeAPI = async (
         const { creationId } = params;
         const inDb = await db.creation_getHolderContent(creationId)
 
-        if (inDb) { return json(inDb); }
-        else {
-            const placeholderData: HolderData = {
-                isCreator: false,
-                contents: [ {_id: groundId, itemId: groundId, x: 0, y: 0, z: 0, flip: 0, rot: 0, pageNo: 0} ]
+        if (inDb != undefined) { // `[] == false` but `[] != undefined` so can't do `!inDb`
+            // I messed up, so sometimes it's the full HolderData object and sometimes it's an array.
+            // This isn't so bad, but we should fix it in a db migration eventually
+            if (Array.isArray(inDb)) {
+                const placeholderData: HolderData = {
+                    isCreator: false,
+                    contents: inDb
+                }
+
+                return json(placeholderData)
+
             }
-            return json(placeholderData)
+            else {
+                return json(inDb);
+            }
+        }
+        else {
+            // TODO: only query if the holder is public?
+            const res = await fetch(`https://archival.offlineland.io/static/creations/holdercontents/${creationId}.json`)
+
+            if (res.ok) {
+                const text = await res.text();
+                const data = JSON.parse(text);
+                await db.creation_setHolderContent(creationId, data);
+                return json({ isCreator: false, contents: data });
+            }
+            else {
+                const placeholderData: HolderData = {
+                    isCreator: false,
+                    contents: [ {_id: groundId, itemId: groundId, x: 0, y: 0, z: 0, flip: 0, rot: 0, pageNo: 0} ]
+                }
+                return json(placeholderData)
+            }
         }
     });
 
