@@ -1766,16 +1766,28 @@ const makeFakeAPI = async (
 
 
     // #region News
+    const news = [
+            { _id: generateObjectId(), date: "2024-03-24T20:00", isImportant: false, text: "Placements now save in offlineland, and you can change your own name! (Also i'm using the news thing now) (SW version: 29)", },
+            { _id: generateObjectId(), date: "2024-03-14T04:00", isImportant: true,  text: "In case you missed out... you can now download your area from https://areabackup.com/ to load into offlineland! Chances are if your area was listed publicly, or appeared on Manyunity we have an archive of it. :tada:"},
+            { _id: generateObjectId(), date: "2024-03-03T20:30", isImportant: false, text: "Everyone now has edits everywere! Note that placements don't save yet" },
+            { _id: generateObjectId(), date: "2024-03-03T10:30", isImportant: false, text: "Fixed a bug where placements with too many colors in the palette would failwhale. Thanks Reave and Historia! (SW version: 25)"},
+            { _id: generateObjectId(), date: "2024-03-03T09:30", isImportant: false, text: "Fixed some items not showing up (SW version: 24)"},
+            { _id: generateObjectId(), date: "2024-02-29T07:00", isImportant: true,  text: "Manyland closes down :(" },
+    ]
     // GetUnreadCount
-    router.get("/j/n/guc/", ({ json }) => json( 319 ) );
+    router.get("/j/n/guc/", async ({ json }) => {
+        const lastReadDate = await idbKeyval.get(`news-last-read-date`)
+
+        if (!lastReadDate) return json( news.length )
+        else return json(news.filter(n => n.date > lastReadDate).length)
+    });
     // GetLatestNews
-    router.get("/j/n/gln/", ({ json }) => json( [
-        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-        { _id: generateObjectId(), text: "TODO", isImportant: false, date: new Date().toISOString(), unread: true },
-    ] ) );
+    router.get("/j/n/gln/", async ({ json }) => {
+        const lastReadDate = await idbKeyval.get(`news-last-read-date`)
+        await idbKeyval.set(`news-last-read-date`, news[0].date)
+
+        return json( news.map(n => ({ ...n, unread: lastReadDate < n.date })) )
+    } );
     // #endregion News
 
 
