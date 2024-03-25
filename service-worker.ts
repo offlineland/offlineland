@@ -255,8 +255,6 @@ const getAvailableAreas = async () => {
     const db = await dbPromise;
     const areasStoredLocally: string[] = [];
     const data = [
-        // TODO local areas
-        { areaUrlName: "offlineland", areaRealName: "OfflineLand", status: "DOWNLOADED" },
     ];
     
     // Areas in cache
@@ -1767,7 +1765,7 @@ const makeFakeAPI = async (
 
     // #region News
     const news = [
-            { _id: generateObjectId(), date: "2024-03-24T20:00", isImportant: false, text: "Placements now save in offlineland, and you can change your own name! (Also i'm using the news thing now) (SW version: 29)", },
+            { _id: generateObjectId(), date: "2024-03-24T20:00", isImportant: false, text: "Placements now save locally, you can create new local areas (but not delete them, that's on the todo list) and change your own name! (Also I'm using the news thing now) (SW version: 29)", },
             { _id: generateObjectId(), date: "2024-03-14T04:00", isImportant: true,  text: "In case you missed out... you can now download your area from https://areabackup.com/ to load into offlineland! Chances are if your area was listed publicly, or appeared on Manyunity we have an archive of it. :tada:"},
             { _id: generateObjectId(), date: "2024-03-03T20:30", isImportant: false, text: "Everyone now has edits everywere! Note that placements don't save yet" },
             { _id: generateObjectId(), date: "2024-03-03T10:30", isImportant: false, text: "Fixed a bug where placements with too many colors in the palette would failwhale. Thanks Reave and Historia! (SW version: 25)"},
@@ -2269,6 +2267,59 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
         }
         else if (message.m === "LOAD_AREA") {
             event.waitUntil(handleLoadArea(message.data.areaUrlName, client));
+        }
+        else if (message.m === "CREATE_AREA") {
+            console.log("creating area")
+            const player = await PlayerDataManager.make(idbKeyval, db);
+            const areaId = generateObjectId();
+            const areaUrlName = message.data.areaName.replace(/[^a-z0-9-]/gi, "");
+
+            
+            if (areaUrlName.startsWith("info") || await db.area_getDataByAun(areaUrlName)) {
+                client.postMessage({ m: "GENERIC_ERROR", data: { message: "This area name is not available" } });
+                return;
+            }
+
+            // TODO: allow creating subareas of an existing area
+            await db.area_setData({
+                "sub": false,
+                "acl": { "x": 15, "y": 15 },
+                "aid": areaId,
+                "gid": areaId,
+                "arn": message.data.areaName,
+                "agn": message.data.areaName,
+                "aun": areaUrlName,
+                "ard": "",
+                "adr": { "angle": 0, "speed": 0 },
+                "apr": "INDIVIDUALS",
+                "axx": false,
+                "aul": false,
+                "spe": false,
+                "ece": false,
+                "mpv": 191919,
+            })
+
+            await db.area_setSector( areaId, 0, 0, {
+                "iix": [groundId],
+                "ps": [
+                    [15, 17, 0, 0, 0, Date.now(), player.rid],
+                    [14, 17, 0, 0, 0, Date.now(), player.rid],
+                    [16, 17, 0, 0, 0, Date.now(), player.rid],
+                    [13, 17, 0, 0, 0, Date.now(), player.rid],
+                    [17, 17, 0, 0, 0, Date.now(), player.rid]
+                ],
+                "v": 1919,
+                "x": 0,
+                "y": 0,
+                "i": {
+                    "b": ["SOLID"],
+                    "p": [],
+                    "n": ["ground"],
+                    "dr": [null]
+                }
+            })
+
+            client.postMessage({ m: "AREA_CREATED", data: { areaUrlName } });
         }
         else if (message.m === "DELETE_AREA") {
             console.log("client sent DELETE_AREA!", message);

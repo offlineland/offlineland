@@ -133,10 +133,22 @@ class Modal {
     }
 }
 
+class CreateNewAreaBtn {
+    constructor() {
+        this.el = el("div.py-4.mx-auto.rounded.overflow-hidden.shadow-lg", [
+            el("a.w-36.h-10.text-center.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded", { onclick: () => this.onBtnClick() }, [ "Create local area" ])
+        ])
+    }
+
+    onBtnClick() {
+        // TODO: proper prompt
+        navigator.serviceWorker.controller.postMessage({ m: "CREATE_AREA", data: { areaName: prompt("Area name")} });
+    }
+}
 class MainInterface {
     constructor() {
         this.areaListEl = list("div.gap-1.md:gap-4.flex.flex-row.flex-wrap.justify-around", AreaCard)
-        this.el = el("div.flex.justify-center", [
+        this.el = el("div.flex.flex-col.justify-center", [
             el("span.loading.loading-spinner.loading-lg.pt-52"),
         ])
     }
@@ -146,7 +158,10 @@ class MainInterface {
 
         }
         else if (data.state === "AREALIST") {
-            setChildren(this.el, this.areaListEl);
+            setChildren(this.el, [
+                new CreateNewAreaBtn(),
+                this.areaListEl
+            ]);
             this.areaListEl.update(data.areas)
         }
         else if (data.state === "ERROR") {
@@ -353,6 +368,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             else if (msg.m === "SW_UNHANDLEDREJECTION") {
                 toastError(`Oops, something broke! ${msg.data.reason}`)
+            }
+            else if (msg.m === "AREA_CREATED") {
+                toastSuccess("Area created!")
+                window.location.pathname = "/" + msg.data.areaUrlName
             }
     })
 
