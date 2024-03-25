@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // This is mainly to debug cache issues
-const SW_VERSION = 31;
+const SW_VERSION = 32;
 
 type Snap = {};
 type idbKeyval = typeof import('idb-keyval/dist/index.d.ts');
@@ -1793,13 +1793,16 @@ const makeFakeAPI = async (
 
     // #region Search
     // Search Item
-    router.post("/j/s/i/", ({ json }) => json({ items: [ groundId ], more: false }) );
+    router.post("/j/s/i/", async ({ json }) => {
+        return json({ items: [ groundId ], more: false })
+    });
     // #endregion Search
 
 
 
     // #region News
     const news = [
+            { _id: generateObjectId(), date: "2024-03-25T23:40", isImportant: false, text: "Fixed a few bugs, and public holders should now show their content!", },
             { _id: generateObjectId(), date: "2024-03-24T20:00", isImportant: false, text: "Placements now save locally, you can create new local areas (but not delete them, that's on the todo list) and change your own name! (Also I'm using the news thing now) (SW version: 29)", },
             { _id: generateObjectId(), date: "2024-03-14T04:00", isImportant: true,  text: "In case you missed out... you can now download your area from https://areabackup.com/ to load into offlineland! Chances are if your area was listed publicly, or appeared on Manyunity we have an archive of it. :tada:"},
             { _id: generateObjectId(), date: "2024-03-03T20:30", isImportant: false, text: "Everyone now has edits everywere! Note that placements don't save yet" },
