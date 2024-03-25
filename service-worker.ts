@@ -56,6 +56,15 @@ const main = (
     self: ServiceWorkerGlobalScope,
 ) => {
 try {
+const notifyError = (error: Error, context: string) => {
+    self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ m: "SW_ERROR", data: {
+        name: error?.name,
+        message: `(while ${context}) ` + error?.message,
+        stack: error?.stack,
+    }})))
+}
+
+
 const originUrl = new URL(self.origin)
 const groundId = "50372a99f5d33dc56f000001"
 const SpriteGroundDataURI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABMAAAATBAMAAACAfiv/AAAAD1BMVEVaKx9+PSyjTjjJdmHzmY8fDNQBAAAAXklEQVQI13XP0Q2AIAxF0aYTIG7QLmD63AD2n8m+ojF+eL8OTQNBtqcmOyYbkZyrQYKdJMIyR5PuiTzlbre74ponww0pLgCGgBe9blvTfwYpQR6aVGFKmlb2efj9xQWlGxm7CYadIwAAAABJRU5ErkJggg=="
@@ -2329,8 +2338,9 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
         else {
             console.warn("Unhandled event", message)
         }
-    } catch(e) {
-        console.error("MSG: error processing message!", { message: event.data, error: e })
+    } catch(error) {
+        console.error("MSG: error processing message!", { message: event.data, error: error })
+        notifyError(error, `processing internal msg "${event.data?.m}"`)
     }
 };
 
@@ -2394,11 +2404,7 @@ self.addEventListener('message', handleClientMessage)
 self.addEventListener("error", (event) => {
     console.error("error event", event)
 
-    self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ m: "SW_ERROR", data: {
-        name: event.error?.name,
-        message: event.error?.message,
-        stack: event.error?.stack,
-    }})))
+    notifyError(event.error, "global error catcher");
 })
 
 self.addEventListener("unhandledrejection", (event) => {

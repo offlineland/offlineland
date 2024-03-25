@@ -38,11 +38,11 @@ navigator.serviceWorker?.addEventListener("message", (ev) => {
     }
     else if (msg.m === "SW_ERROR") {
         console.error("Oops, something broke!", msg.data)
-        ig.game.errorManager.O5208(`${msg.data.name}: "${msg.data.message}" | at ${msg.data.stack.toString()}`)
+        ig.game.errorManager.O5208(`${msg.data.name}: "${msg.data.message}" | at ${msg.data.stack?.toString() || "[no stack]"}`)
     }
     else if (msg.m === "SW_UNHANDLEDREJECTION") {
         console.error("Oops, something broke!", msg.data)
-        ig.game.errorManager.O5208(`${msg.data.name}: "${msg.data.message}" | at ${msg.data.stack.toString()}`)
+        ig.game.errorManager.O5208(`${msg.data.name}: "${msg.data.message}" | at ${msg.data.stack?.toString() || "[no stack]"}`)
     }
 })
 
