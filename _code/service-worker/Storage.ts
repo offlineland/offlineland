@@ -417,7 +417,7 @@ class AreaSectorManager_raw implements AreaSectorManager {
         const sectorData = await this.db.area_getSector(this.areaId, sector.x, sector.y, tx) || { "iix": [], "ps": [], "v": 1919, "x": sector.x, "y": sector.y, "i": { "b": [], "p": [], "n": [], "dr": [] } }
         const targetPsIndex = sectorData.ps.findIndex(([x, y]) => x === offset.x && y === offset.y)
 
-        if (!targetPsIndex) { // There's no placement here to delete
+        if (targetPsIndex === -1) { // There's no placement here to delete
             await tx.done;
             return {
                 ok: false as const,
