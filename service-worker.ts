@@ -2275,7 +2275,7 @@ const handleClientMessage = async (event: ExtendableMessageEvent) => {
             const areaUrlName = message.data.areaName.replace(/[^a-z0-9-]/gi, "");
 
             
-            if (areaUrlName.startsWith("info") || await db.area_getDataByAun(areaUrlName)) {
+            if (areaUrlName.startsWith("info") || areaUrlName === "support" || areaUrlName.length === 0 || await db.area_getDataByAun(areaUrlName)) {
                 client.postMessage({ m: "GENERIC_ERROR", data: { message: "This area name is not available" } });
                 return;
             }
